@@ -92,6 +92,12 @@ struct TOcProfile
 // Еталонний профіль, доведений на апараті (N95 8GB RM-320, прошивка 31.0.015).
 extern const TOcProfile KProfileRM320;
 
+// Профіль Nokia E90 (RA-6, 400.34.93). Чотири адреси виведено офлайн із XIP
+// (findings §31), dvfs у прошивці немає -> iDvfsBody=0, стратегія EReadMeasureOnly.
+// Розгінного шляху ще немає: Prepare() (шлях EReadDvfs) для нього НЕ придатний
+// і мусить відмовляти, а не патчити. Носій читання на E90 - бутстрап Usbc.
+extern const TOcProfile KProfileE90;
+
 // Регістри (віртуальні адреси; фізична = мінус 0x7E000000 для вікна 0x48xxxxxx).
 const TUint32 KRegClkSel1Pll = 0xc6008540u;
 const TUint32 KRegClkSel2Pll = 0xc6008544u;
@@ -231,6 +237,7 @@ enum TOcStep
     EOcStepResolveSram,       // ланцюг до лінійної адреси SRAM-копії
     EOcStepVerifySram,        // звірка копії з ROM-оригіналом
     EOcStepReadRegs,
+    EOcStepUnsupported,       // профіль не підтримує шлях EReadDvfs (напр. E90)
     EOcStepReady
     };
 
@@ -240,7 +247,15 @@ public:
     static COcEngine* NewL();
     ~COcEngine();
 
+    // Обрати профіль апарата ДО Prepare(). За замовчуванням KProfileRM320.
+    // Ігнорується після того, як двигун уже готовий.
+    void SetProfile(const TOcProfile& aProfile) { if (!iReady) iProfile = &aProfile; }
+    const TOcProfile& Profile() const { return *iProfile; }
+
     // Робить усе до готовності. KErrNone = можна розганяти.
+    // Працює лише для профілю зі стратегією EReadDvfs (RM-320 і рідня). Для
+    // профілю без dvfs (E90, iDvfsBody=0) свідомо відмовляє з EOcStepUnsupported,
+    // а не патчить чуже тіло ядра (findings §27).
     TInt Prepare();
     TBool IsReady() const { return iReady; }
     TOcStep FailedAt() const { return iStep; }

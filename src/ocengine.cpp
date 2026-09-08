@@ -35,6 +35,43 @@ const TOcProfile KProfileRM320 =
     KStockClkSelMpu,
     KStockMult
     };
+
+// --- Nokia E90 (RA-6, 400.34.93) --------------------------------------------
+//
+// Адреси виведено ОФЛАЙН із резидентного XIP E90 (out/roms/e90.rom, база
+// 0x80000000) і байтово звірено (findings §31, out/analysis/e90.md):
+//   iRomSramRoutine  0x80056874  пролог relock-рутини, як у RM-320;
+//   iDspSetter       0x80059aa4  сеттер дільника DSP, маска 0x1f, як у RM-320;
+//   iPwrDownGlobal   0xc8004194  геттер/сеттер str/ldr r0,[global,#4] у power-зоні.
+// dvfs у прошивці E90 НЕМАЄ (перевірено: "dvfs" у XIP стосується дисплея), тож
+// iDvfsBody = 0, а стратегія читання - EReadMeasureOnly (регістр не читаємо,
+// міряємо роботу). Носій примітиву читання/виконання на E90 - бутстрап через
+// хост Usbc (findings §32, ocprobe UsbcBoot), окремо від цього двигуна.
+//
+// ШТАТНА розкладка тактування (iStockClkSel1Core / iStockClkSelMpu) офлайн НЕ
+// виведена: код ініціалізації лежить у стиснутій пейджованій частині, якої в
+// резидентному XIP немає. Лишаємо 0 - жоден активний шлях їх ще не читає, бо
+// Prepare() для цього профілю відмовляє (EOcStepUnsupported). Заповнити з
+// апарата при першому вимірювальному прогоні через примітив Usbc; НЕ вгадувати
+// (панель E90 інша, тож дільники CORE/DSS відрізняються від RM-320).
+// iStockMult = 86: OMAP2420 стартує на DPLL 330 МГц на всій цій лінійці; на
+// E90 підтвердити читанням поля [21:12] CM_CLKSEL1_PLL перед першим розгоном.
+const TUint32 KE90RomSramRoutine = 0x80056874u;
+const TUint32 KE90DspSetter      = 0x80059aa4u;
+const TUint32 KE90PwrDownGlobal  = 0xc8004194u;
+const TOcProfile KProfileE90 =
+    {
+    "RA-6 400.34.93",
+    EReadMeasureOnly,
+    0,                      // iDvfsBody: dvfs у прошивці немає
+    KE90RomSramRoutine,
+    KE90DspSetter,
+    KE90PwrDownGlobal,
+    0,                      // iStockClkSel1Core: не виведено офлайн, читати з апарата
+    0,                      // iStockClkSelMpu:   те саме
+    86                      // iStockMult: OMAP2420/330, підтвердити на апараті
+    };
+
 // Firmware займає перші 1024 байти чанка; пишемо зі зсувом 2048 з 4096.
 const TUint32 KSramSlot = 0x800u;
 
@@ -665,6 +702,7 @@ _LIT(KStepOpenDvfs,    "opening dvfs_interface");
 _LIT(KStepResolveSram, "resolving SRAM chunk");
 _LIT(KStepVerifySram,  "verifying SRAM copy");
 _LIT(KStepReadRegs,    "reading PRCM registers");
+_LIT(KStepUnsupported, "profile has no dvfs read path (E90)");
 _LIT(KStepReady,       "ready");
 
 const TDesC& COcEngine::StepName(TOcStep aStep)
@@ -679,6 +717,7 @@ const TDesC& COcEngine::StepName(TOcStep aStep)
         case EOcStepResolveSram: return KStepResolveSram;
         case EOcStepVerifySram:  return KStepVerifySram;
         case EOcStepReadRegs:    return KStepReadRegs;
+        case EOcStepUnsupported: return KStepUnsupported;
         case EOcStepReady:       return KStepReady;
         default:                 return KStepIdle;
         }
@@ -874,6 +913,17 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
 
 TInt COcEngine::Prepare()
     {
+    // Запобіжник переносу: уся ця процедура патчить iDvfsBody і читає ядро через
+    // цей патч. На профілі без dvfs (E90: iRead != EReadDvfs, iDvfsBody == 0)
+    // накладання патча пішло б в адресу 0 чужого ядра й повісило б апарат
+    // (findings §27). Тому відмовляємо ДО будь-якого дотику до ядра. Шлях
+    // читання для таких апаратів - бутстрап Usbc, окрема процедура.
+    if (iProfile->iRead != EReadDvfs || iProfile->iDvfsBody == 0)
+        {
+        iStep = EOcStepUnsupported;
+        return KErrNotSupported;
+        }
+
     iStep = EOcStepLoadDriver;
     TInt r = User::LoadLogicalDevice(KPatcherFile);
     if (r != KErrNone && r != KErrAlreadyExists)

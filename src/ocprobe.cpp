@@ -425,6 +425,12 @@ static TBool SameLayout(const TClockSnap &aA, const TClockSnap &aB)
            (aB.iCore & (KCoreL3Mask | KCoreDss1Mask));
     }
 
+// Обраний профіль апарата. Вмикається в E32Main за наявності слова "e90" в
+// команді. За замовчуванням RM-320. Двигун бере адреси з профілю, тож помилковий
+// профіль на чужому апараті - це не просто хибні числа, а патч у чуже ядро; тому
+// вибір явний і єдиний.
+static TBool gUseE90Profile = EFalse;
+
 static COcEngine *PrepareEngine()
     {
     COcEngine *e = NULL;
@@ -433,6 +439,11 @@ static COcEngine *PrepareEngine()
         {
         LogF(_L8("engine alloc failed: %d"), err);
         return NULL;
+        }
+    if (gUseE90Profile)
+        {
+        e->SetProfile(KProfileE90);
+        LogF(_L8("profile: %s (EReadMeasureOnly, no dvfs)"), e->Profile().iId);
         }
     TInt r = e->Prepare();
     if (r != KErrNone)
@@ -2040,6 +2051,12 @@ static void RunL()
     // інакше RM-320 (де є dvfs-оракул для звірки самого механізму).
     const TBool usbcboot = (cmd.Find(_L("usbcboot")) != KErrNotFound);
     const TBool quiet = patcherRun || e90scan || usbcboot;
+    // Профіль E90 для patcher-команд: "patcher ... e90" бере KProfileE90. Тоді
+    // Prepare() (шлях EReadDvfs) свідомо відмовить (EOcStepUnsupported) замість
+    // патчити RM-320-адреси в чуже ядро E90 (findings §27). Розгінний шлях E90
+    // (через Usbc) - окремо; тут лише безпечна відмова.
+    if (patcherRun && cmd.Find(_L("e90")) != KErrNotFound)
+        gUseE90Profile = ETrue;
 
     ProbeHal();
     if (e90scan)
