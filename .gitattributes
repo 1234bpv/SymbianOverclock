@@ -1,0 +1,23 @@
+# Нормалізувати перенос рядків у текстових файлах
+* text=auto
+
+# Скрипти Windows тримати з CRLF (cmd/bat ламаються від LF)
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+# Джерела й документація — LF
+*.cpp  text eol=lf
+*.h    text eol=lf
+*.js   text eol=lf
+*.md   text eol=lf
+*.mmp  text eol=lf
+*.rss  text eol=lf
+*.pkg  text eol=lf
+*.inf  text eol=lf
+
+# Бінарні артефакти
+*.sis   binary
+*.rom   binary
+*.bmp   binary
+*.png   binary
