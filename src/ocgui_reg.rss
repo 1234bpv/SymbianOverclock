@@ -1,0 +1,17 @@
+// Реєстрація застосунку: без неї EXE лежить у \sys\bin і його нічим запустити
+// з меню. Ім'я мусить бути рівно <app_file>_reg.rsc, інакше apparc запис не
+// підхоплює.
+
+#include <appinfo.rh>
+
+UID2 KUidAppRegistrationResourceFile
+UID3 0xE0001011
+
+RESOURCE APP_REGISTRATION_INFO
+	{
+	app_file = "ocgui";
+	hidden = KAppNotHidden;
+	embeddability = KAppNotEmbeddable;
+	newfile = KAppDoesNotSupportNewFile;
+	launch = KAppLaunchInForeground;
+	}

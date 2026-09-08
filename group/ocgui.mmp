@@ -1,0 +1,55 @@
+// Застосунок розгону з інтерфейсом на апараті.
+//
+// UID2 нуль, як у демона й у stage1 PS1Emulator: застосунком EXE робить файл
+// реєстрації, а не UID2. 0x100039CE тут лише додавав би ризику - пакети з ним
+// на цьому апараті не встановлювались.
+
+TARGET          ocgui.exe
+TARGETTYPE      exe
+UID             0 0xE0001011
+SECUREID        0xE0001011
+VENDORID        0
+
+// Той самий набір, що й у пробника: PowerMgmt - найімовірніша перевірка в
+// DDVFSChannel::DoCreate, решта - щоб відмова каналу була змістовним висновком,
+// а не наслідком бракуючого дозволу. ReadDeviceData не входить у самопідписний
+// набір, тож пакет ставиться лише на цьому вже розблокованому апараті.
+CAPABILITY      PowerMgmt WriteDeviceData ReadDeviceData ReadUserData WriteUserData ProtServ
+
+// Блоб relock і замір такту покладаються на фіксоване кодування ARM: у THUMB
+// і розподіл регістрів, і вартість інструкцій інші.
+ALWAYS_BUILD_AS_ARM
+
+EPOCSTACKSIZE   0x5000
+// 2 МБ під тестовий буфер плюс запас: робочий набір мусить бути явно більший
+// за кеш, інакше тест шини міряв би кеш.
+EPOCHEAPSIZE    0x10000 0x800000
+
+SOURCEPATH      ..\src
+SOURCE          ocgui.cpp
+SOURCE          ocengine.cpp
+
+// Ресурс застосунку. Ім'я мусить збігатися з app_file у ocgui_reg.rss -
+// фреймворк шукає рівно \resource\apps\<app_file>.rsc.
+START RESOURCE  ocgui.rss
+TARGET          ocgui
+TARGETPATH      \resource\apps
+END
+
+START RESOURCE  ocgui_reg.rss
+TARGETPATH      \private\10003a3f\import\apps
+END
+
+SYSTEMINCLUDE   \epoc32\include
+
+LIBRARY         euser.lib
+LIBRARY         efsrv.lib
+LIBRARY         hal.lib
+LIBRARY         apparc.lib
+LIBRARY         cone.lib
+LIBRARY         eikcore.lib
+LIBRARY         eikcoctl.lib
+LIBRARY         avkon.lib
+LIBRARY         ws32.lib
+LIBRARY         gdi.lib
+LIBRARY         bafl.lib

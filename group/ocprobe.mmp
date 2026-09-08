@@ -1,0 +1,37 @@
+// Пробник DVFS. Консольного виводу немає - демон запускає його без термінала,
+// тож звіт іде у файл E:\ocprobe.log, який ПК потім забирає через GET.
+
+TARGET          ocprobe.exe
+TARGETTYPE      exe
+UID             0 0xE0001010
+SECUREID        0xE0001010
+VENDORID        0
+
+// PowerMgmt - найімовірніший претендент на перевірку в DDVFSChannel::DoCreate.
+// Решта - щоб відмова не виявилась відмовою з іншої, побічної причини: якщо
+// канал не відкриється, це має бути змістовний висновок, а не наслідок
+// бракуючого дозволу на запис логу.
+// Широкий набір: E90-скан пробує відкрити довільні kernel-канали, а різні
+// драйвери перевіряють різні дозволи (CommDD, MultimediaDD, NetworkControl...).
+// Щоб відмова відкриття означала саме недоступність каналу, а не брак дозволу,
+// беремо все, що приймає dev-сертифікат на зламаному апараті (усе, крім
+// виробничих TCB/AllFiles/DRM).
+CAPABILITY      PowerMgmt WriteDeviceData ReadDeviceData ReadUserData WriteUserData ProtServ CommDD MultimediaDD NetworkControl NetworkServices LocalServices Location SwEvent TrustedUI SurroundingsDD UserEnvironment DiskAdmin
+
+// Абсолютний замір частоти покладається на вбудований асемблер із фіксованою
+// вартістю такту на інструкцію. У THUMB розподіл регістрів і кодування інші,
+// тож ціль збирається як ARM.
+ALWAYS_BUILD_AS_ARM
+
+EPOCSTACKSIZE   0x5000
+EPOCHEAPSIZE    0x10000 0x800000
+
+SOURCEPATH      ..\src
+SOURCE          ocprobe.cpp
+SOURCE          ocengine.cpp
+
+SYSTEMINCLUDE   \epoc32\include
+
+LIBRARY         euser.lib
+LIBRARY         efsrv.lib
+LIBRARY         hal.lib

@@ -1,0 +1,6 @@
+PRJ_PLATFORMS
+GCCE
+
+PRJ_MMPFILES
+ocprobe.mmp
+ocgui.mmp
