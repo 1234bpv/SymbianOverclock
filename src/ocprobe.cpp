@@ -1372,9 +1372,12 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
         {
         cur += (aMult > cur) ? 1 : -1;
         TUint32 st = 0;
-        const TUint32 stepCore = e->CompensatedCore(cur);
-        r = e->ApplyMultAndCore(cur, stepCore, 0, st);
+        r = e->ApplyMultAndCore(cur, e->CompensatedCore(cur), 0, st);
         status |= st;
+        // Друкуємо те, що двигун ВІДДАВ у залізо, а не те, що ми порахували:
+        // поле l3 він затискає живим значенням (findings §38.2), і друк наміру
+        // показував би шину, якої немає.
+        const TUint32 stepCore = e->LastCoreWritten();
         TOcClocks sc;
         e->ClocksFor(cur, sc);
         sc.iL3Div = (TInt)(stepCore & KCoreL3Mask);
@@ -1412,8 +1415,17 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
 
     SnapClocks(e, snap);
     LogSnap(_L8("applied"), snap);
+    // Звіряємось із тим, що двигун НАСПРАВДІ віддав у залізо, а не з тим, що
+    // ми замовили: поле l3 він затискає живим значенням, бо підйом шини
+    // смертельний (findings §38.2). Інакше свідомий затиск читався б як відмова
+    // апаратури, тобто прилад брехав би про власну роботу.
+    const TUint32 wroteCore = e->LastCoreWritten();
+    const TInt wroteL3 = (TInt)(wroteCore & KCoreL3Mask);
+    if (wroteL3 != aL3)
+        LogF(_L8("  bus clamp: l3 %d -> %d (raising the bus is 4/4 fatal; reboot for stock)"),
+             aL3, wroteL3);
     if ((snap.iMpu & KMpuDivMask) != (TUint32)aMpu ||
-        (snap.iCore & KCoreL3Mask) != (TUint32)aL3 ||
+        (TInt)(snap.iCore & KCoreL3Mask) != wroteL3 ||
         ((snap.iCore & KCoreDss1Mask) >> KCoreDss1Shift) != (TUint32)aDss)
         Log(_L8("  MISMATCH: hardware did not take the layout"));
     else

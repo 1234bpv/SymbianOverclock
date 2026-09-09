@@ -395,7 +395,12 @@ public:
     // небезпечний для чужих викликів (findings §20), а частота ні.
     void KeepOnExit(TBool aKeep) { iKeep = aKeep; }
     TInt AppliedMult() const { return iAppliedMult; }
-    // ETrue, якщо RestoreStock свідомо не піднімав дільник шини назад.
+    // Розкладка, яку насправді віддали в залізо на останньому записі. Може
+    // відрізнятись від замовленої: поле l3 затискається живим значенням, бо
+    // підйом шини смертельний (findings §38.2).
+    TUint32 LastCoreWritten() const { return iLastCoreWritten; }
+    // ETrue, якщо шину лишено зниженою свідомо (відмова в RestoreStock або
+    // затиск у ApplyMultAndCore). Ребут повертає штатне тактування.
     TBool RestoreNeedsReboot() const { return iRestoreNeedsReboot; }
 
 private:
@@ -435,6 +440,7 @@ private:
     // апаратах (findings 38.2). Тому RestoreStock відмовляється це робити
     // й лишає апарат на зниженій шині, а користувачеві каже перезавантажитись.
     TBool    iRestoreNeedsReboot;
+    TUint32  iLastCoreWritten;
     TInt     iAppliedMult;
     TUint32  iSram;
     TUint32  iStockClkSel1;

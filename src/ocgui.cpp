@@ -36,6 +36,9 @@
 
 #include "ocengine.h"
 
+// Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
+_LIT(KAppVersion, "SymbianOverclock 1.6.0");
+
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
 // --- прилади: кожен водночас і стрес-тест, і бенчмарк -----------------------
@@ -347,7 +350,7 @@ void COcView::ConstructL(const TRect& aRect)
     {
     TBuf<32> pid;
     pid.Copy(TPtrC8((const TUint8*)prof->iId));
-    AddLogF(_L("profile: %S"), &pid);
+    AddLogF(_L("profile: %S  %S"), &pid, &KAppVersion);
     }
 
     TInt r = iEngine->Prepare();
@@ -983,13 +986,19 @@ void COcView::Activate(TRowId aRow)
             // Чи ВЗЯВСЯ запис дільників. Апаратура відкидає весь запис у
             // CM_CLKSEL1_CORE, якщо хоч одне поле недійсне, і мовчки; доти
             // застосунок звітував про намір, а не про результат (findings 38).
+            // Порівнюємо з тим, що двигун НАСПРАВДІ віддав у залізо: поле l3 він
+            // затискає живим значенням, бо підйом шини смертельний (findings 38.2).
+            const TUint32 wroteCore = iEngine->LastCoreWritten();
+            if (wroteCore != iArmedCore)
+                AddLogF(_L("bus clamped: l3 %d (reboot for stock)"),
+                        (TInt)(wroteCore & KCoreL3Mask));
             TUint32 liveCore = 0;
             if (iEngine->LiveCore(liveCore) == KErrNone)
                 AddLogF(_L("core %08x (want %08x) l3=%d dss1=%d %S"),
-                        liveCore, iArmedCore,
+                        liveCore, wroteCore,
                         (TInt)(liveCore & KCoreL3Mask),
                         (TInt)((liveCore & KCoreDss1Mask) >> KCoreDss1Shift),
-                        (liveCore == iArmedCore) ? &KDivApplied : &KDivRejected);
+                        (liveCore == wroteCore) ? &KDivApplied : &KDivRejected);
             }
             if (r != KErrNone)
                 {

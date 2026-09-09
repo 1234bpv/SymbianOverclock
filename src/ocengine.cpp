@@ -705,7 +705,7 @@ TUint32 TOcClocks::L3Khz() const
 COcEngine::COcEngine()
   : iProfile(&KProfileRM320),
     iPatcherOpen(EFalse), iDvfsOpen(EFalse), iReady(EFalse), iExecMode(EFalse), iPatched(EFalse), iShadowed(EFalse),
-    iApplied(EFalse), iKeep(EFalse), iRestoreNeedsReboot(EFalse), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
+    iApplied(EFalse), iKeep(EFalse), iRestoreNeedsReboot(EFalse), iLastCoreWritten(0), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
     iBootCore(0), iBootMpu(0), iBootMult(0),
     iStockDspDiv(0), iDspDiv(0), iStep(EOcStepIdle)
     {
@@ -1584,10 +1584,33 @@ TInt COcEngine::ApplyMultAndCore(TInt aMult, TUint32 aCoreReg, TUint32 aMpuReg,
     if (aMult < KOcMultMin || aMult > KOcMultMax)
         return KErrArgument;
 
+    // Єдина точка, крізь яку проходить БУДЬ-ЯКИЙ запис розкладки, тож
+    // запобіжник шини стоїть саме тут, а не лише в RestoreStock.
+    //
+    // Підйом шини (зменшення l3div проти живого) убив апарат чотири рази з
+    // чотирьох (findings §38.2). Але просто відмовити в записі означало б
+    // заблокувати розгін після будь-якої зміни шини, тож ми не відмовляємо, а
+    // ЗАТИСКАЄМО поле l3 живим значенням: множник міняється як просили, шина
+    // лишається зниженою, і про це видно з прапорця. Ребут поверне штатну.
+    if (aCoreReg)
+        {
+        TUint32 liveCore = 0;
+        if (ReadReg(KRegClkSel1Core, liveCore) == KErrNone)
+            {
+            const TUint32 liveL3 = liveCore & KCoreL3Mask;
+            if ((aCoreReg & KCoreL3Mask) < liveL3)
+                {
+                aCoreReg = (aCoreReg & ~KCoreL3Mask) | liveL3;
+                iRestoreNeedsReboot = ETrue;
+                }
+            }
+        }
+
     // Міняємо рівно біти [21:12], решту регістра зберігаємо.
     TUint32 target = (iStockClkSel1 & ~0x003ff000u) |
                      (((TUint32)aMult & 0x3ff) << 12);
 
+    iLastCoreWritten = aCoreReg;
     TInt r = WriteRelockBlob(target, aCoreReg, aMpuReg ? aMpuReg : iStockMpu);
     if (r != KErrNone)
         return r;
