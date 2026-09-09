@@ -1329,6 +1329,15 @@ TInt COcEngine::LiveMult(TInt& aOut)
     return KErrNone;
     }
 
+// Читання назад ЖИВОГО CM_CLKSEL1_CORE. Довго його бракувало, і саме через це
+// хибний висновок прожив місяць: апаратура відкидає ВЕСЬ запис у цей регістр,
+// якщо хоч одне поле недійсне (§26), а жоден лог того не показував - ми звітували
+// про НАМІР, а не про результат. Тепер кожен прогін каже, чи запис узявся.
+TInt COcEngine::LiveCore(TUint32& aOut)
+    {
+    return ReadReg(KRegClkSel1Core, aOut);
+    }
+
 TInt COcEngine::WriteRelockBlob(TUint32 aClkSel1Value, TUint32 aCoreValue,
                                 TUint32 aMpuValue)
     {

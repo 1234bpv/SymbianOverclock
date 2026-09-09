@@ -333,6 +333,9 @@ public:
     TUint32 DspKhz(TInt aDiv) const;
     // Перечитує CM_CLKSEL1_PLL з апарата й повертає фактичний множник.
     TInt LiveMult(TInt& aOut);
+    // Живий CM_CLKSEL1_CORE. Звіряти з тим, що збирались записати: недійсне
+    // значення в ОДНОМУ полі відкидає весь запис, і мовчки (findings §26).
+    TInt LiveCore(TUint32& aOut);
 
     // Виконує relock. aStatus: 0 = чисто, біт0 = таймаут bypass (множник НЕ
     // записано), біт1 = таймаут CLKCFG, біт2 = таймаут lock.

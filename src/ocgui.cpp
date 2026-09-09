@@ -510,6 +510,9 @@ void COcView::ReportResult(const TDesC& aName, const TTestResult& aRes,
 
 _LIT(KModeAuto, "AUTO (track stock)");
 _LIT(KModeManual, "MANUAL");
+// Вердикт про запис дільників - словами, щоб його було видно з екрана апарата.
+_LIT(KDivApplied,  "APPLIED");
+_LIT(KDivRejected, "REJECTED");
 _LIT(KUnitMitr, "Mitr/s");
 _LIT(KUnitMbs, "MB/s");
 _LIT(KNameAlu, "ALU");
@@ -976,6 +979,18 @@ void COcView::Activate(TRowId aRow)
             TInt r = iEngine->ApplyRampWithCore(iArmedMult, iArmedCore,
                                                 iArmedMpu, st);
             iStatus.Zero();
+            {
+            // Чи ВЗЯВСЯ запис дільників. Апаратура відкидає весь запис у
+            // CM_CLKSEL1_CORE, якщо хоч одне поле недійсне, і мовчки; доти
+            // застосунок звітував про намір, а не про результат (findings 38).
+            TUint32 liveCore = 0;
+            if (iEngine->LiveCore(liveCore) == KErrNone)
+                AddLogF(_L("core %08x (want %08x) l3=%d dss1=%d %S"),
+                        liveCore, iArmedCore,
+                        (TInt)(liveCore & KCoreL3Mask),
+                        (TInt)((liveCore & KCoreDss1Mask) >> KCoreDss1Shift),
+                        (liveCore == iArmedCore) ? &KDivApplied : &KDivRejected);
+            }
             if (r != KErrNone)
                 {
                 AddLogF(_L("apply failed: %d st=%u"), r, st);

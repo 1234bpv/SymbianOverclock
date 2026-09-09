@@ -1001,6 +1001,20 @@ static void HoldOverclock(TInt aMult)
     TInt live = 0;
     e->LiveMult(live);
     LogF(_L8("  live mult now %d"), live);
+    {
+    // Дільники звіряємо ОКРЕМО від множника. Апаратура відкидає весь запис у
+    // CM_CLKSEL1_CORE, якщо хоч одне поле недійсне, і робить це мовчки; доти
+    // логи звітували про намір, а не про результат (findings 38).
+    // Намір: у цих двох шляхах дільники підбирає автоматика.
+    const TUint32 wantCore = e->CompensatedCore(aMult);
+    TUint32 liveCore = 0;
+    if (e->LiveCore(liveCore) == KErrNone)
+        LogF(_L8("  live CLKSEL1_CORE %08x (wanted %08x) -> l3=%d dss1=%d  %s"),
+             liveCore, wantCore,
+             (TInt)(liveCore & KCoreL3Mask),
+             (TInt)((liveCore & KCoreDss1Mask) >> KCoreDss1Shift),
+             (liveCore == wantCore) ? "DIVIDERS APPLIED" : "*** DIVIDERS REJECTED ***");
+    }
     if (r != KErrNone || live != aMult)
         {
         Log(_L8("  NOT held: ramp failed, engine will restore stock"));
@@ -1526,6 +1540,20 @@ static void RunOverclock(TInt aMult)
     TInt live = 0;
     e->LiveMult(live);
     LogF(_L8("  live mult now %d"), live);
+    {
+    // Дільники звіряємо ОКРЕМО від множника. Апаратура відкидає весь запис у
+    // CM_CLKSEL1_CORE, якщо хоч одне поле недійсне, і робить це мовчки; доти
+    // логи звітували про намір, а не про результат (findings 38).
+    // Намір: у цих двох шляхах дільники підбирає автоматика.
+    const TUint32 wantCore = e->CompensatedCore(aMult);
+    TUint32 liveCore = 0;
+    if (e->LiveCore(liveCore) == KErrNone)
+        LogF(_L8("  live CLKSEL1_CORE %08x (wanted %08x) -> l3=%d dss1=%d  %s"),
+             liveCore, wantCore,
+             (TInt)(liveCore & KCoreL3Mask),
+             (TInt)((liveCore & KCoreDss1Mask) >> KCoreDss1Shift),
+             (liveCore == wantCore) ? "DIVIDERS APPLIED" : "*** DIVIDERS REJECTED ***");
+    }
 
     TUint32 mhzAfter = BestMhz(5);
     TUint32 aluAfter = BestAlu(3, kAluIter);
