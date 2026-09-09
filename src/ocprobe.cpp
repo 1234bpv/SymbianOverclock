@@ -1393,9 +1393,14 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
         return;
         }
 
-    // Крок 2: один явний запис кінцевої розкладки на кінцевому множнику.
+    // Крок 2: кінцева розкладка - ТИМ САМИМ шляхом, яким її пише застосунок.
+    //
+    // Раніше тут стояв прямий ApplyMultAndCore, а застосунок ходив через
+    // ApplyRampWithCore. Саме ця розбіжність і сховала помилку §38.1: пробник
+    // писав розкладку завжди, застосунок - лише коли змінювався множник. Тепер
+    // шлях один, тож цей прогін є справжньою перевіркою того, що робить GUI.
     status = 0;
-    r = e->ApplyMultAndCore(aMult, coreReg, mpuReg, status);
+    r = e->ApplyRampWithCore(aMult, coreReg, mpuReg, status);
     LogF(_L8("  layout write -> r=%d status=%u (0=ok,1=bypass,2=cfg,4=lock,8=rollback failed)"),
          r, status);
     if (r != KErrNone || status != 0)
