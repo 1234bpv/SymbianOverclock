@@ -1783,10 +1783,17 @@ static void RomScan()
     const TUint32 base = 0x80000000u;
     LogF(_L8("scanning [0x%08x .. 0x%08x)"), base, base + span);
 
-    struct { TUint32 iVal; const char* iName; } sig[3];
+    // Літерали, за якими впізнаються потрібні функції. Бази SDRC і фізичної
+    // SRAM - найцінніші: на RM-320 перший мав лише power.dll (findings 17),
+    // другий стоїть у конструкторі, що копіює процедуру в SRAM.
+    const TInt KSigCount = 6;
+    struct { TUint32 iVal; const char* iName; } sig[KSigCount];
     sig[0].iVal = 0xc6008540u; sig[0].iName = "CM_CLKSEL1_PLL (virt)";
     sig[1].iVal = 0x48008540u; sig[1].iName = "CM_CLKSEL1_PLL (phys)";
     sig[2].iVal = 0xc6008140u; sig[2].iName = "CM_CLKSEL_MPU (virt)";
+    sig[3].iVal = 0xc6129000u; sig[3].iName = "SDRC base (virt)";
+    sig[4].iVal = 0x4029e000u; sig[4].iName = "OMAP internal SRAM (phys)";
+    sig[5].iVal = 0xc6014000u; sig[5].iName = "CONTROL base (virt)";
 
     // Штатний пролог DLddUsbcChannel::DoControl - чотири слова поспіль. Саме
     // цей носій обрано для READ/EXEC-примітиву (findings 32); адресу з
@@ -1803,7 +1810,7 @@ static void RomScan()
             LogF(_L8("  .. at 0x%08x"), a);
         const TUint32 w = *(volatile TUint32*)a;
 
-        for (TInt i = 0; i < 3; ++i)
+        for (TInt i = 0; i < KSigCount; ++i)
             if (w == sig[i].iVal)
                 {
                 TBuf8<32> nm; nm.Copy(TPtrC8((const TUint8*)sig[i].iName));

@@ -31,12 +31,26 @@ public:
     TInt FreeShadow(TUint32& aAddress, TUint32& aLength);
     };
 
+// Носій READ/EXEC-примітиву. На RM-320 це dvfs_interface, на E90 - Usbc
+// (dvfs у прошивці E90 немає, findings §27/§32). Різняться лише назва каналу,
+// опкод DoControl і регістр, у якому до тіла приходить адреса; сама механіка
+// патча спільна, тож канал параметризується, а не дублюється.
+enum TOcHost
+    {
+    EHostDvfs = 0,   // dvfs_interface, DoControl(1, a1), адреса в r1
+    EHostUsbc        // Usbc (DLddUsbcChannel), DoControl(69, a1), адреса в r2
+    };
+
 class RDvfsChannel : public RBusLogicalChannel
     {
 public:
+    RDvfsChannel() : iHost(EHostDvfs) {}
+    void SetHost(TOcHost aHost) { iHost = aHost; }
     TInt Open();
     // Після READ-патчу - читання за адресою; після EXEC-патчу - виклик за нею.
     TInt ReadOrCall(TUint32 aAddress);
+private:
+    TOcHost iHost;
     };
 
 // Межі повзунка. 129 - це рівно +50% від штатних 86; 43 - симетрично вниз.
@@ -65,7 +79,9 @@ const TInt    KStockMult        = 86;            // DPLL 330.24 -> CORE 660.48
 // Стратегія читання поточної частоти - залежить від того, що є в прошивці.
 enum TOcReadStrategy
     {
-    EReadDvfs = 0,     // патч тіла dvfs_interface DoControl(1): штатний шлях RM-320
+    // Патч тіла DoControl носія. Який саме носій - каже iHost: dvfs_interface
+    // на RM-320, Usbc на E90. Назва лишилась історичною.
+    EReadDvfs = 0,
     EReadPowerHelper,  // виклик helper'а читання регістра з power.dll (де dvfs нема)
     EReadMeasureOnly   // регістр не читаємо взагалі, міряємо роботу (найпереносніше)
     };
@@ -78,7 +94,8 @@ struct TOcProfile
     {
     const char*     iId;              // ідентифікатор прошивки, напр. "RM-320 31.0.015"
     TOcReadStrategy iRead;
-    TUint32         iDvfsBody;        // тіло DoControl(1); 0 якщо dvfs в прошивці нема
+    TOcHost         iHost;            // носій примітиву (див. TOcHost)
+    TUint32         iDvfsBody;        // тіло DoControl носія; 0 якщо носія нема
     TUint32         iRomSramRoutine;  // idle/relock рутина power.dll (для обходу DPLL)
     TUint32         iDspSetter;       // штатний сеттер дільника DSP у power.dll
     TUint32         iPwrDownGlobal;   // глобал power-down (резолв адреси SRAM)

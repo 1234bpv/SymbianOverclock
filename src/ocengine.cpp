@@ -7,6 +7,8 @@ _LIT(KPatcherFile, "patcher.ldd");
 _LIT(KPatcherName, "RomPatcherPlus.Driver");
 _LIT(KDvfsFile, "dvfs_interface.ldd");
 _LIT(KDvfsName, "dvfs_interface");
+// Носій примітиву там, де dvfs немає: стандартний драйвер USB-клієнта.
+_LIT(KUsbcName, "Usbc");
 
 // Тіло dvfs_interface DoControl(1): рівно 6 слів, 0x80148410..0x80148427.
 // Диспетчер починається з 0x80148428 і лишається недоторканим.
@@ -27,6 +29,7 @@ const TOcProfile KProfileRM320 =
     {
     "RM-320 31.0.015",
     EReadDvfs,
+    EHostDvfs,
     KDvfsBody,
     KRomSramRoutine,
     KDspSetter,
@@ -47,9 +50,22 @@ const TOcProfile KProfileRM320 =
 // дістати правильні вже є і перевірений: сигнатурний скан живого ROM
 // (ocprobe romscan / romdump), яким уже виміряно хост Usbc 0x800bf874.
 // dvfs у прошивці E90 НЕМАЄ (перевірено: "dvfs" у XIP стосується дисплея), тож
-// iDvfsBody = 0, а стратегія читання - EReadMeasureOnly (регістр не читаємо,
-// міряємо роботу). Носій примітиву читання/виконання на E90 - бутстрап через
-// хост Usbc (findings §32, ocprobe UsbcBoot), окремо від цього двигуна.
+// носієм READ/EXEC-примітиву тут працює Usbc: iHost = EHostUsbc, а iDvfsBody -
+// адреса тіла DLddUsbcChannel::DoControl. Механіка патча спільна з RM-320,
+// різняться лише опкод, регістр аргументу й слова відкату (findings §32, §34).
+//
+// Три адреси нижче ВИМІРЯНО на живому апараті 2026-09-09 сигнатурним сканом
+// (romscan -> romdump -> objdump), а не виведено з офлайнового образу:
+//   iDvfsBody       0x800bf874  тіло DoControl; пролог звірено, диспетчер за
+//                               0x800c09a4 кличе саме його і пропускає opcode 69;
+//   iRomSramRoutine 0x80058da4  relock-рутина: DSB, SDRC+0x70 |= 0x48, перевірка
+//                               ревізії кремнію, bypass, WFI, relock, DLL 0x770E -
+//                               структурно та сама, що на RM-320, і саме її
+//                               адресу конструктор подає в memmove до SRAM;
+//   iPwrDownGlobal  0xc8003068  глобал, у який лягає об'єкт power-down
+//                               (str r0,[r5,#4] @0x80059448).
+// Сеттер дільника DSP ще не виміряний - для розгону він не потрібен, його
+// вживає лише побічна гілка DSP, тож лишається 0 і гілка сама себе вимикає.
 //
 // ШТАТНА розкладка тактування ВИМІРЯНА на апараті 2026-09-09 примітивом Usbc
 // (findings §34), а не виведена офлайн і не вгадана:
@@ -62,14 +78,16 @@ const TOcProfile KProfileRM320 =
 // має бути сталою, але при першому WRITE-прогоні її варто перечитати.
 // Число mult=97 з бутстрапу (§33) до робочого штату ОС не стосується, а самі
 // адреси §33 виведені з розкладки, яку апарат спростував.
-const TUint32 KE90RomSramRoutine = 0u;   // виміряти на апараті (findings §34)
-const TUint32 KE90DspSetter      = 0u;   // виміряти на апараті (findings §34)
-const TUint32 KE90PwrDownGlobal  = 0u;   // виміряти на апараті (findings §34)
+const TUint32 KE90HostBody       = 0x800bf874u;  // DLddUsbcChannel::DoControl
+const TUint32 KE90RomSramRoutine = 0x80058da4u;
+const TUint32 KE90DspSetter      = 0u;   // не потрібен для розгону, не міряний
+const TUint32 KE90PwrDownGlobal  = 0xc8003068u;
 const TOcProfile KProfileE90 =
     {
     "RA-6 400.34.93",
-    EReadMeasureOnly,
-    0,                      // iDvfsBody: dvfs у прошивці немає
+    EReadDvfs,              // читання через патч тіла DoControl носія
+    EHostUsbc,              // носій - Usbc, бо dvfs у прошивці немає
+    KE90HostBody,
     KE90RomSramRoutine,
     KE90DspSetter,
     KE90PwrDownGlobal,
@@ -133,6 +151,20 @@ __asm__(
 "   bx   lr                     \n"
 "   .word 0xDEADBEEF            \n"   // дозволена адреса; патчиться зовні
 "OcExecPatchEnd:                \n"
+"                               \n"
+// Те саме для носія Usbc, де адреса приходить у r2 (findings §34). Обережність
+// тут та сама й не менш потрібна: канал Usbc теж не наш власний, тож стрибаємо
+// лише на єдину дозволену адресу, а решті повертаємо 0.
+"   .global OcExecPatchR2Start  \n"
+"   .global OcExecPatchR2End    \n"
+"OcExecPatchR2Start:            \n"
+"   ldr  r0, [pc, #12]          \n"   // -> літерал нижче
+"   cmp  r2, r0                 \n"
+"   bxeq r2                     \n"
+"   mov  r0, #0                 \n"
+"   bx   lr                     \n"
+"   .word 0xDEADBEEF            \n"   // дозволена адреса; патчиться зовні
+"OcExecPatchR2End:              \n"
 "                               \n"
 // Трамплін до ШТАТНОГО сеттера дільника DSP у power.dll (@0x800AC59C).
 //
@@ -390,6 +422,8 @@ extern "C" void OcRelockBlobStart(void);
 extern "C" void OcRelockBlobEnd(void);
 extern "C" void OcExecPatchStart(void);
 extern "C" void OcExecPatchEnd(void);
+extern "C" void OcExecPatchR2Start(void);
+extern "C" void OcExecPatchR2End(void);
 extern "C" void OcDspBlobStart(void);
 extern "C" void OcDspBlobEnd(void);
 extern "C" void OcDivBlobStart(void);
@@ -413,6 +447,35 @@ static const TUint32 KDvfsOriginal[6] =
 static const TUint32 KReadPatch[4] =
     { 0xe3510000u, 0x15910000u, 0x03a00000u, 0xe12fff1eu };
 
+// Те саме для носія Usbc, де адреса приходить у r2 (findings §32/§34):
+//   cmp r2,#0 ; ldrne r0,[r2] ; moveq r0,#0 ; bx lr
+static const TUint32 KReadPatchR2[4] =
+    { 0xe3520000u, 0x15920000u, 0x03a00000u, 0xe12fff1eu };
+
+// Штатні 6 слів тіла DLddUsbcChannel::DoControl на E90, ЗНЯТІ З ЖИВОГО ROM
+// (romdump 0x800bf874, findings §34) - не з офлайнового образу, розкладку
+// якого апарат спростував. Роль та сама, що в KDvfsOriginal: без відкату
+// підмінене тіло чужого драйвера лишається в ROM-shadow до перезавантаження.
+static const TUint32 KUsbcOriginal[6] =
+    { 0xe92d4ff0u,   // stmdb sp!, {r4-r9, sl, fp, lr}
+      0xe24dd044u,   // sub   sp, sp, #68
+      0xe1a04000u,   // mov   r4, r0
+      0xe1a06002u,   // mov   r6, r2
+      0xe1a07001u,   // mov   r7, r1
+      0xe3a01000u }; // mov   r1, #0
+
+// Вибір за профілем. Тримати в одному місці, щоб гілки не розійшлись.
+static const TUint32* HostOriginal(const TOcProfile* aP, TInt& aWords)
+    {
+    if (aP->iHost == EHostUsbc) { aWords = 6; return KUsbcOriginal; }
+    aWords = 6; return KDvfsOriginal;
+    }
+
+static const TUint32* HostReadPatch(const TOcProfile* aP)
+    {
+    return (aP->iHost == EHostUsbc) ? KReadPatchR2 : KReadPatch;
+    }
+
 
 // --- канали -----------------------------------------------------------------
 
@@ -434,13 +497,25 @@ TInt RPatcherChannel::FreeShadow(TUint32& aAddress, TUint32& aLength)
 
 TInt RDvfsChannel::Open()
     {
+    if (iHost == EHostUsbc)
+        {
+        // Драйвер USB-клієнта відкривається без кабелю; версію добираємо, бо
+        // між прошивками вона різна (перевірено: на E90 бере 0.0.0).
+        const TVersion vers[] = { TVersion(0,0,0), TVersion(1,0,0), TVersion(2,0,0) };
+        TInt r = KErrNotFound;
+        for (TInt i = 0; i < 3 && r != KErrNone; ++i)
+            r = DoCreate(KUsbcName, vers[i], KNullUnit, NULL, NULL, EOwnerProcess);
+        return r;
+        }
     return DoCreate(KDvfsName, TVersion(0,0,0), KNullUnit, NULL, NULL,
                     EOwnerProcess);
     }
 
 TInt RDvfsChannel::ReadOrCall(TUint32 aAddress)
     {
-    return DoControl(1, (TAny*)aAddress);
+    // Опкод 69 диспетчер Usbc пропускає до DoControl навіть коли канал не
+    // готовий (USB без кабелю) - саме тому цей носій і обрано (findings §32).
+    return DoControl((iHost == EHostUsbc) ? 69 : 1, (TAny*)aAddress);
     }
 
 // --- поля CM_CLKSEL1_CORE ---------------------------------------------------
@@ -663,7 +738,9 @@ TInt COcEngine::RestoreKernelCode()
     {
     if (!iPatcherOpen || !iPatched)
         return KErrNone;
-    TInt r = PokeWords(iProfile->iDvfsBody, KDvfsOriginal, 6);
+    TInt words = 0;
+    const TUint32* orig = HostOriginal(iProfile, words);
+    TInt r = PokeWords(iProfile->iDvfsBody, orig, words);
     if (r == KErrNone)
         {
         iPatched = EFalse;
@@ -697,6 +774,23 @@ TInt COcEngine::VerifyRestored()
     {
     if (!iDvfsOpen || iPatched)
         return KErrNotReady;
+    if (iProfile->iHost == EHostUsbc)
+        {
+        // Трюк із відсотком тут не працює: штатний DoControl(69, x) на Usbc
+        // повертає 0 і без патча (виміряно, findings §34).
+        //
+        // Кликати штатний DoControl(69) з ненульовим a1 задля перевірки НЕ МОЖНА:
+        // опкод 69 у справжньому драйвері - реальна функція, і що вона зробить із
+        // чужим покажчиком, ми не знаємо. Натомість перевіряємо прямо: на цьому
+        // апараті XIP читається з user mode (findings §34), тож просто звіряємо
+        // шість слів тіла з еталоном. Це сильніший доказ за будь-який непрямий -
+        // ми дивимось на самі байти, і жодного виклику в ядро не робимо.
+        const volatile TUint32* body = (const volatile TUint32*)iProfile->iDvfsBody;
+        for (TInt i = 0; i < 6; ++i)
+            if (body[i] != KUsbcOriginal[i])
+                return 0;
+        return 1;
+        }
     return iDvfs.ReadOrCall(0);
     }
 
@@ -758,6 +852,13 @@ TInt COcEngine::PokeWords(TUint32 aAddr, const TUint32* aWords, TInt aCount)
 // стан, а нам треба гарантувати, що наступний DoControl(1) піде у свіже тіло.
 TInt COcEngine::ReopenDvfs()
     {
+    // Носій Usbc відкриваємо РАЗ і не смикаємо. Доведений прогін (usbcboot)
+    // відкривав канал ДО накладання патча; close/open уже пропатченого драйвера
+    // USB - зайвий ризик, бо DoCreate виконує справжню ініціалізацію драйвера,
+    // а сліпе відкриття kernel-каналів на E90 вже валило апарат (state.md,
+    // 2026-09-02). Для dvfs поведінка лишається як була.
+    if (iProfile->iHost == EHostUsbc && iDvfsOpen)
+        return KErrNone;
     if (iDvfsOpen)
         {
         iDvfs.Close();
@@ -776,7 +877,7 @@ TInt COcEngine::ReopenDvfs()
 // а апарат до цієї роботи був стабільний, тож нову churn вносити нема за що.
 TInt COcEngine::ApplyReadPatch()
     {
-    TInt r = PokeWords(iProfile->iDvfsBody, KReadPatch, 4);
+    TInt r = PokeWords(iProfile->iDvfsBody, HostReadPatch(iProfile), 4);
     if (r != KErrNone)
         return r;
     iExecMode = EFalse;
@@ -789,8 +890,11 @@ TInt COcEngine::ApplyExecPatch()
     {
     // Байти беремо з асемблерного шаблону, а не з масиву констант: кодування
     // інструкцій рахує асемблер, а не я вручну.
-    const TUint8* p = (const TUint8*)((TUint32)&OcExecPatchStart & ~1u);
-    const TUint8* q = (const TUint8*)((TUint32)&OcExecPatchEnd & ~1u);
+    const TBool r2 = (iProfile->iHost == EHostUsbc);
+    const TUint8* p = (const TUint8*)((TUint32)(r2 ? &OcExecPatchR2Start
+                                                  : &OcExecPatchStart) & ~1u);
+    const TUint8* q = (const TUint8*)((TUint32)(r2 ? &OcExecPatchR2End
+                                                  : &OcExecPatchEnd) & ~1u);
     TInt len = (TInt)(q - p);
     if (len != 24)
         return KErrCorrupt;
@@ -925,7 +1029,11 @@ TInt COcEngine::Prepare()
     // накладання патча пішло б в адресу 0 чужого ядра й повісило б апарат
     // (findings §27). Тому відмовляємо ДО будь-якого дотику до ядра. Шлях
     // читання для таких апаратів - бутстрап Usbc, окрема процедура.
-    if (iProfile->iRead != EReadDvfs || iProfile->iDvfsBody == 0)
+    // Нулі в цих полях означають "ще не виміряно". Патчити за нульовою адресою
+    // або звіряти SRAM проти нуля - гарантований спосіб покласти апарат, тож
+    // відмовляємо ДО будь-якого дотику до ядра.
+    if (iProfile->iRead != EReadDvfs || iProfile->iDvfsBody == 0
+        || iProfile->iRomSramRoutine == 0 || iProfile->iPwrDownGlobal == 0)
         {
         iStep = EOcStepUnsupported;
         return KErrNotSupported;
@@ -935,8 +1043,10 @@ TInt COcEngine::Prepare()
     TInt r = User::LoadLogicalDevice(KPatcherFile);
     if (r != KErrNone && r != KErrAlreadyExists)
         return r;
-    // dvfs_interface у ROM уже є, але спроба не завадить.
-    User::LoadLogicalDevice(KDvfsFile);
+    // Носій примітиву обирає профіль; канал має знати про це ДО відкриття.
+    iDvfs.SetHost(iProfile->iHost);
+    if (iProfile->iHost == EHostDvfs)
+        User::LoadLogicalDevice(KDvfsFile);   // у ROM уже є, спроба не завадить
 
     iStep = EOcStepOpenPatcher;
     r = iPatcher.Open();
@@ -957,12 +1067,25 @@ TInt COcEngine::Prepare()
     if (r != KErrNone || target.Compare(bytes) != 0)
         return (r != KErrNone) ? r : KErrCorrupt;
 
+    // Носій Usbc відкриваємо ДО патча - у тому самому порядку, що й доведений
+    // usbcboot. Якщо канал не відкрився, у ядро не пишеться нічого.
+    if (iProfile->iHost == EHostUsbc)
+        {
+        iStep = EOcStepOpenDvfs;
+        r = ReopenDvfs();
+        if (r != KErrNone)
+            return r;
+        }
+
     // Позначаємо патч накладеним ДО запису: якщо PokeWords ляже частково (драйвер
     // міг уже створити shadow-сторінку), EndPatchSession нижче все одно відкотить.
     iStep = EOcStepReadPatch;
     iExecMode = EFalse;
     iPatched = ETrue;
-    r = PokeWords(iProfile->iDvfsBody, KReadPatch, 4);
+    // Саме профільний варіант: на носії Usbc адреса приходить у r2, а в r1
+    // лежить опкод. r1-стаб тут розіменував би 69 у режимі ядра - перевірено
+    // на власній шкурі 2026-09-09, апарат ліг миттєво.
+    r = PokeWords(iProfile->iDvfsBody, HostReadPatch(iProfile), 4);
     if (r == KErrNone)
         r = PrepareProbe();
 
@@ -985,6 +1108,16 @@ TInt COcEngine::PrepareProbe()
     TInt r = ReopenDvfs();
     if (r != KErrNone)
         return r;
+
+    // Носій Usbc: спершу довести, що патч ЖИВИЙ, і лише тоді йому вірити.
+    // Без цієї перевірки нуль від штатного DoControl(69) не відрізнити від
+    // нуля, прочитаного примітивом, - саме на цьому колись згубився бутстрап
+    // (findings §34). Вектор скидання відомий і незмінний.
+    if (iProfile->iHost == EHostUsbc)
+        {
+        if ((TUint32)iDvfs.ReadOrCall(0x80000000u) != 0xea00007eu)
+            return KErrNotReady;
+        }
 
     iStep = EOcStepResolveSram;
     TUint32 obj = (TUint32)iDvfs.ReadOrCall(iProfile->iPwrDownGlobal + 4);
