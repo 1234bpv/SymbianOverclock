@@ -440,12 +440,23 @@ static COcEngine *PrepareEngine()
         LogF(_L8("engine alloc failed: %d"), err);
         return NULL;
         }
-    if (gUseE90Profile)
+    // Профіль добираємо за апаратом. Слово "e90" лишається ЯВНИМ перевизначенням
+    // для перевірок, але типовою поведінкою є автовибір: інакше той самий
+    // "patcher oc 111", запущений на E90 без цього слова, узяв би адреси RM-320
+    // і пропатчив би їх у чуже ядро.
+    const TOcProfile* prof = gUseE90Profile ? &KProfileE90 : ProfileForThisDevice();
+    if (!prof)
         {
-        e->SetProfile(KProfileE90);
-        LogF(_L8("profile: %s (host Usbc, DoControl(69), a1 in r2)"),
-             e->Profile().iId);
+        TInt uid = 0;
+        HAL::Get(HALData::EMachineUid, uid);
+        LogF(_L8("unknown device (machine uid %08x) - no profile, refusing"),
+             (TUint32)uid);
+        delete e;
+        return NULL;
         }
+    e->SetProfile(*prof);
+    LogF(_L8("profile: %s%s"), prof->iId,
+         gUseE90Profile ? "  (forced by command line)" : "  (auto by machine uid)");
     TInt r = e->Prepare();
     if (r != KErrNone)
         {
@@ -1606,7 +1617,13 @@ static void ProbeHal()
             { HALData::ECPU,                  "ECPU"                 },
             { HALData::ECPUABI,               "ECPUABI"              },
             { HALData::EMemoryRAM,            "EMemoryRAM"           },
-            { HALData::EMemoryRAMFree,        "EMemoryRAMFree"       }
+            { HALData::EMemoryRAMFree,        "EMemoryRAMFree"       },
+            // Ідентифікація апарата для автовибору профілю в GUI: там немає
+            // командного рядка, а взяти чужий профіль означає пропатчити чужі
+            // адреси в ядро.
+            { HALData::EMachineUid,           "EMachineUid"          },
+            { HALData::EModel,                "EModel"               },
+            { HALData::EManufacturer,         "EManufacturer"        }
         };
     const TInt n = sizeof(attrs) / sizeof(attrs[0]);
     for (TInt i = 0; i < n; ++i)

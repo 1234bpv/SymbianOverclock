@@ -326,6 +326,30 @@ void COcView::ConstructL(const TRect& aRect)
         gFcFreq = (TUint32)fc;
 
     iEngine = COcEngine::NewL();
+
+    // Профіль апарата добираємо самі: командного рядка тут немає, а чужий
+    // профіль означав би патч чужих адрес у ядро. Невідомий апарат - чесна
+    // відмова ДО будь-якого дотику до ядра, а не здогад.
+    const TOcProfile* prof = ProfileForThisDevice();
+    if (!prof)
+        {
+        TInt uid = 0;
+        HAL::Get(HALData::EMachineUid, uid);
+        iStatus.Format(_L("UNKNOWN DEVICE (uid %08x) - refusing"), (TUint32)uid);
+        AddLog(iStatus);
+        AddLogF(_L("no profile for machine uid %08x; nothing touched"),
+                (TUint32)uid);
+        iMult = 86;
+        ActivateL();       // вікно мусить лишитись живим, щоб відмову було видно
+        return;
+        }
+    iEngine->SetProfile(*prof);
+    {
+    TBuf<32> pid;
+    pid.Copy(TPtrC8((const TUint8*)prof->iId));
+    AddLogF(_L("profile: %S"), &pid);
+    }
+
     TInt r = iEngine->Prepare();
     if (r == KErrNone)
         {

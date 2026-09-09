@@ -93,6 +93,10 @@ enum TOcReadStrategy
 struct TOcProfile
     {
     const char*     iId;              // ідентифікатор прошивки, напр. "RM-320 31.0.015"
+    // HAL EMachineUid цього апарата. За ним профіль добирається САМ - у
+    // застосунку немає командного рядка, а взяти чужий профіль означає
+    // пропатчити чужі адреси в чуже ядро.
+    TUint32         iMachineUid;
     TOcReadStrategy iRead;
     TOcHost         iHost;            // носій примітиву (див. TOcHost)
     TUint32         iDvfsBody;        // тіло DoControl носія; 0 якщо носія нема
@@ -108,6 +112,11 @@ struct TOcProfile
 
 // Еталонний профіль, доведений на апараті (N95 8GB RM-320, прошивка 31.0.015).
 extern const TOcProfile KProfileRM320;
+
+// Добір профілю за HAL EMachineUid. Повертає NULL, якщо апарат невідомий, і це
+// ЄДИНА правильна відповідь у такому разі: мовчазне падіння на еталонний
+// профіль означало б патч адрес RM-320 у чуже ядро.
+const TOcProfile* ProfileForThisDevice();
 
 // Профіль Nokia E90 (RA-6, 400.34.93). Чотири адреси виведено офлайн із XIP
 // (findings §31), dvfs у прошивці немає -> iDvfsBody=0, стратегія EReadMeasureOnly.

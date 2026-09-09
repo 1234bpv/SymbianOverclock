@@ -2,6 +2,7 @@
 
 #include "ocengine.h"
 #include <e32svr.h>
+#include <hal.h>
 
 _LIT(KPatcherFile, "patcher.ldd");
 _LIT(KPatcherName, "RomPatcherPlus.Driver");
@@ -28,6 +29,7 @@ const TUint32 KRomSramRoutine = 0x800a7f6cu;
 const TOcProfile KProfileRM320 =
     {
     "RM-320 31.0.015",
+    0x20002d84u,            // HAL EMachineUid, знято з апарата
     EReadDvfs,
     EHostDvfs,
     KDvfsBody,
@@ -85,6 +87,7 @@ const TUint32 KE90PwrDownGlobal  = 0xc8003068u;
 const TOcProfile KProfileE90 =
     {
     "RA-6 400.34.93",
+    0x20002496u,            // HAL EMachineUid, знято з апарата
     EReadDvfs,              // читання через патч тіла DoControl носія
     EHostUsbc,              // носій - Usbc, бо dvfs у прошивці немає
     KE90HostBody,
@@ -96,6 +99,27 @@ const TOcProfile KProfileE90 =
     86                      // iStockMult: ВИМІРЯНО (CM_CLKSEL1_PLL=0x00056400,
                             //   mult=86 div=4 sys_clk=19.2 -> 330.24 МГц, як RM-320)
     };
+
+// Добір профілю за апаратом. Список тримати тут, поруч із самими профілями.
+//
+// Свідомо НЕ робимо запасного варіанту "якщо не впізнали - беремо еталонний".
+// Профіль - це чотири адреси, які патчаться в ядро; на невпізнаному апараті
+// вони вказують у нікуди, і ціна помилки - перезавантаження щонайменше.
+// Невідомий апарат мусить отримати чесну відмову, а не здогад.
+const TOcProfile* ProfileForThisDevice()
+    {
+    const TOcProfile* const known[] = { &KProfileRM320, &KProfileE90 };
+    const TInt n = sizeof(known) / sizeof(known[0]);
+
+    TInt uid = 0;
+    if (HAL::Get(HALData::EMachineUid, uid) != KErrNone)
+        return NULL;
+
+    for (TInt i = 0; i < n; ++i)
+        if (known[i]->iMachineUid == (TUint32)uid)
+            return known[i];
+    return NULL;
+    }
 
 // Firmware займає перші 1024 байти чанка; пишемо зі зсувом 2048 з 4096.
 const TUint32 KSramSlot = 0x800u;

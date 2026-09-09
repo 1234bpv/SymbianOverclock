@@ -14,7 +14,10 @@ VENDORID        0
 // DDVFSChannel::DoCreate, решта - щоб відмова каналу була змістовним висновком,
 // а не наслідком бракуючого дозволу. ReadDeviceData не входить у самопідписний
 // набір, тож пакет ставиться лише на цьому вже розблокованому апараті.
-CAPABILITY      PowerMgmt WriteDeviceData ReadDeviceData ReadUserData WriteUserData ProtServ
+// CommDD додано 2026-09-09: на E90 носієм READ/EXEC-примітиву є драйвер
+// USB-клієнта Usbc, а його DoCreate без CommDD віддає -46. Без цього рядка
+// застосунок на E90 стартує, але двигун лишається NOT READY.
+CAPABILITY      PowerMgmt WriteDeviceData ReadDeviceData ReadUserData WriteUserData ProtServ CommDD
 
 // Блоб relock і замір такту покладаються на фіксоване кодування ARM: у THUMB
 // і розподіл регістрів, і вартість інструкцій інші.
