@@ -20,3 +20,7 @@ group/ABLD.BAT
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# розпаковані dumpsis-ом пакети (перевірка вмісту .sis)
+SymbianOverclock_sha1/
+group/SymbianOverclock_sha1/
