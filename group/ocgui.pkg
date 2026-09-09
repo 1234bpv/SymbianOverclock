@@ -1,4 +1,12 @@
-; SymbianOverclock: on-device CPU/bus overclocking for OMAP2420 (N95 8GB).
+; SymbianOverclock: on-device CPU/bus overclocking for TI OMAP 2420.
+;
+; Supports two phones and tells them apart by itself, from HAL EMachineUid:
+;   0x20002D84  Nokia N95 8GB (RM-320)
+;   0x20002496  Nokia E90 (RA-6)
+; Each device carries its own profile - the kernel addresses to patch and its
+; own stock clock layout - and an unrecognised phone is refused outright, with
+; nothing written to the kernel. There is no fallback to the reference profile:
+; a wrong profile means patching foreign addresses into a foreign kernel.
 ; ASCII only, CRLF only: makesis misparses UTF-8 and LF line endings.
 ;
 ; Shaped like daemon.pkg - the package shape this phone is known to install:
@@ -12,13 +20,17 @@
 ; the whole package fail to install. It has to be present already - the app says
 ; so plainly when it is missing.
 ;
+; The application declares CommDD. On the E90 the read/exec primitive rides on
+; the USB client driver, and opening that channel without CommDD returns -46,
+; which shows up as an engine that never becomes ready.
+;
 ; Nothing here runs at boot: no startup-list resource, no autostart. The
 ; overclock is applied only by hand, from inside the application, and any
 ; reboot returns the phone to stock.
 
 &EN
 
-#{"SymbianOverclock"},(0xE0001011),1,4,0
+#{"SymbianOverclock"},(0xE0001011),1,5,0
 
 %{"SymbianOverclock"}
 :"SymbianOverclock"
