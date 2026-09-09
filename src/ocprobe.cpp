@@ -443,7 +443,8 @@ static COcEngine *PrepareEngine()
     if (gUseE90Profile)
         {
         e->SetProfile(KProfileE90);
-        LogF(_L8("profile: %s (EReadMeasureOnly, no dvfs)"), e->Profile().iId);
+        LogF(_L8("profile: %s (host Usbc, DoControl(69), a1 in r2)"),
+             e->Profile().iId);
         }
     TInt r = e->Prepare();
     if (r != KErrNone)
@@ -465,7 +466,8 @@ static COcEngine *PrepareEngine()
         LogF(_L8("  NOT STOCK AT START: m=%d CLKSEL1_CORE=%08x CLKSEL_MPU=%08x"
                  "  (stock: m=%d %08x %08x)"),
               e->BootMult(), e->BootCore(), e->BootMpu(),
-              KStockMult, KStockClkSel1Core, KStockClkSelMpu);
+              e->Profile().iStockMult, e->Profile().iStockClkSel1Core,
+              e->Profile().iStockClkSelMpu);
     return e;
     }
 

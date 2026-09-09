@@ -295,9 +295,14 @@ public:
     TUint32 BootCore() const { return iBootCore; }
     TUint32 BootMpu() const { return iBootMpu; }
     TInt BootMult() const { return iBootMult; }
+    // Порівнюємо з опорною точкою ЦЬОГО апарата, а не з еталонною. Інакше на
+    // E90, у якого штатний l3div=6 проти 4 у RM-320, кожен прогін хибно звітував
+    // би "NOT STOCK AT START" на цілком штатному апараті.
     TBool BootedNonStock() const
-        { return iBootMult != KStockMult || iBootCore != KStockClkSel1Core ||
-                 (iBootMpu & KMpuDivMask) != (KStockClkSelMpu & KMpuDivMask); }
+        { return iBootMult != iProfile->iStockMult
+              || iBootCore != iProfile->iStockClkSel1Core
+              || (iBootMpu & KMpuDivMask)
+                     != (iProfile->iStockClkSelMpu & KMpuDivMask); }
 
     TInt ReadReg(TUint32 aAddr, TUint32& aOut);
     // Кілька адрес за одне накладання READ-патчу. Менше вікон, у які може
