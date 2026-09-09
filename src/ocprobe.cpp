@@ -1723,6 +1723,180 @@ static void E90ScanReaders()
     LogF(_L8("=== %d LDD, %d PDD ==="), total, tp);
     }
 
+// --- Чи читається XIP ROM із користувацького режиму, і чи там те, що ми думаємо
+//
+// Базу 0x80000000 для out/roms/e90.rom узято за аналогією з RM-320, а не
+// виміряно. Якщо вона хибна, всі адреси профілю E90 зсунуті, і патч лягає в
+// чужу сторінку - тихо, без падіння, рівно як ми й бачимо.
+//
+// Проба безпечна для апарата: якщо ROM користувацькому режиму недоступний,
+// гине НАШ процес (KERN-EXEC 3), а не система. Лог скидається після кожного
+// рядка, тож адреса останньої спроби лишається видимою.
+static void RomRead(TBool aIsE90)
+    {
+    Log(_L8("=== romread: чи читається XIP з user mode і чи збігається база ==="));
+
+    struct { TUint32 iAddr; TUint32 iVal; const char* iName; } known[3];
+    known[0].iAddr = 0x80000000u; known[0].iVal = 0xea00007eu; known[0].iName = "reset";
+    known[1].iAddr = aIsE90 ? 0x800b76dcu : 0x800b16ecu;
+    known[1].iVal  = 0xc6008540u; known[1].iName = "mult-pool";
+    known[2].iAddr = aIsE90 ? 0x80056874u : 0x800a7f6cu;
+    known[2].iVal  = 0xe92d40feu; known[2].iName = "sram-routine";
+
+    TInt ok = 0;
+    for (TInt i = 0; i < 3; ++i)
+        {
+        TBuf8<24> nm; nm.Copy(TPtrC8((const TUint8*)known[i].iName));
+        LogF(_L8("  reading [0x%08x] (%S) ..."), known[i].iAddr, &nm);
+        const TUint32 got = *(volatile TUint32*)known[i].iAddr;
+        const TBool match = (got == known[i].iVal);
+        if (match) ++ok;
+        LogF(_L8("    -> 0x%08x  expect 0x%08x  %s"),
+             got, known[i].iVal, match ? "MATCH" : "*** MISMATCH ***");
+        }
+    LogF(_L8("  === %d/3 -> XIP %s з user mode, база %s ==="),
+         ok, (ok > 0) ? "ЧИТАЄТЬСЯ" : "не читається",
+         (ok == 3) ? "ПІДТВЕРДЖЕНА" : "під питанням");
+    }
+
+// --- Сигнатурний скан живого XIP з користувацького режиму --------------------
+//
+// Наслідок romread: ROM читається з user mode. Отже адреси, залежні від
+// прошивки, можна знаходити НА АПАРАТІ, а не виводити з образу - тобто без
+// ядерного примітиву читання, в який упиралася вся офлайнова гілка.
+//
+// Шукаємо константи, які код тактування тримає в літеральних пулах. Це самі
+// адреси регістрів PRCM, а вони від прошивки не залежать (це OMAP2420), тож
+// сигнатура однакова на всіх апаратах цієї лінійки.
+static void RomScan()
+    {
+    Log(_L8("=== romscan: сигнатурний пошук у живому XIP (user mode) ==="));
+
+    TInt romSize = 0;
+    const TInt hr = HAL::Get(HALData::EMemoryROM, romSize);
+    LogF(_L8("HAL EMemoryROM -> %d (%d bytes, %d KB)"), hr, romSize, romSize / 1024);
+    // HAL віддає ROM у кілобайтах на частині апаратів; беремо обережніше зі
+    // двох тлумачень, щоб не вийти за край і не вбити власний процес.
+    TUint32 span = (romSize <= 0) ? 0x00200000u
+                 : ((romSize < 0x10000) ? (TUint32)romSize * 1024u : (TUint32)romSize);
+    if (span > 0x04000000u) span = 0x04000000u;
+    const TUint32 base = 0x80000000u;
+    LogF(_L8("scanning [0x%08x .. 0x%08x)"), base, base + span);
+
+    struct { TUint32 iVal; const char* iName; } sig[3];
+    sig[0].iVal = 0xc6008540u; sig[0].iName = "CM_CLKSEL1_PLL (virt)";
+    sig[1].iVal = 0x48008540u; sig[1].iName = "CM_CLKSEL1_PLL (phys)";
+    sig[2].iVal = 0xc6008140u; sig[2].iName = "CM_CLKSEL1_CORE (virt)";
+
+    // Штатний пролог DLddUsbcChannel::DoControl - чотири слова поспіль. Саме
+    // цей носій обрано для READ/EXEC-примітиву (findings 32); адресу з
+    // офлайнового образу апарат спростував, тож шукаємо її тут.
+    const TUint32 KDoCtlProlog[4] =
+        { 0xe92d4ff0u, 0xe24dd044u, 0xe1a04000u, 0xe1a06002u };
+
+    TInt hits = 0;
+    const TUint32 KProgressStep = 0x100000u;   // 1 МБ
+    const TUint32 last = base + span - 16;
+    for (TUint32 a = base; a < last; a += 4)
+        {
+        if (((a - base) % KProgressStep) == 0)
+            LogF(_L8("  .. at 0x%08x"), a);
+        const TUint32 w = *(volatile TUint32*)a;
+
+        for (TInt i = 0; i < 3; ++i)
+            if (w == sig[i].iVal)
+                {
+                TBuf8<32> nm; nm.Copy(TPtrC8((const TUint8*)sig[i].iName));
+                LogF(_L8("  POOL 0x%08x = 0x%08x  %S"), a, w, &nm);
+                ++hits;
+                }
+
+        if (w == KDoCtlProlog[0]
+            && *(volatile TUint32*)(a + 4)  == KDoCtlProlog[1]
+            && *(volatile TUint32*)(a + 8)  == KDoCtlProlog[2]
+            && *(volatile TUint32*)(a + 12) == KDoCtlProlog[3])
+            {
+            LogF(_L8("  DOCTL-PROLOG 0x%08x"), a);
+            ++hits;
+            }
+
+        // Диспетчер HandleMsg: ldr rX,[r1,#24] ; cmp rX,#0x80000000
+        // (той самий критерій, яким їх перелічували офлайн).
+        if ((w & 0xffff0fffu) == 0xe5910018u)
+            {
+            const TUint32 rd = (w >> 12) & 0xfu;
+            const TUint32 nx = *(volatile TUint32*)(a + 4);
+            if (nx == (0xe3500102u | (rd << 16)))
+                {
+                LogF(_L8("  DISPATCHER 0x%08x (r%d)"), a, (TInt)rd);
+                ++hits;
+                }
+            }
+
+        if (hits >= 200) { Log(_L8("  (200 hits - stopping)")); return; }
+        }
+    LogF(_L8("=== romscan done: %d hits ==="), hits);
+    }
+
+// --- Вивантаження вікна живого XIP у файл ------------------------------------
+//
+// Оскільки ROM читається з user mode, справжні байти беруться з апарата, а не
+// з офлайнового образу. Це знімає залежність від розкладки FPSX, яка на E90
+// виявилась не лінійною.
+//
+//   ocprobe romdump <hex-адреса> <hex-довжина>
+//
+// Типово - вікно навколо пулів, знайдених romscan.
+static void RomDump(const TDesC& aCmd)
+    {
+    Log(_L8("=== romdump: вивантаження вікна живого XIP ==="));
+
+    TUint32 start = 0x80050000u;
+    TUint32 len   = 0x00020000u;   // 128 КБ
+
+    // Два шістнадцяткові токени після слова romdump, якщо вони є.
+    TInt p = aCmd.Find(_L("romdump"));
+    if (p != KErrNotFound)
+        {
+        TLex lex(aCmd.Mid(p + 7));
+        TUint32 v = 0;
+        lex.SkipSpace();
+        if (lex.Val(v, EHex) == KErrNone && v != 0)
+            {
+            start = v;
+            lex.SkipSpace();
+            if (lex.Val(v, EHex) == KErrNone && v != 0) len = v;
+            }
+        }
+    if (len > 0x00400000u) len = 0x00400000u;   // 4 МБ стеля: канал BT повільний
+    LogF(_L8("window [0x%08x .. 0x%08x)  %d KB"), start, start + len, (TInt)(len / 1024));
+
+    RFs fs;
+    TInt r = fs.Connect();
+    LogF(_L8("RFs::Connect -> %d"), r);
+    if (r != KErrNone) return;
+
+    RFile f;
+    r = f.Replace(fs, _L("E:\\romdump.bin"), EFileWrite | EFileStream);
+    LogF(_L8("RFile::Replace(E:\\romdump.bin) -> %d"), r);
+    if (r != KErrNone) { fs.Close(); return; }
+
+    // Пишемо блоками; ROM читається як звичайна пам'ять.
+    const TInt KChunk = 4096;
+    TUint32 done = 0;
+    while (done < len && r == KErrNone)
+        {
+        const TInt n = ((len - done) < (TUint32)KChunk) ? (TInt)(len - done) : KChunk;
+        TPtrC8 chunk((const TUint8*)(start + done), n);
+        r = f.Write(chunk);
+        done += n;
+        }
+    LogF(_L8("written %d bytes, last write -> %d"), (TInt)done, r);
+    f.Close();
+    fs.Close();
+    Log(_L8("=== romdump done ==="));
+    }
+
 // --- Бутстрап READ-примітиву E90 через хост Usbc (findings §32) --------------
 //
 // На E90 dvfs немає, тож примітив читання/виклику ставиться записом RomPatcher+
@@ -1751,6 +1925,20 @@ static const TUint32 KUsbcOriginal[4] =
       0xe1a04000u,   // mov   r4, r0
       0xe1a06002u }; // mov   r6, r2
 
+// Стаб-підпис: нічого не розіменовує, лише повертає впізнавану константу.
+// Розрізняє два стани, які інакше зливаються в один нуль: "стаб виконався, але
+// адреса прийшла не в r2" і "стаб не виконувався взагалі, відповів штатний
+// DoControl". Друге на E90 очікуване, якщо сторінка вже затінена патчами
+// Open4all: наш запис тоді лягає в наявну shadow-сторінку, нової не
+// створюється, а отже I-cache не скидається (findings 19).
+static const TUint32 KUsbcSigStub[4] =
+    { 0xe3a0005au,   // mov   r0, #0x5a
+      0xe12fff1eu,   // bx    lr
+      0xe1a00000u,   // nop
+      0xe1a00000u }; // nop
+
+const TInt KUsbcSigValue = 0x5a;
+
 // Хост-канал: єдина потрібна дія - DoControl(69, addr) для читання після патчу.
 class RUsbcHost : public RBusLogicalChannel
     {
@@ -1768,19 +1956,23 @@ static void UsbcBoot(TBool aIsE90)
     {
     Log(_L8("=== usbcboot: bootstrap READ primitive via Usbc host (findings 32) ==="));
 
-    const TUint32 host = aIsE90 ? 0x80094ac4u : 0x8010bd04u;
+    // E90: адреса ВИМІРЯНА на живому апараті (romscan -> romdump -> objdump),
+    // а не виведена з out/roms/e90.rom - розкладка того образу апаратом
+    // спростована. RM-320 лишається як був.
+    const TUint32 host = aIsE90 ? 0x800bf874u : 0x8010bd04u;
     LogF(_L8("device=%s  host DLddUsbcChannel::DoControl=0x%08x  a1 in r2"),
          aIsE90 ? "E90" : "RM-320", host);
 
     // Відомі слова: pool однаковий за значенням, адреси різні між апаратами.
-    const TUint32 pool = aIsE90 ? 0x800b76dcu : 0x800a7f6cu; // sram-routine addr
-    const TUint32 poolMult = aIsE90 ? 0x800b76dcu : 0x800b16ecu;
+    // Контрольні слова. Для E90 всі три прочитані з живого апарата
+    // (romread/romdump), тож збіг тут доводить саме примітив, а не розкладку.
+    const TUint32 poolMult = aIsE90 ? 0x8005a610u : 0x800b16ecu;
     TKnownWord known[3];
     known[0].iAddr = 0x80000000u; known[0].iVal = 0xea00007eu; known[0].iName = "reset";
     known[1].iAddr = poolMult;    known[1].iVal = 0xc6008540u; known[1].iName = "mult-pool";
-    known[2].iAddr = aIsE90 ? 0x80056874u : 0x800a7f6cu;
-    known[2].iVal  = 0xe92d40feu; known[2].iName = "sram-routine";
-    (void)pool;
+    known[2].iAddr = aIsE90 ? 0x800c09a4u : 0x800a7f6cu;
+    known[2].iVal  = aIsE90 ? 0xe5915018u : 0xe92d40feu;
+    known[2].iName = aIsE90 ? "dispatcher" : "sram-routine";
 
     // 1) Патчер.
     TInt r = User::LoadLogicalDevice(KPatcherFile);
@@ -1791,6 +1983,21 @@ static void UsbcBoot(TBool aIsE90)
     r = patcher.Open();
     LogF(_L8("patcher.Open() -> %d"), r);
     if (r != KErrNone) { Log(_L8("  ABORT (nothing patched)")); return; }
+
+    // 1a) Чи працює шлях запису патчера на цьому апараті ВЗАГАЛІ. Пишемо в
+    //     пам'ять власного процесу (адреса поза ROM іде прямим str, findings 10)
+    //     і читаємо назад у користувацькому режимі. Безпечно за побудовою: ціль -
+    //     наша власна змінна. Розрізняє "патчер не пише нічого" від "пише, але
+    //     в ROM-shadow без скидання I-cache".
+    volatile TUint32 canary = 0x11111111u;   // volatile: значення міняє ядро,
+    TUint32 canaryAddr = (TUint32)&canary;  // компілятор не має тримати його в регістрі
+    TBuf8<4> mark;
+    const TUint32 KCanaryValue = 0xdeadbeefu;
+    mark.Copy((const TUint8*)&KCanaryValue, 4);
+    TInt cw = patcher.WriteBytes(canaryAddr, mark);
+    LogF(_L8("RAM canary: WriteBytes(0x%08x, 0xdeadbeef) -> %d, readback 0x%08x  %s"),
+         (TUint32)&canary, cw, (TUint32)canary,
+         (canary == KCanaryValue) ? "WRITE PATH OK" : "*** PATCHER WROTE NOTHING ***");
 
     // 2) Хост Usbc. Лог імені ПЕРЕД відкриттям (урок 2026-09-02). Відкриваємо
     //    РІВНО цей один вивірений драйвер.
@@ -1808,16 +2015,40 @@ static void UsbcBoot(TBool aIsE90)
         { Log(_L8("  Usbc channel did NOT open - ABORT (nothing patched)")); patcher.Close(); return; }
     Log(_L8("  Usbc channel OPENED"));
 
-    // 3) READ-стаб у тіло DoControl.
+    // 3) Спершу стаб-підпис: чи виконується взагалі те, що ми записали.
+    //    Він нічого не розіменовує, тож не може впасти навіть на хибних
+    //    припущеннях про регістри.
     TUint32 addr = host;
     TBuf8<16> stub;
-    stub.Copy((const TUint8*)KUsbcReadStub, sizeof(KUsbcReadStub));
+    stub.Copy((const TUint8*)KUsbcSigStub, sizeof(KUsbcSigStub));
     r = patcher.WriteBytes(addr, stub);
-    LogF(_L8("WriteBytes(read-stub, 4 words @0x%08x) -> %d"), host, r);
+    LogF(_L8("WriteBytes(sig-stub, 4 words @0x%08x) -> %d"), host, r);
 
+    TBool sigOk = EFalse;
     if (r == KErrNone)
         {
-        // 4) Читаємо три відомі слова через хост.
+        const TInt got = usb.Read(0);
+        sigOk = (got == KUsbcSigValue);
+        LogF(_L8("  SIG DoControl(69,0) -> 0x%02x  expect 0x%02x  %s"),
+             got, KUsbcSigValue,
+             sigOk ? "STUB RUNS" : "*** STUB NOT EXECUTING (stale I-cache?) ***");
+        }
+
+    // 4) READ-стаб - лише якщо підпис довів, що записане виконується.
+    if (r == KErrNone && !sigOk)
+        Log(_L8("  skipping known-word reads: patch is not in effect"));
+
+    if (r == KErrNone && sigOk)
+        {
+        addr = host;
+        stub.Copy((const TUint8*)KUsbcReadStub, sizeof(KUsbcReadStub));
+        r = patcher.WriteBytes(addr, stub);
+        LogF(_L8("WriteBytes(read-stub, 4 words @0x%08x) -> %d"), host, r);
+        }
+
+    if (r == KErrNone && sigOk)
+        {
+        // 5) Читаємо три відомі слова через хост.
         TInt ok = 0;
         for (TInt i = 0; i < 3; ++i)
             {
@@ -1832,7 +2063,7 @@ static void UsbcBoot(TBool aIsE90)
              ok, (ok == 3) ? "WORKS" : "FAILED");
         }
 
-    // 5) Відкат ЗАВЖДИ: оригінальні слова + FreeShadowPage (скидання I-cache).
+    // 6) Відкат ЗАВЖДИ: оригінальні слова + FreeShadowPage (скидання I-cache).
     addr = host;
     stub.Copy((const TUint8*)KUsbcOriginal, sizeof(KUsbcOriginal));
     TInt rr = patcher.WriteBytes(addr, stub);
@@ -2050,7 +2281,11 @@ static void RunL()
     // Бутстрап READ-примітиву через хост Usbc. "usbcboot e90" - E90-адреси,
     // інакше RM-320 (де є dvfs-оракул для звірки самого механізму).
     const TBool usbcboot = (cmd.Find(_L("usbcboot")) != KErrNotFound);
-    const TBool quiet = patcherRun || e90scan || usbcboot;
+    // Пряме читання XIP з user mode: перевірка бази образу (див. RomRead).
+    const TBool romread = (cmd.Find(_L("romread")) != KErrNotFound);
+    const TBool romscan = (cmd.Find(_L("romscan")) != KErrNotFound);
+    const TBool romdump = (cmd.Find(_L("romdump")) != KErrNotFound);
+    const TBool quiet = patcherRun || e90scan || usbcboot || romread || romscan || romdump;
     // Профіль E90 для patcher-команд: "patcher ... e90" бере KProfileE90. Тоді
     // Prepare() (шлях EReadDvfs) свідомо відмовить (EOcStepUnsupported) замість
     // патчити RM-320-адреси в чуже ядро E90 (findings §27). Розгінний шлях E90
@@ -2061,6 +2296,12 @@ static void RunL()
     ProbeHal();
     if (e90scan)
         E90ScanReaders();
+    if (romread)
+        RomRead(cmd.Find(_L("e90")) != KErrNotFound);
+    if (romscan)
+        RomScan();
+    if (romdump)
+        RomDump(cmd);
     if (usbcboot)
         UsbcBoot(cmd.Find(_L("e90")) != KErrNotFound);
     if (!quiet)
