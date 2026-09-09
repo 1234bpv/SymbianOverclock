@@ -1786,7 +1786,7 @@ static void RomScan()
     struct { TUint32 iVal; const char* iName; } sig[3];
     sig[0].iVal = 0xc6008540u; sig[0].iName = "CM_CLKSEL1_PLL (virt)";
     sig[1].iVal = 0x48008540u; sig[1].iName = "CM_CLKSEL1_PLL (phys)";
-    sig[2].iVal = 0xc6008140u; sig[2].iName = "CM_CLKSEL1_CORE (virt)";
+    sig[2].iVal = 0xc6008140u; sig[2].iName = "CM_CLKSEL_MPU (virt)";
 
     // Штатний пролог DLddUsbcChannel::DoControl - чотири слова поспіль. Саме
     // цей носій обрано для READ/EXEC-примітиву (findings 32); адресу з
@@ -2061,6 +2061,26 @@ static void UsbcBoot(TBool aIsE90)
             }
         LogF(_L8("  === %d/3 known words matched -> read primitive %s ==="),
              ok, (ok == 3) ? "WORKS" : "FAILED");
+
+        // Штатне тактування - тим самим примітивом, лише читання. Досі множник
+        // E90 у профілі стояв здогадом (86); тут він міряється.
+        if (ok == 3)
+            {
+            const TUint32 pll  = (TUint32)usb.Read(0xc6008540u);  // CM_CLKSEL1_PLL
+            const TUint32 pll2 = (TUint32)usb.Read(0xc6008544u);  // CM_CLKSEL2_PLL
+            const TUint32 mpu  = (TUint32)usb.Read(0xc6008140u);  // CM_CLKSEL_MPU
+            const TUint32 core = (TUint32)usb.Read(0xc6008240u);  // CM_CLKSEL1_CORE
+            const TUint32 en   = (TUint32)usb.Read(0xc6008500u);  // CM_CLKEN_PLL
+            LogF(_L8("  CLK CM_CLKSEL1_PLL  = 0x%08x  mult=%d div=%d sysclk_sel=%d"),
+                 pll, (TInt)((pll >> 12) & 0x3ff), (TInt)((pll >> 8) & 0xf),
+                 (TInt)((pll >> 23) & 0x7));
+            LogF(_L8("  CLK CM_CLKSEL2_PLL  = 0x%08x  core_mult=%d"),
+                 pll2, (TInt)(pll2 & 0x3));
+            LogF(_L8("  CLK CM_CLKSEL_MPU   = 0x%08x  mpudiv=%d"),
+                 mpu, (TInt)(mpu & 0x1f));
+            LogF(_L8("  CLK CM_CLKSEL1_CORE = 0x%08x"), core);
+            LogF(_L8("  CLK CM_CLKEN_PLL    = 0x%08x  (lock=3 у полі [1:0])"), en);
+            }
         }
 
     // 6) Відкат ЗАВЖДИ: оригінальні слова + FreeShadowPage (скидання I-cache).
