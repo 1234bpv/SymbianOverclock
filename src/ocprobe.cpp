@@ -1462,46 +1462,27 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
     LogSnap(_L8("after"), snap);
     LogF(_L8("  drift samples: %d (0 = layout held the whole window)"), drift);
 
-    // Повернення штатного стану розписане покроково, а не викликом RestoreStock.
-    //
-    // Причина - три смерті апарата поспіль саме на цьому місці (§26.14). Лог
-    // щоразу обривався після рядка `drift samples`, тобто десь усередині
-    // повернення, і що там сталось - трьома шляхами з трьох було не видно.
-    // Тепер кожен крок пише про себе до того, як його зробити.
+    // Повернення розписане покроково: кожен крок пише про себе ДО того, як його
+    // зробити. Причина - смерті апарата саме на цьому місці (§26.14): лог щоразу
+    // обривався після `drift samples`, і що там сталось, було не видно.
     Log(_L8("  restore: step 1, read live layout"));
     SnapClocks(e, snap);
     LogSnap(_L8("restore-before"), snap);
 
+    // Повернення робить САМ рушій. Раніше проба ходила повз нього і кликала
+    // ReassertDividers(KStockClkSel1Core, ...) напряму - це, по-перше, константи
+    // RM-320 на будь-якому апараті, а по-друге, рівно той запис, що вбив E90.
+    // Тепер обидва шляхи, і проба, і GUI, проходять через один запобіжник.
     const TInt liveMult = (TInt)((snap.iSel1 >> 12) & 0x3ff);
-    if (liveMult != e->StockMult())
-        {
-        LogF(_L8("  restore: step 2, ramp %d -> %d"), liveMult, e->StockMult());
-        status = 0;
-        r = e->RestoreStock(status);
-        LogF(_L8("  restore: ramp done -> r=%d status=%u"), r, status);
-        }
-    else
-        {
-        // Множник уже штатний, тож потрібні лише дільники. Легкий шлях: запис
-        // плюс латч, без bypass DPLL.
-        Log(_L8("  restore: step 2 skipped, multiplier already stock"));
-        Log(_L8("  restore: step 3, ReassertDividers (no DPLL bypass)"));
-        TInt rc = -1;
-        r = e->ReassertDividers(KStockClkSel1Core, KStockClkSelMpu, rc);
-        LogF(_L8("  restore: reassert -> r=%d rc=%d (rc=1 = CLKCFG latch stuck)"), r, rc);
-        Log(_L8("  restore: step 4, read back"));
-        SnapClocks(e, snap);
-        LogSnap(_L8("restore-after-light"), snap);
-        if ((snap.iCore & (KCoreL3Mask | KCoreDss1Mask)) !=
-            (KStockClkSel1Core & (KCoreL3Mask | KCoreDss1Mask)))
-            {
-            Log(_L8("  restore: light path did NOT take, falling back to full relock"));
-            status = 0;
-            r = e->RestoreStock(status);
-            LogF(_L8("  restore: full relock -> r=%d status=%u"), r, status);
-            }
-        }
-    Log(_L8("  restore: step 5, final read"));
+    LogF(_L8("  restore: step 2, RestoreStock (live mult %d, stock %d)"),
+         liveMult, e->StockMult());
+    status = 0;
+    r = e->RestoreStock(status);
+    LogF(_L8("  restore: done -> r=%d status=%u"), r, status);
+    if (e->RestoreNeedsReboot())
+        Log(_L8("  restore: BUS LEFT LOWERED ON PURPOSE - raising l3div back is 4/4 fatal (findings 38.2). Reboot to get stock clocking."));
+
+    Log(_L8("  restore: step 3, final read"));
     SnapClocks(e, snap);
     LogSnap(_L8("restored"), snap);
 
@@ -1583,6 +1564,8 @@ static void RunOverclock(TInt aMult)
     e->RestoreStock(st2);
     e->LiveMult(live);
     LogF(_L8("  restored: live mult %d, status=%u"), live, st2);
+    if (e->RestoreNeedsReboot())
+        Log(_L8("  restore: BUS LEFT LOWERED ON PURPOSE - raising l3div back is 4/4 fatal (findings 38.2). Reboot to get stock clocking."));
 
     TUint32 mhzRestored = BestMhz(5);
     TUint32 aluRestored = BestAlu(3, kAluIter);

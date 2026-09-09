@@ -395,6 +395,8 @@ public:
     // небезпечний для чужих викликів (findings §20), а частота ні.
     void KeepOnExit(TBool aKeep) { iKeep = aKeep; }
     TInt AppliedMult() const { return iAppliedMult; }
+    // ETrue, якщо RestoreStock свідомо не піднімав дільник шини назад.
+    TBool RestoreNeedsReboot() const { return iRestoreNeedsReboot; }
 
 private:
     COcEngine();
@@ -429,6 +431,10 @@ private:
     TBool    iShadowed;        // чи створена патчером ROM-shadow сторінка
     TBool    iApplied;
     TBool    iKeep;            // не повертати частоту в деструкторі
+    // Підняти дільник шини назад у штатне значення = 4 смерті з 4 на двох
+    // апаратах (findings 38.2). Тому RestoreStock відмовляється це робити
+    // й лишає апарат на зниженій шині, а користувачеві каже перезавантажитись.
+    TBool    iRestoreNeedsReboot;
     TInt     iAppliedMult;
     TUint32  iSram;
     TUint32  iStockClkSel1;

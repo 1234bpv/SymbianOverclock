@@ -1018,6 +1018,10 @@ void COcView::Activate(TRowId aRow)
             TInt live = 0;
             iEngine->LiveMult(live);
             AddLogF(_L("restored: r=%d live m%d"), r, live);
+            // Шину назад не піднімаємо: чотири смерті з чотирьох на двох апаратах
+            // (findings 38.2). Знижена шина безпечна, ребут повертає штатну.
+            if (iEngine->RestoreNeedsReboot())
+                AddLog(_L("BUS LEFT LOWERED - reboot for stock"));
             // Дільник DSP - у тому ж «повернути все як було»: інакше довелося б
             // памʼятати, що RESTORE STOCK стосується не всього.
             RestoreDspNow(_L("restore stock"));
