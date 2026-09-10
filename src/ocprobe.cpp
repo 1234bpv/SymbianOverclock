@@ -1313,6 +1313,9 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
     // уявлень: дільника MPU 3 на цьому SoC не існує, хоч поле його й вмістило б.
     if (aMult < KOcMultMin || aMult > KOcMultMax)
         { LogF(_L8("  mult %d out of range %d..%d"), aMult, KOcMultMin, KOcMultMax); return; }
+    if (aMult > KOcMultTested)
+        LogF(_L8("  NOTE: mult %d is above the tested %d - nothing beyond that is measured"),
+             aMult, KOcMultTested);
     if (aMpu < 0 || aMpu > 31 || !(KMpuAllowed & (1u << aMpu)))
         { LogF(_L8("  mpu divider %d not allowed (1, 2, 4, 6, 8)"), aMpu); return; }
     if (aL3 < 1 || aL3 > 31 || !(CoreField(ECoreL3).iAllowed & (1u << aL3)))

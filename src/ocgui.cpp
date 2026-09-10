@@ -37,7 +37,7 @@
 #include "ocengine.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 1.6.0");
+_LIT(KAppVersion, "SymbianOverclock 1.7.0");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -287,6 +287,7 @@ private:
     TUint32 iCoreReg;        // редагований CM_CLKSEL1_CORE у ручному режимі
     TInt   iMpuDiv;          // редагований дільник MPU (1,2,4,6,8)
     TInt   iL3Div;           // дільник шини; 0 = лишити на автопідборі
+    TInt   iLiveL3;          // дільник шини, який СТОЇТЬ у залізі (0 = не читали)
     TInt   iDspDiv;          // редагований дільник DSP (окремий від iArmed шлях)
     CPeriodic* iDspTimer;    // сторож автоповернення дільника DSP
     TInt   iDspLeftSec;      // скільки секунд лишилось до автоповернення
@@ -303,7 +304,7 @@ private:
 
 COcView::COcView()
   : iEngine(NULL), iRow(ERowSlider), iTop(0), iMult(0), iManual(EFalse),
-    iCoreReg(0), iMpuDiv(2), iL3Div(0), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
+    iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
     iArmed(EFalse), iArmedMult(0), iArmedCore(0),
     iArmedMpu(0),
     iLogCount(0), iBuf(NULL), iBufWords(0)
@@ -366,6 +367,7 @@ void COcView::ConstructL(const TRect& aRect)
         iMpuDiv = (TInt)(iEngine->BootMpu() & KMpuDivMask);
         iArmedMpu = iEngine->StockMpu();
         iDspDiv = iEngine->StockDspDiv();
+        iLiveL3 = (TInt)(iEngine->BootCore() & KCoreL3Mask);
         AddLogF(_L("ready: stock m%d core %08x"), iEngine->StockMult(), iCoreReg);
         if (iEngine->BootedNonStock())
             AddLogF(_L("NON-STOCK at start: m%d core %08x mpu %08x"),
@@ -647,6 +649,19 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         if (!ready)
             {
             aOut.Format(_L(" BUSDIV /%d"), v);
+            return;
+            }
+        // Затиск шини показуємо ДО застосування, а не лише в лозі після
+        // нього. Менший дільник за живий - це підйом шини, і двигун його
+        // не пропустить (findings §38.2). Рядок мусить називати те
+        // значення, яке справді піде в залізо, інакше інтерфейс бреше про
+        // власну роботу, і виглядає це рівно як "дільник не працює".
+        if (iLiveL3 && v < iLiveL3)
+            {
+            TOcClocks cc;
+            iEngine->ClocksFor(iMult, cc);
+            aOut.Format(_L(" BUSDIV /%d CLAMPED /%d  SDRAM %u"), v, iLiveL3,
+                        cc.CoreKhz() / (TUint32)iLiveL3 / 1000);
             return;
             }
         const TUint32 got = BusKhz();
@@ -961,8 +976,15 @@ void COcView::Activate(TRowId aRow)
             iEngine->ClocksFor(iArmedMult, c);
             c.iMpuDiv = iMpuDiv;
             TInt l3 = CoreFieldValue(iArmedCore, ECoreL3);
+            if (iLiveL3 && l3 < iLiveL3)
+                {
+                AddLogF(_L("bus stays /%d clamped - reboot for stock"), iLiveL3);
+                l3 = iLiveL3;
+                }
             AddLogF(_L("armed m%d CPU %u BUS %u"), iArmedMult, c.MpuKhz() / 1000,
                     l3 ? c.CoreKhz() / (TUint32)l3 / 1000 : 0);
+            if (iArmedMult > KOcMultTested)
+                AddLog(_L("above 129: untested, DPLL may not lock"));
             AddLog(_L("press CONFIRM to apply"));
             }
             break;
@@ -994,11 +1016,14 @@ void COcView::Activate(TRowId aRow)
                         (TInt)(wroteCore & KCoreL3Mask));
             TUint32 liveCore = 0;
             if (iEngine->LiveCore(liveCore) == KErrNone)
+                {
+                iLiveL3 = (TInt)(liveCore & KCoreL3Mask);
                 AddLogF(_L("core %08x (want %08x) l3=%d dss1=%d %S"),
                         liveCore, wroteCore,
                         (TInt)(liveCore & KCoreL3Mask),
                         (TInt)((liveCore & KCoreDss1Mask) >> KCoreDss1Shift),
                         (liveCore == wroteCore) ? &KDivApplied : &KDivRejected);
+                }
             }
             if (r != KErrNone)
                 {
@@ -1031,6 +1056,11 @@ void COcView::Activate(TRowId aRow)
             // (findings 38.2). Знижена шина безпечна, ребут повертає штатну.
             if (iEngine->RestoreNeedsReboot())
                 AddLog(_L("BUS LEFT LOWERED - reboot for stock"));
+            {
+            TUint32 lc = 0;
+            if (iEngine->LiveCore(lc) == KErrNone)
+                iLiveL3 = (TInt)(lc & KCoreL3Mask);
+            }
             // Дільник DSP - у тому ж «повернути все як було»: інакше довелося б
             // памʼятати, що RESTORE STOCK стосується не всього.
             RestoreDspNow(_L("restore stock"));
