@@ -37,7 +37,7 @@
 #include "ocengine.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 1.7.0");
+_LIT(KAppVersion, "SymbianOverclock 1.8.0");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -221,6 +221,7 @@ enum TRowId
     ERowSlider = 0,      // множник DPLL
     ERowMpu,             // дільник MPU (окремий регістр CM_CLKSEL_MPU)
     ERowL3,              // дільник шини памʼяті - поле L3 у CM_CLKSEL1_CORE
+    ERowBusGuard,        // запобіжник підйому шини; типово увімкнений
     ERowDsp,             // дільник домену DSP (окремий регістр CM_CLKSEL_DSP)
     ERowMode,            // AUTO / MANUAL для дільників CLKSEL1_CORE
     ERowDivFirst,        // 7 рядків дільників CM_CLKSEL1_CORE
@@ -288,6 +289,7 @@ private:
     TInt   iMpuDiv;          // редагований дільник MPU (1,2,4,6,8)
     TInt   iL3Div;           // дільник шини; 0 = лишити на автопідборі
     TInt   iLiveL3;          // дільник шини, який СТОЇТЬ у залізі (0 = не читали)
+    TBool  iBusGuard;        // ETrue = підйом шини заборонено (типово)
     TInt   iDspDiv;          // редагований дільник DSP (окремий від iArmed шлях)
     CPeriodic* iDspTimer;    // сторож автоповернення дільника DSP
     TInt   iDspLeftSec;      // скільки секунд лишилось до автоповернення
@@ -304,7 +306,7 @@ private:
 
 COcView::COcView()
   : iEngine(NULL), iRow(ERowSlider), iTop(0), iMult(0), iManual(EFalse),
-    iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
+    iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iBusGuard(ETrue), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
     iArmed(EFalse), iArmedMult(0), iArmedCore(0),
     iArmedMpu(0),
     iLogCount(0), iBuf(NULL), iBufWords(0)
@@ -656,7 +658,7 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         // не пропустить (findings §38.2). Рядок мусить називати те
         // значення, яке справді піде в залізо, інакше інтерфейс бреше про
         // власну роботу, і виглядає це рівно як "дільник не працює".
-        if (iLiveL3 && v < iLiveL3)
+        if (iBusGuard && iLiveL3 && v < iLiveL3)
             {
             TOcClocks cc;
             iEngine->ClocksFor(iMult, cc);
@@ -673,6 +675,16 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         else
             aOut.Format(_L(" BUSDIV /%d auto  SDRAM %u  %d.%d%%"), v, got / 1000,
                         d / 10, (d < 0 ? -d : d) % 10);
+        return;
+        }
+    if (aRow == ERowBusGuard)
+        {
+        // Рядок каже не лише стан, а й ціну: чотири смерті з чотирьох -
+        // це єдина цифра, яка тут щось важить.
+        if (iBusGuard)
+            aOut.Copy(_L(" BUS GUARD: ON  (bus can only go down)"));
+        else
+            aOut.Copy(_L(" BUS GUARD: OFF  raising bus died 4 of 4"));
         return;
         }
     if (aRow == ERowDsp)
@@ -873,6 +885,19 @@ void COcView::Activate(TRowId aRow)
             AddLogF(_L("dividers: %S"), iManual ? &KModeManual : &KModeAuto);
             break;
 
+        case ERowBusGuard:
+            iBusGuard = !iBusGuard;
+            iEngine->SetBusGuard(iBusGuard);
+            iArmed = EFalse;
+            if (iBusGuard)
+                AddLog(_L("bus guard ON - bus can only go down"));
+            else
+                {
+                AddLog(_L("bus guard OFF - raising the bus killed 4 of 4"));
+                AddLog(_L("nothing is written to flash; a reboot recovers"));
+                }
+            break;
+
         case ERowL3:
             // OK нічого не застосовує - лише знімає ручне значення й повертає
             // поле на автопідбір. Застосування, як і в решті полів CLKSEL1_CORE,
@@ -976,7 +1001,7 @@ void COcView::Activate(TRowId aRow)
             iEngine->ClocksFor(iArmedMult, c);
             c.iMpuDiv = iMpuDiv;
             TInt l3 = CoreFieldValue(iArmedCore, ECoreL3);
-            if (iLiveL3 && l3 < iLiveL3)
+            if (iBusGuard && iLiveL3 && l3 < iLiveL3)
                 {
                 AddLogF(_L("bus stays /%d clamped - reboot for stock"), iLiveL3);
                 l3 = iLiveL3;
@@ -1144,6 +1169,14 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
                     iArmed = EFalse;
                     WarnBus(nv);
                     }
+                }
+            else if (iRow == ERowBusGuard)
+                {
+                iBusGuard = !iBusGuard;
+                iEngine->SetBusGuard(iBusGuard);
+                iArmed = EFalse;
+                if (!iBusGuard)
+                    AddLog(_L("bus guard OFF - raising the bus killed 4 of 4"));
                 }
             else if (iRow == ERowDsp)
                 {

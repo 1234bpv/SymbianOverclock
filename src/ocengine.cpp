@@ -705,7 +705,8 @@ TUint32 TOcClocks::L3Khz() const
 COcEngine::COcEngine()
   : iProfile(&KProfileRM320),
     iPatcherOpen(EFalse), iDvfsOpen(EFalse), iReady(EFalse), iExecMode(EFalse), iPatched(EFalse), iShadowed(EFalse),
-    iApplied(EFalse), iKeep(EFalse), iRestoreNeedsReboot(EFalse), iLastCoreWritten(0), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
+    iApplied(EFalse), iKeep(EFalse), iRestoreNeedsReboot(EFalse),
+    iBusGuard(ETrue), iLastCoreWritten(0), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
     iBootCore(0), iBootMpu(0), iBootMult(0),
     iStockDspDiv(0), iDspDiv(0), iStep(EOcStepIdle)
     {
@@ -1592,7 +1593,7 @@ TInt COcEngine::ApplyMultAndCore(TInt aMult, TUint32 aCoreReg, TUint32 aMpuReg,
     // заблокувати розгін після будь-якої зміни шини, тож ми не відмовляємо, а
     // ЗАТИСКАЄМО поле l3 живим значенням: множник міняється як просили, шина
     // лишається зниженою, і про це видно з прапорця. Ребут поверне штатну.
-    if (aCoreReg)
+    if (aCoreReg && iBusGuard)
         {
         TUint32 liveCore = 0;
         if (ReadReg(KRegClkSel1Core, liveCore) == KErrNone)
@@ -1752,7 +1753,7 @@ TInt COcEngine::RestoreStock(TUint32& aStatus)
     // випадок (шина вища за штатну) ми ніколи не створюємо, бо CompensatedCore
     // затискає l3 знизу штатним значенням, але звужена умова точніша за "будь-яка
     // різниця" й не заблокує безпечного пониження.
-    if ((v[0] & KCoreL3Mask) > (iStockCore & KCoreL3Mask))
+    if (iBusGuard && (v[0] & KCoreL3Mask) > (iStockCore & KCoreL3Mask))
         {
         iRestoreNeedsReboot = ETrue;
         iApplied = EFalse;   // ми більше нічого не робитимемо з цим станом

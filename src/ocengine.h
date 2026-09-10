@@ -416,6 +416,14 @@ public:
     // затиск у ApplyMultAndCore). Ребут повертає штатне тактування.
     TBool RestoreNeedsReboot() const { return iRestoreNeedsReboot; }
 
+    // Запобіжник підйому шини. Типово ввімкнений: менший l3div проти живого -
+    // це підйом шини, і він убив апарат чотири рази з чотирьох (findings §38.2).
+    // Вимикати можна ЛИШЕ явно, і це той самий принцип "усе ризиковане за явним
+    // аргументом", за яким тут живе решта небезпечних шляхів. Вимкнення нічого
+    // не псує назавжди: у флеш не пишеться нічого, найгірше - миттєвий ребут.
+    void SetBusGuard(TBool aOn) { iBusGuard = aOn; }
+    TBool BusGuard() const { return iBusGuard; }
+
 private:
     COcEngine();
     void ConstructL();
@@ -453,6 +461,7 @@ private:
     // апаратах (findings 38.2). Тому RestoreStock відмовляється це робити
     // й лишає апарат на зниженій шині, а користувачеві каже перезавантажитись.
     TBool    iRestoreNeedsReboot;
+    TBool    iBusGuard;
     TUint32  iLastCoreWritten;
     TInt     iAppliedMult;
     TUint32  iSram;
