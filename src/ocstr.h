@@ -88,10 +88,13 @@ enum TOcStrId
 
 // Вибирає мову один раз, за User::Language(). Невідома мова - англійська.
 void OcStrInit();
-// Рядок активною мовою. Для дійсного id ніколи не порожній.
+// Рядок активною мовою; якщо для неї перекладу немає - англійський.
 TPtrC OcStr(TInt aId);
-// Вбудована довідка: скільки рядків і який рядок за номером.
+// Вбудована довідка активною мовою, інакше англійська.
 TInt OcHelpLineCount();
 TPtrC OcHelpLine(TInt aIndex);
+// Скільки мов у збірці і код активної - для діагностики.
+TInt OcStrLanguageCount();
+TPtrC OcStrActiveLanguage();
 
 #endif

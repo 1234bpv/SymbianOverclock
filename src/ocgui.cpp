@@ -39,7 +39,7 @@
 #include "ocstr.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 1.9.0");
+_LIT(KAppVersion, "SymbianOverclock 2.0.0");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
