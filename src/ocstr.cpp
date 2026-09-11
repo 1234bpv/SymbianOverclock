@@ -1651,6 +1651,1332 @@ static const TUint16* const KOcStr_hu[EStrCount] =
     NULL,   // found pwrdown global at %08x
     };
 
+static const TUint16* const KOcStr_el[EStrCount] =
+    {
+    // ΕΦΑΡΜΟΓΗ ΡΥΘΜΙΣΗΣ
+    (const TUint16*)L"\x0395\x03a6\x0391\x03a1\x039c\x039f\x0393\x0397\x0020\x03a1\x03a5\x0398\x039c\x0399\x03a3\x0397\x03a3",
+    // ΕΠΙΒΕΒΑΙΩΣΗ ΥΠΕΡΧΡΟΝΙΣΜΟΥ <<
+    (const TUint16*)L"\x0395\x03a0\x0399\x0392\x0395\x0392\x0391\x0399\x03a9\x03a3\x0397\x0020\x03a5\x03a0\x0395\x03a1\x03a7\x03a1\x039f\x039d\x0399\x03a3\x039c\x039f\x03a5\x0020\x003c\x003c",
+    // ΕΠΙΒΕΒΑΙΩΣΗ (πρώτα ΕΦΑΡΜΟΓΗ)
+    (const TUint16*)L"\x0395\x03a0\x0399\x0392\x0395\x0392\x0391\x0399\x03a9\x03a3\x0397\x0020\x0028\x03c0\x03c1\x03ce\x03c4\x03b1\x0020\x0395\x03a6\x0391\x03a1\x039c\x039f\x0393\x0397\x0029",
+    // ΕΠΑΝΑΦΟΡΑ ΕΡΓΟΣΤΑΣΙΑΚΩΝ
+    (const TUint16*)L"\x0395\x03a0\x0391\x039d\x0391\x03a6\x039f\x03a1\x0391\x0020\x0395\x03a1\x0393\x039f\x03a3\x03a4\x0391\x03a3\x0399\x0391\x039a\x03a9\x039d",
+    // ΔΟΚΙΜΗ cpu/alu
+    (const TUint16*)L"\x0394\x039f\x039a\x0399\x039c\x0397\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // ΔΟΚΙΜΗ εύρους μνήμης
+    (const TUint16*)L"\x0394\x039f\x039a\x0399\x039c\x0397\x0020\x03b5\x03cd\x03c1\x03bf\x03c5\x03c2\x0020\x03bc\x03bd\x03ae\x03bc\x03b7\x03c2",
+    // ΔΟΚΙΜΗ ακεραιότητας sdram
+    (const TUint16*)L"\x0394\x039f\x039a\x0399\x039c\x0397\x0020\x03b1\x03ba\x03b5\x03c1\x03b1\x03b9\x03cc\x03c4\x03b7\x03c4\x03b1\x03c2\x0020\x0073\x0064\x0072\x0061\x006d",
+    // ΔΟΚΙΜΗ κρυφής μνήμης
+    (const TUint16*)L"\x0394\x039f\x039a\x0399\x039c\x0397\x0020\x03ba\x03c1\x03c5\x03c6\x03ae\x03c2\x0020\x03bc\x03bd\x03ae\x03bc\x03b7\x03c2",
+    // ΔΟΚΙΜΗ συνολική (όλα)
+    (const TUint16*)L"\x0394\x039f\x039a\x0399\x039c\x0397\x0020\x03c3\x03c5\x03bd\x03bf\x03bb\x03b9\x03ba\x03ae\x0020\x0028\x03cc\x03bb\x03b1\x0029",
+    // ΒΟΗΘΕΙΑ / οδηγίες
+    (const TUint16*)L"\x0392\x039f\x0397\x0398\x0395\x0399\x0391\x0020\x002f\x0020\x03bf\x03b4\x03b7\x03b3\x03af\x03b5\x03c2",
+    // ΑΥΤΟΜΑΤΟ (εργοστασιακό)
+    (const TUint16*)L"\x0391\x03a5\x03a4\x039f\x039c\x0391\x03a4\x039f\x0020\x0028\x03b5\x03c1\x03b3\x03bf\x03c3\x03c4\x03b1\x03c3\x03b9\x03b1\x03ba\x03cc\x0029",
+    // ΧΕΙΡΟΚΙΝΗΤΟ
+    (const TUint16*)L"\x03a7\x0395\x0399\x03a1\x039f\x039a\x0399\x039d\x0397\x03a4\x039f",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // εκτελείται...
+    (const TUint16*)L"\x03b5\x03ba\x03c4\x03b5\x03bb\x03b5\x03af\x03c4\x03b1\x03b9\x002e\x002e\x002e",
+    // Η ΜΗΧΑΝΗ ΔΕΝ ΕΙΝΑΙ ΕΤΟΙΜΗ - μόνο δοκιμές
+    (const TUint16*)L"\x0397\x0020\x039c\x0397\x03a7\x0391\x039d\x0397\x0020\x0394\x0395\x039d\x0020\x0395\x0399\x039d\x0391\x0399\x0020\x0395\x03a4\x039f\x0399\x039c\x0397\x0020\x002d\x0020\x03bc\x03cc\x03bd\x03bf\x0020\x03b4\x03bf\x03ba\x03b9\x03bc\x03ad\x03c2",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // πατήστε ΕΠΙΒΕΒΑΙΩΣΗ
+    (const TUint16*)L"\x03c0\x03b1\x03c4\x03ae\x03c3\x03c4\x03b5\x0020\x0395\x03a0\x0399\x0392\x0395\x0392\x0391\x0399\x03a9\x03a3\x0397",
+    // τίποτα έτοιμο - πρώτα ΕΦΑΡΜΟΓΗ
+    (const TUint16*)L"\x03c4\x03af\x03c0\x03bf\x03c4\x03b1\x0020\x03ad\x03c4\x03bf\x03b9\x03bc\x03bf\x0020\x002d\x0020\x03c0\x03c1\x03ce\x03c4\x03b1\x0020\x0395\x03a6\x0391\x03a1\x039c\x039f\x0393\x0397",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // επαναφορά χαμηλού διαύλου: 4 νεκρά στα 4
+    (const TUint16*)L"\x03b5\x03c0\x03b1\x03bd\x03b1\x03c6\x03bf\x03c1\x03ac\x0020\x03c7\x03b1\x03bc\x03b7\x03bb\x03bf\x03cd\x0020\x03b4\x03b9\x03b1\x03cd\x03bb\x03bf\x03c5\x003a\x0020\x0034\x0020\x03bd\x03b5\x03ba\x03c1\x03ac\x0020\x03c3\x03c4\x03b1\x0020\x0034",
+    //  ΠΡΟΣΤΑΣΙΑ ΔΙΑΥΛΟΥ: ΝΑΙ  (μόνο προς τα κάτω)
+    (const TUint16*)L"\x0020\x03a0\x03a1\x039f\x03a3\x03a4\x0391\x03a3\x0399\x0391\x0020\x0394\x0399\x0391\x03a5\x039b\x039f\x03a5\x003a\x0020\x039d\x0391\x0399\x0020\x0020\x0028\x03bc\x03cc\x03bd\x03bf\x0020\x03c0\x03c1\x03bf\x03c2\x0020\x03c4\x03b1\x0020\x03ba\x03ac\x03c4\x03c9\x0029",
+    //  ΠΡΟΣΤΑΣΙΑ ΔΙΑΥΛΟΥ: ΟΧΙ  επιτρέπεται η αύξηση
+    (const TUint16*)L"\x0020\x03a0\x03a1\x039f\x03a3\x03a4\x0391\x03a3\x0399\x0391\x0020\x0394\x0399\x0391\x03a5\x039b\x039f\x03a5\x003a\x0020\x039f\x03a7\x0399\x0020\x0020\x03b5\x03c0\x03b9\x03c4\x03c1\x03ad\x03c0\x03b5\x03c4\x03b1\x03b9\x0020\x03b7\x0020\x03b1\x03cd\x03be\x03b7\x03c3\x03b7",
+    // Ο ΔΙΑΥΛΟΣ ΕΜΕΙΝΕ ΧΑΜΗΛΑ - επανεκκίνηση
+    (const TUint16*)L"\x039f\x0020\x0394\x0399\x0391\x03a5\x039b\x039f\x03a3\x0020\x0395\x039c\x0395\x0399\x039d\x0395\x0020\x03a7\x0391\x039c\x0397\x039b\x0391\x0020\x002d\x0020\x03b5\x03c0\x03b1\x03bd\x03b5\x03ba\x03ba\x03af\x03bd\x03b7\x03c3\x03b7",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // ΒΟΗΘΕΙΑ - ΠΙΣΩ έξοδος, πάνω/κάτω κύλιση
+    (const TUint16*)L"\x0392\x039f\x0397\x0398\x0395\x0399\x0391\x0020\x002d\x0020\x03a0\x0399\x03a3\x03a9\x0020\x03ad\x03be\x03bf\x03b4\x03bf\x03c2\x002c\x0020\x03c0\x03ac\x03bd\x03c9\x002f\x03ba\x03ac\x03c4\x03c9\x0020\x03ba\x03cd\x03bb\x03b9\x03c3\x03b7",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_fi[EStrCount] =
+    {
+    // OTA ASETUS KÄYTTÖÖN
+    (const TUint16*)L"\x004f\x0054\x0041\x0020\x0041\x0053\x0045\x0054\x0055\x0053\x0020\x004b\x00c4\x0059\x0054\x0054\x00d6\x00d6\x004e",
+    // VAHVISTA YLIKELLOTUS <<
+    (const TUint16*)L"\x0056\x0041\x0048\x0056\x0049\x0053\x0054\x0041\x0020\x0059\x004c\x0049\x004b\x0045\x004c\x004c\x004f\x0054\x0055\x0053\x0020\x003c\x003c",
+    // VAHVISTA (aseta ensin)
+    (const TUint16*)L"\x0056\x0041\x0048\x0056\x0049\x0053\x0054\x0041\x0020\x0028\x0061\x0073\x0065\x0074\x0061\x0020\x0065\x006e\x0073\x0069\x006e\x0029",
+    // PALAUTA VAKIOASETUS
+    (const TUint16*)L"\x0050\x0041\x004c\x0041\x0055\x0054\x0041\x0020\x0056\x0041\x004b\x0049\x004f\x0041\x0053\x0045\x0054\x0055\x0053",
+    // TESTI cpu/alu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0049\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // TESTI muistikaista
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0049\x0020\x006d\x0075\x0069\x0073\x0074\x0069\x006b\x0061\x0069\x0073\x0074\x0061",
+    // TESTI sdram-eheys
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0049\x0020\x0073\x0064\x0072\x0061\x006d\x002d\x0065\x0068\x0065\x0079\x0073",
+    // TESTI välimuisti
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0049\x0020\x0076\x00e4\x006c\x0069\x006d\x0075\x0069\x0073\x0074\x0069",
+    // TESTI yhdistetty (kaikki)
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0049\x0020\x0079\x0068\x0064\x0069\x0073\x0074\x0065\x0074\x0074\x0079\x0020\x0028\x006b\x0061\x0069\x006b\x006b\x0069\x0029",
+    // OHJE / käyttö
+    (const TUint16*)L"\x004f\x0048\x004a\x0045\x0020\x002f\x0020\x006b\x00e4\x0079\x0074\x0074\x00f6",
+    // AUTO (seuraa vakiota)
+    (const TUint16*)L"\x0041\x0055\x0054\x004f\x0020\x0028\x0073\x0065\x0075\x0072\x0061\x0061\x0020\x0076\x0061\x006b\x0069\x006f\x0074\x0061\x0029",
+    // KÄSIN
+    (const TUint16*)L"\x004b\x00c4\x0053\x0049\x004e",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // suoritetaan...
+    (const TUint16*)L"\x0073\x0075\x006f\x0072\x0069\x0074\x0065\x0074\x0061\x0061\x006e\x002e\x002e\x002e",
+    // MOOTTORI EI VALMIS - vain testit
+    (const TUint16*)L"\x004d\x004f\x004f\x0054\x0054\x004f\x0052\x0049\x0020\x0045\x0049\x0020\x0056\x0041\x004c\x004d\x0049\x0053\x0020\x002d\x0020\x0076\x0061\x0069\x006e\x0020\x0074\x0065\x0073\x0074\x0069\x0074",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // paina VAHVISTA
+    (const TUint16*)L"\x0070\x0061\x0069\x006e\x0061\x0020\x0056\x0041\x0048\x0056\x0049\x0053\x0054\x0041",
+    // mitään ei asetettu - käytä OTA KÄYTTÖÖN
+    (const TUint16*)L"\x006d\x0069\x0074\x00e4\x00e4\x006e\x0020\x0065\x0069\x0020\x0061\x0073\x0065\x0074\x0065\x0074\x0074\x0075\x0020\x002d\x0020\x006b\x00e4\x0079\x0074\x00e4\x0020\x004f\x0054\x0041\x0020\x004b\x00c4\x0059\x0054\x0054\x00d6\x00d6\x004e",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // laskettu väylä takaisin vakioon tappoi 4/4
+    (const TUint16*)L"\x006c\x0061\x0073\x006b\x0065\x0074\x0074\x0075\x0020\x0076\x00e4\x0079\x006c\x00e4\x0020\x0074\x0061\x006b\x0061\x0069\x0073\x0069\x006e\x0020\x0076\x0061\x006b\x0069\x006f\x006f\x006e\x0020\x0074\x0061\x0070\x0070\x006f\x0069\x0020\x0034\x002f\x0034",
+    //  VÄYLÄSUOJA: PÄÄLLÄ  (väylä vain alas)
+    (const TUint16*)L"\x0020\x0056\x00c4\x0059\x004c\x00c4\x0053\x0055\x004f\x004a\x0041\x003a\x0020\x0050\x00c4\x00c4\x004c\x004c\x00c4\x0020\x0020\x0028\x0076\x00e4\x0079\x006c\x00e4\x0020\x0076\x0061\x0069\x006e\x0020\x0061\x006c\x0061\x0073\x0029",
+    //  VÄYLÄSUOJA: POIS  noston voi tehdä
+    (const TUint16*)L"\x0020\x0056\x00c4\x0059\x004c\x00c4\x0053\x0055\x004f\x004a\x0041\x003a\x0020\x0050\x004f\x0049\x0053\x0020\x0020\x006e\x006f\x0073\x0074\x006f\x006e\x0020\x0076\x006f\x0069\x0020\x0074\x0065\x0068\x0064\x00e4",
+    // VÄYLÄ JÄI ALAS - käynnistä uudelleen
+    (const TUint16*)L"\x0056\x00c4\x0059\x004c\x00c4\x0020\x004a\x00c4\x0049\x0020\x0041\x004c\x0041\x0053\x0020\x002d\x0020\x006b\x00e4\x0079\x006e\x006e\x0069\x0073\x0074\x00e4\x0020\x0075\x0075\x0064\x0065\x006c\x006c\x0065\x0065\x006e",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // OHJE - TAKAISIN poistuu, ylös/alas vierittää
+    (const TUint16*)L"\x004f\x0048\x004a\x0045\x0020\x002d\x0020\x0054\x0041\x004b\x0041\x0049\x0053\x0049\x004e\x0020\x0070\x006f\x0069\x0073\x0074\x0075\x0075\x002c\x0020\x0079\x006c\x00f6\x0073\x002f\x0061\x006c\x0061\x0073\x0020\x0076\x0069\x0065\x0072\x0069\x0074\x0074\x00e4\x00e4",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_da[EStrCount] =
+    {
+    // ANVEND INDSTILLING
+    (const TUint16*)L"\x0041\x004e\x0056\x0045\x004e\x0044\x0020\x0049\x004e\x0044\x0053\x0054\x0049\x004c\x004c\x0049\x004e\x0047",
+    // BEKRÆFT OVERCLOCK <<
+    (const TUint16*)L"\x0042\x0045\x004b\x0052\x00c6\x0046\x0054\x0020\x004f\x0056\x0045\x0052\x0043\x004c\x004f\x0043\x004b\x0020\x003c\x003c",
+    // BEKRÆFT (anvend først)
+    (const TUint16*)L"\x0042\x0045\x004b\x0052\x00c6\x0046\x0054\x0020\x0028\x0061\x006e\x0076\x0065\x006e\x0064\x0020\x0066\x00f8\x0072\x0073\x0074\x0029",
+    // GENDAN STANDARD
+    (const TUint16*)L"\x0047\x0045\x004e\x0044\x0041\x004e\x0020\x0053\x0054\x0041\x004e\x0044\x0041\x0052\x0044",
+    // TEST cpu/alu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // TEST hukommelsesbåndbredde
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0068\x0075\x006b\x006f\x006d\x006d\x0065\x006c\x0073\x0065\x0073\x0062\x00e5\x006e\x0064\x0062\x0072\x0065\x0064\x0064\x0065",
+    // TEST sdram-integritet
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0073\x0064\x0072\x0061\x006d\x002d\x0069\x006e\x0074\x0065\x0067\x0072\x0069\x0074\x0065\x0074",
+    // TEST cache
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0063\x0061\x0063\x0068\x0065",
+    // TEST samlet (alt)
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0073\x0061\x006d\x006c\x0065\x0074\x0020\x0028\x0061\x006c\x0074\x0029",
+    // HJÆLP / sådan bruges
+    (const TUint16*)L"\x0048\x004a\x00c6\x004c\x0050\x0020\x002f\x0020\x0073\x00e5\x0064\x0061\x006e\x0020\x0062\x0072\x0075\x0067\x0065\x0073",
+    // AUTO (følg standard)
+    (const TUint16*)L"\x0041\x0055\x0054\x004f\x0020\x0028\x0066\x00f8\x006c\x0067\x0020\x0073\x0074\x0061\x006e\x0064\x0061\x0072\x0064\x0029",
+    // MANUEL
+    (const TUint16*)L"\x004d\x0041\x004e\x0055\x0045\x004c",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // kører...
+    (const TUint16*)L"\x006b\x00f8\x0072\x0065\x0072\x002e\x002e\x002e",
+    // MOTOR IKKE KLAR - kun tests
+    (const TUint16*)L"\x004d\x004f\x0054\x004f\x0052\x0020\x0049\x004b\x004b\x0045\x0020\x004b\x004c\x0041\x0052\x0020\x002d\x0020\x006b\x0075\x006e\x0020\x0074\x0065\x0073\x0074\x0073",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // tryk BEKRÆFT
+    (const TUint16*)L"\x0074\x0072\x0079\x006b\x0020\x0042\x0045\x004b\x0052\x00c6\x0046\x0054",
+    // intet klargjort - brug ANVEND
+    (const TUint16*)L"\x0069\x006e\x0074\x0065\x0074\x0020\x006b\x006c\x0061\x0072\x0067\x006a\x006f\x0072\x0074\x0020\x002d\x0020\x0062\x0072\x0075\x0067\x0020\x0041\x004e\x0056\x0045\x004e\x0044",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // sænket bus tilbage til standard dræbte 4 af 4
+    (const TUint16*)L"\x0073\x00e6\x006e\x006b\x0065\x0074\x0020\x0062\x0075\x0073\x0020\x0074\x0069\x006c\x0062\x0061\x0067\x0065\x0020\x0074\x0069\x006c\x0020\x0073\x0074\x0061\x006e\x0064\x0061\x0072\x0064\x0020\x0064\x0072\x00e6\x0062\x0074\x0065\x0020\x0034\x0020\x0061\x0066\x0020\x0034",
+    //  BUSVÆRN: TIL  (bussen kan kun ned)
+    (const TUint16*)L"\x0020\x0042\x0055\x0053\x0056\x00c6\x0052\x004e\x003a\x0020\x0054\x0049\x004c\x0020\x0020\x0028\x0062\x0075\x0073\x0073\x0065\x006e\x0020\x006b\x0061\x006e\x0020\x006b\x0075\x006e\x0020\x006e\x0065\x0064\x0029",
+    //  BUSVÆRN: FRA  hævning er tilladt
+    (const TUint16*)L"\x0020\x0042\x0055\x0053\x0056\x00c6\x0052\x004e\x003a\x0020\x0046\x0052\x0041\x0020\x0020\x0068\x00e6\x0076\x006e\x0069\x006e\x0067\x0020\x0065\x0072\x0020\x0074\x0069\x006c\x006c\x0061\x0064\x0074",
+    // BUSSEN BLEV SÆNKET - genstart for standard
+    (const TUint16*)L"\x0042\x0055\x0053\x0053\x0045\x004e\x0020\x0042\x004c\x0045\x0056\x0020\x0053\x00c6\x004e\x004b\x0045\x0054\x0020\x002d\x0020\x0067\x0065\x006e\x0073\x0074\x0061\x0072\x0074\x0020\x0066\x006f\x0072\x0020\x0073\x0074\x0061\x006e\x0064\x0061\x0072\x0064",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // HJÆLP - TILBAGE for exit, op/ned ruller
+    (const TUint16*)L"\x0048\x004a\x00c6\x004c\x0050\x0020\x002d\x0020\x0054\x0049\x004c\x0042\x0041\x0047\x0045\x0020\x0066\x006f\x0072\x0020\x0065\x0078\x0069\x0074\x002c\x0020\x006f\x0070\x002f\x006e\x0065\x0064\x0020\x0072\x0075\x006c\x006c\x0065\x0072",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_no[EStrCount] =
+    {
+    // BRUK INNSTILLING
+    (const TUint16*)L"\x0042\x0052\x0055\x004b\x0020\x0049\x004e\x004e\x0053\x0054\x0049\x004c\x004c\x0049\x004e\x0047",
+    // BEKREFT OVERKLOKKING <<
+    (const TUint16*)L"\x0042\x0045\x004b\x0052\x0045\x0046\x0054\x0020\x004f\x0056\x0045\x0052\x004b\x004c\x004f\x004b\x004b\x0049\x004e\x0047\x0020\x003c\x003c",
+    // BEKREFT (bruk først)
+    (const TUint16*)L"\x0042\x0045\x004b\x0052\x0045\x0046\x0054\x0020\x0028\x0062\x0072\x0075\x006b\x0020\x0066\x00f8\x0072\x0073\x0074\x0029",
+    // GJENOPPRETT STANDARD
+    (const TUint16*)L"\x0047\x004a\x0045\x004e\x004f\x0050\x0050\x0052\x0045\x0054\x0054\x0020\x0053\x0054\x0041\x004e\x0044\x0041\x0052\x0044",
+    // TEST cpu/alu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // TEST minnebåndbredde
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x006d\x0069\x006e\x006e\x0065\x0062\x00e5\x006e\x0064\x0062\x0072\x0065\x0064\x0064\x0065",
+    // TEST sdram-integritet
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0073\x0064\x0072\x0061\x006d\x002d\x0069\x006e\x0074\x0065\x0067\x0072\x0069\x0074\x0065\x0074",
+    // TEST hurtigbuffer
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0068\x0075\x0072\x0074\x0069\x0067\x0062\x0075\x0066\x0066\x0065\x0072",
+    // TEST samlet (alt)
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0073\x0061\x006d\x006c\x0065\x0074\x0020\x0028\x0061\x006c\x0074\x0029",
+    // HJELP / slik brukes den
+    (const TUint16*)L"\x0048\x004a\x0045\x004c\x0050\x0020\x002f\x0020\x0073\x006c\x0069\x006b\x0020\x0062\x0072\x0075\x006b\x0065\x0073\x0020\x0064\x0065\x006e",
+    // AUTO (følg standard)
+    (const TUint16*)L"\x0041\x0055\x0054\x004f\x0020\x0028\x0066\x00f8\x006c\x0067\x0020\x0073\x0074\x0061\x006e\x0064\x0061\x0072\x0064\x0029",
+    // MANUELL
+    (const TUint16*)L"\x004d\x0041\x004e\x0055\x0045\x004c\x004c",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // kjører...
+    (const TUint16*)L"\x006b\x006a\x00f8\x0072\x0065\x0072\x002e\x002e\x002e",
+    // MOTOR IKKE KLAR - bare tester
+    (const TUint16*)L"\x004d\x004f\x0054\x004f\x0052\x0020\x0049\x004b\x004b\x0045\x0020\x004b\x004c\x0041\x0052\x0020\x002d\x0020\x0062\x0061\x0072\x0065\x0020\x0074\x0065\x0073\x0074\x0065\x0072",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // trykk BEKREFT
+    (const TUint16*)L"\x0074\x0072\x0079\x006b\x006b\x0020\x0042\x0045\x004b\x0052\x0045\x0046\x0054",
+    // ingenting klargjort - bruk BRUK
+    (const TUint16*)L"\x0069\x006e\x0067\x0065\x006e\x0074\x0069\x006e\x0067\x0020\x006b\x006c\x0061\x0072\x0067\x006a\x006f\x0072\x0074\x0020\x002d\x0020\x0062\x0072\x0075\x006b\x0020\x0042\x0052\x0055\x004b",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // senket buss tilbake til standard drepte 4 av 4
+    (const TUint16*)L"\x0073\x0065\x006e\x006b\x0065\x0074\x0020\x0062\x0075\x0073\x0073\x0020\x0074\x0069\x006c\x0062\x0061\x006b\x0065\x0020\x0074\x0069\x006c\x0020\x0073\x0074\x0061\x006e\x0064\x0061\x0072\x0064\x0020\x0064\x0072\x0065\x0070\x0074\x0065\x0020\x0034\x0020\x0061\x0076\x0020\x0034",
+    //  BUSSVERN: PÅ  (bussen kan bare ned)
+    (const TUint16*)L"\x0020\x0042\x0055\x0053\x0053\x0056\x0045\x0052\x004e\x003a\x0020\x0050\x00c5\x0020\x0020\x0028\x0062\x0075\x0073\x0073\x0065\x006e\x0020\x006b\x0061\x006e\x0020\x0062\x0061\x0072\x0065\x0020\x006e\x0065\x0064\x0029",
+    //  BUSSVERN: AV  heving er tillatt
+    (const TUint16*)L"\x0020\x0042\x0055\x0053\x0053\x0056\x0045\x0052\x004e\x003a\x0020\x0041\x0056\x0020\x0020\x0068\x0065\x0076\x0069\x006e\x0067\x0020\x0065\x0072\x0020\x0074\x0069\x006c\x006c\x0061\x0074\x0074",
+    // BUSSEN BLE SENKET - start på nytt
+    (const TUint16*)L"\x0042\x0055\x0053\x0053\x0045\x004e\x0020\x0042\x004c\x0045\x0020\x0053\x0045\x004e\x004b\x0045\x0054\x0020\x002d\x0020\x0073\x0074\x0061\x0072\x0074\x0020\x0070\x00e5\x0020\x006e\x0079\x0074\x0074",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // HJELP - TILBAKE avslutter, opp/ned ruller
+    (const TUint16*)L"\x0048\x004a\x0045\x004c\x0050\x0020\x002d\x0020\x0054\x0049\x004c\x0042\x0041\x004b\x0045\x0020\x0061\x0076\x0073\x006c\x0075\x0074\x0074\x0065\x0072\x002c\x0020\x006f\x0070\x0070\x002f\x006e\x0065\x0064\x0020\x0072\x0075\x006c\x006c\x0065\x0072",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_sk[EStrCount] =
+    {
+    // POUŽIŤ NASTAVENIE
+    (const TUint16*)L"\x0050\x004f\x0055\x017d\x0049\x0164\x0020\x004e\x0041\x0053\x0054\x0041\x0056\x0045\x004e\x0049\x0045",
+    // POTVRDIŤ PRETAKTOVANIE <<
+    (const TUint16*)L"\x0050\x004f\x0054\x0056\x0052\x0044\x0049\x0164\x0020\x0050\x0052\x0045\x0054\x0041\x004b\x0054\x004f\x0056\x0041\x004e\x0049\x0045\x0020\x003c\x003c",
+    // POTVRDIŤ (najprv POUŽIŤ)
+    (const TUint16*)L"\x0050\x004f\x0054\x0056\x0052\x0044\x0049\x0164\x0020\x0028\x006e\x0061\x006a\x0070\x0072\x0076\x0020\x0050\x004f\x0055\x017d\x0049\x0164\x0029",
+    // OBNOVIŤ TOVÁRENSKÉ
+    (const TUint16*)L"\x004f\x0042\x004e\x004f\x0056\x0049\x0164\x0020\x0054\x004f\x0056\x00c1\x0052\x0045\x004e\x0053\x004b\x00c9",
+    // TEST cpu/alu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // TEST priepustnosť pamäte
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0070\x0072\x0069\x0065\x0070\x0075\x0073\x0074\x006e\x006f\x0073\x0165\x0020\x0070\x0061\x006d\x00e4\x0074\x0065",
+    // TEST integrita sdram
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0069\x006e\x0074\x0065\x0067\x0072\x0069\x0074\x0061\x0020\x0073\x0064\x0072\x0061\x006d",
+    // TEST vyrovnávacia pamäť
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0076\x0079\x0072\x006f\x0076\x006e\x00e1\x0076\x0061\x0063\x0069\x0061\x0020\x0070\x0061\x006d\x00e4\x0165",
+    // TEST súhrnný (všetko)
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0073\x00fa\x0068\x0072\x006e\x006e\x00fd\x0020\x0028\x0076\x0161\x0065\x0074\x006b\x006f\x0029",
+    // POMOCNÍK / ako používať
+    (const TUint16*)L"\x0050\x004f\x004d\x004f\x0043\x004e\x00cd\x004b\x0020\x002f\x0020\x0061\x006b\x006f\x0020\x0070\x006f\x0075\x017e\x00ed\x0076\x0061\x0165",
+    // AUTO (podľa továrenského)
+    (const TUint16*)L"\x0041\x0055\x0054\x004f\x0020\x0028\x0070\x006f\x0064\x013e\x0061\x0020\x0074\x006f\x0076\x00e1\x0072\x0065\x006e\x0073\x006b\x00e9\x0068\x006f\x0029",
+    // RUČNE
+    (const TUint16*)L"\x0052\x0055\x010c\x004e\x0045",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // prebieha...
+    (const TUint16*)L"\x0070\x0072\x0065\x0062\x0069\x0065\x0068\x0061\x002e\x002e\x002e",
+    // JADRO NIE JE PRIPRAVENÉ - len testy
+    (const TUint16*)L"\x004a\x0041\x0044\x0052\x004f\x0020\x004e\x0049\x0045\x0020\x004a\x0045\x0020\x0050\x0052\x0049\x0050\x0052\x0041\x0056\x0045\x004e\x00c9\x0020\x002d\x0020\x006c\x0065\x006e\x0020\x0074\x0065\x0073\x0074\x0079",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // stlačte POTVRDIŤ
+    (const TUint16*)L"\x0073\x0074\x006c\x0061\x010d\x0074\x0065\x0020\x0050\x004f\x0054\x0056\x0052\x0044\x0049\x0164",
+    // nič nie je pripravené - najprv POUŽIŤ
+    (const TUint16*)L"\x006e\x0069\x010d\x0020\x006e\x0069\x0065\x0020\x006a\x0065\x0020\x0070\x0072\x0069\x0070\x0072\x0061\x0076\x0065\x006e\x00e9\x0020\x002d\x0020\x006e\x0061\x006a\x0070\x0072\x0076\x0020\x0050\x004f\x0055\x017d\x0049\x0164",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // návrat zníženej zbernice zabil 4 zo 4
+    (const TUint16*)L"\x006e\x00e1\x0076\x0072\x0061\x0074\x0020\x007a\x006e\x00ed\x017e\x0065\x006e\x0065\x006a\x0020\x007a\x0062\x0065\x0072\x006e\x0069\x0063\x0065\x0020\x007a\x0061\x0062\x0069\x006c\x0020\x0034\x0020\x007a\x006f\x0020\x0034",
+    //  OCHRANA ZBERNICE: ZAP  (len nadol)
+    (const TUint16*)L"\x0020\x004f\x0043\x0048\x0052\x0041\x004e\x0041\x0020\x005a\x0042\x0045\x0052\x004e\x0049\x0043\x0045\x003a\x0020\x005a\x0041\x0050\x0020\x0020\x0028\x006c\x0065\x006e\x0020\x006e\x0061\x0064\x006f\x006c\x0029",
+    //  OCHRANA ZBERNICE: VYP  zvýšenie povolené
+    (const TUint16*)L"\x0020\x004f\x0043\x0048\x0052\x0041\x004e\x0041\x0020\x005a\x0042\x0045\x0052\x004e\x0049\x0043\x0045\x003a\x0020\x0056\x0059\x0050\x0020\x0020\x007a\x0076\x00fd\x0161\x0065\x006e\x0069\x0065\x0020\x0070\x006f\x0076\x006f\x006c\x0065\x006e\x00e9",
+    // ZBERNICA ZOSTALA ZNÍŽENÁ - reštartujte
+    (const TUint16*)L"\x005a\x0042\x0045\x0052\x004e\x0049\x0043\x0041\x0020\x005a\x004f\x0053\x0054\x0041\x004c\x0041\x0020\x005a\x004e\x00cd\x017d\x0045\x004e\x00c1\x0020\x002d\x0020\x0072\x0065\x0161\x0074\x0061\x0072\x0074\x0075\x006a\x0074\x0065",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // POMOCNÍK - SPÄŤ zatvorí, hore/dole posúva
+    (const TUint16*)L"\x0050\x004f\x004d\x004f\x0043\x004e\x00cd\x004b\x0020\x002d\x0020\x0053\x0050\x00c4\x0164\x0020\x007a\x0061\x0074\x0076\x006f\x0072\x00ed\x002c\x0020\x0068\x006f\x0072\x0065\x002f\x0064\x006f\x006c\x0065\x0020\x0070\x006f\x0073\x00fa\x0076\x0061",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_bg[EStrCount] =
+    {
+    // ПРИЛОЖИ НАСТРОЙКАТА
+    (const TUint16*)L"\x041f\x0420\x0418\x041b\x041e\x0416\x0418\x0020\x041d\x0410\x0421\x0422\x0420\x041e\x0419\x041a\x0410\x0422\x0410",
+    // ПОТВЪРДИ ОВЪРКЛОКА <<
+    (const TUint16*)L"\x041f\x041e\x0422\x0412\x042a\x0420\x0414\x0418\x0020\x041e\x0412\x042a\x0420\x041a\x041b\x041e\x041a\x0410\x0020\x003c\x003c",
+    // ПОТВЪРДИ (първо ПРИЛОЖИ)
+    (const TUint16*)L"\x041f\x041e\x0422\x0412\x042a\x0420\x0414\x0418\x0020\x0028\x043f\x044a\x0440\x0432\x043e\x0020\x041f\x0420\x0418\x041b\x041e\x0416\x0418\x0029",
+    // ВЪЗСТАНОВИ ФАБРИЧНОТО
+    (const TUint16*)L"\x0412\x042a\x0417\x0421\x0422\x0410\x041d\x041e\x0412\x0418\x0020\x0424\x0410\x0411\x0420\x0418\x0427\x041d\x041e\x0422\x041e",
+    // ТЕСТ cpu/alu
+    (const TUint16*)L"\x0422\x0415\x0421\x0422\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // ТЕСТ скорост на паметта
+    (const TUint16*)L"\x0422\x0415\x0421\x0422\x0020\x0441\x043a\x043e\x0440\x043e\x0441\x0442\x0020\x043d\x0430\x0020\x043f\x0430\x043c\x0435\x0442\x0442\x0430",
+    // ТЕСТ цялост на sdram
+    (const TUint16*)L"\x0422\x0415\x0421\x0422\x0020\x0446\x044f\x043b\x043e\x0441\x0442\x0020\x043d\x0430\x0020\x0073\x0064\x0072\x0061\x006d",
+    // ТЕСТ кеш
+    (const TUint16*)L"\x0422\x0415\x0421\x0422\x0020\x043a\x0435\x0448",
+    // ТЕСТ общ (всичко)
+    (const TUint16*)L"\x0422\x0415\x0421\x0422\x0020\x043e\x0431\x0449\x0020\x0028\x0432\x0441\x0438\x0447\x043a\x043e\x0029",
+    // ПОМОЩ / как се използва
+    (const TUint16*)L"\x041f\x041e\x041c\x041e\x0429\x0020\x002f\x0020\x043a\x0430\x043a\x0020\x0441\x0435\x0020\x0438\x0437\x043f\x043e\x043b\x0437\x0432\x0430",
+    // АВТО (следва фабричното)
+    (const TUint16*)L"\x0410\x0412\x0422\x041e\x0020\x0028\x0441\x043b\x0435\x0434\x0432\x0430\x0020\x0444\x0430\x0431\x0440\x0438\x0447\x043d\x043e\x0442\x043e\x0029",
+    // РЪЧНО
+    (const TUint16*)L"\x0420\x042a\x0427\x041d\x041e",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // изпълнява се...
+    (const TUint16*)L"\x0438\x0437\x043f\x044a\x043b\x043d\x044f\x0432\x0430\x0020\x0441\x0435\x002e\x002e\x002e",
+    // ЯДРОТО НЕ Е ГОТОВО - само тестове
+    (const TUint16*)L"\x042f\x0414\x0420\x041e\x0422\x041e\x0020\x041d\x0415\x0020\x0415\x0020\x0413\x041e\x0422\x041e\x0412\x041e\x0020\x002d\x0020\x0441\x0430\x043c\x043e\x0020\x0442\x0435\x0441\x0442\x043e\x0432\x0435",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // натиснете ПОТВЪРДИ
+    (const TUint16*)L"\x043d\x0430\x0442\x0438\x0441\x043d\x0435\x0442\x0435\x0020\x041f\x041e\x0422\x0412\x042a\x0420\x0414\x0418",
+    // нищо не е заредено - първо ПРИЛОЖИ
+    (const TUint16*)L"\x043d\x0438\x0449\x043e\x0020\x043d\x0435\x0020\x0435\x0020\x0437\x0430\x0440\x0435\x0434\x0435\x043d\x043e\x0020\x002d\x0020\x043f\x044a\x0440\x0432\x043e\x0020\x041f\x0420\x0418\x041b\x041e\x0416\x0418",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // връщане на понижена шина уби 4 от 4
+    (const TUint16*)L"\x0432\x0440\x044a\x0449\x0430\x043d\x0435\x0020\x043d\x0430\x0020\x043f\x043e\x043d\x0438\x0436\x0435\x043d\x0430\x0020\x0448\x0438\x043d\x0430\x0020\x0443\x0431\x0438\x0020\x0034\x0020\x043e\x0442\x0020\x0034",
+    //  ЗАЩИТА НА ШИНАТА: ВКЛ  (само надолу)
+    (const TUint16*)L"\x0020\x0417\x0410\x0429\x0418\x0422\x0410\x0020\x041d\x0410\x0020\x0428\x0418\x041d\x0410\x0422\x0410\x003a\x0020\x0412\x041a\x041b\x0020\x0020\x0028\x0441\x0430\x043c\x043e\x0020\x043d\x0430\x0434\x043e\x043b\x0443\x0029",
+    //  ЗАЩИТА НА ШИНАТА: ИЗКЛ  вдигането е позволено
+    (const TUint16*)L"\x0020\x0417\x0410\x0429\x0418\x0422\x0410\x0020\x041d\x0410\x0020\x0428\x0418\x041d\x0410\x0422\x0410\x003a\x0020\x0418\x0417\x041a\x041b\x0020\x0020\x0432\x0434\x0438\x0433\x0430\x043d\x0435\x0442\x043e\x0020\x0435\x0020\x043f\x043e\x0437\x0432\x043e\x043b\x0435\x043d\x043e",
+    // ШИНАТА ОСТАНА ПОНИЖЕНА - рестартирайте
+    (const TUint16*)L"\x0428\x0418\x041d\x0410\x0422\x0410\x0020\x041e\x0421\x0422\x0410\x041d\x0410\x0020\x041f\x041e\x041d\x0418\x0416\x0415\x041d\x0410\x0020\x002d\x0020\x0440\x0435\x0441\x0442\x0430\x0440\x0442\x0438\x0440\x0430\x0439\x0442\x0435",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // ПОМОЩ - НАЗАД изход, горе/долу превърта
+    (const TUint16*)L"\x041f\x041e\x041c\x041e\x0429\x0020\x002d\x0020\x041d\x0410\x0417\x0410\x0414\x0020\x0438\x0437\x0445\x043e\x0434\x002c\x0020\x0433\x043e\x0440\x0435\x002f\x0434\x043e\x043b\x0443\x0020\x043f\x0440\x0435\x0432\x044a\x0440\x0442\x0430",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_hr[EStrCount] =
+    {
+    // PRIMIJENI POSTAVKU
+    (const TUint16*)L"\x0050\x0052\x0049\x004d\x0049\x004a\x0045\x004e\x0049\x0020\x0050\x004f\x0053\x0054\x0041\x0056\x004b\x0055",
+    // POTVRDI OVERCLOCK <<
+    (const TUint16*)L"\x0050\x004f\x0054\x0056\x0052\x0044\x0049\x0020\x004f\x0056\x0045\x0052\x0043\x004c\x004f\x0043\x004b\x0020\x003c\x003c",
+    // POTVRDI (prvo PRIMIJENI)
+    (const TUint16*)L"\x0050\x004f\x0054\x0056\x0052\x0044\x0049\x0020\x0028\x0070\x0072\x0076\x006f\x0020\x0050\x0052\x0049\x004d\x0049\x004a\x0045\x004e\x0049\x0029",
+    // VRATI TVORNIČKO
+    (const TUint16*)L"\x0056\x0052\x0041\x0054\x0049\x0020\x0054\x0056\x004f\x0052\x004e\x0049\x010c\x004b\x004f",
+    // TEST cpu/alu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // TEST propusnost memorije
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0070\x0072\x006f\x0070\x0075\x0073\x006e\x006f\x0073\x0074\x0020\x006d\x0065\x006d\x006f\x0072\x0069\x006a\x0065",
+    // TEST integritet sdram-a
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0069\x006e\x0074\x0065\x0067\x0072\x0069\x0074\x0065\x0074\x0020\x0073\x0064\x0072\x0061\x006d\x002d\x0061",
+    // TEST predmemorija
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0070\x0072\x0065\x0064\x006d\x0065\x006d\x006f\x0072\x0069\x006a\x0061",
+    // TEST skupni (sve)
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0073\x006b\x0075\x0070\x006e\x0069\x0020\x0028\x0073\x0076\x0065\x0029",
+    // POMOĆ / kako se koristi
+    (const TUint16*)L"\x0050\x004f\x004d\x004f\x0106\x0020\x002f\x0020\x006b\x0061\x006b\x006f\x0020\x0073\x0065\x0020\x006b\x006f\x0072\x0069\x0073\x0074\x0069",
+    // AUTO (prati tvorničko)
+    (const TUint16*)L"\x0041\x0055\x0054\x004f\x0020\x0028\x0070\x0072\x0061\x0074\x0069\x0020\x0074\x0076\x006f\x0072\x006e\x0069\x010d\x006b\x006f\x0029",
+    // RUČNO
+    (const TUint16*)L"\x0052\x0055\x010c\x004e\x004f",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // izvodi se...
+    (const TUint16*)L"\x0069\x007a\x0076\x006f\x0064\x0069\x0020\x0073\x0065\x002e\x002e\x002e",
+    // MOTOR NIJE SPREMAN - samo testovi
+    (const TUint16*)L"\x004d\x004f\x0054\x004f\x0052\x0020\x004e\x0049\x004a\x0045\x0020\x0053\x0050\x0052\x0045\x004d\x0041\x004e\x0020\x002d\x0020\x0073\x0061\x006d\x006f\x0020\x0074\x0065\x0073\x0074\x006f\x0076\x0069",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // pritisnite POTVRDI
+    (const TUint16*)L"\x0070\x0072\x0069\x0074\x0069\x0073\x006e\x0069\x0074\x0065\x0020\x0050\x004f\x0054\x0056\x0052\x0044\x0049",
+    // ništa nije spremno - prvo PRIMIJENI
+    (const TUint16*)L"\x006e\x0069\x0161\x0074\x0061\x0020\x006e\x0069\x006a\x0065\x0020\x0073\x0070\x0072\x0065\x006d\x006e\x006f\x0020\x002d\x0020\x0070\x0072\x0076\x006f\x0020\x0050\x0052\x0049\x004d\x0049\x004a\x0045\x004e\x0049",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // vraćanje snizene sabirnice ubilo je 4 od 4
+    (const TUint16*)L"\x0076\x0072\x0061\x0107\x0061\x006e\x006a\x0065\x0020\x0073\x006e\x0069\x007a\x0065\x006e\x0065\x0020\x0073\x0061\x0062\x0069\x0072\x006e\x0069\x0063\x0065\x0020\x0075\x0062\x0069\x006c\x006f\x0020\x006a\x0065\x0020\x0034\x0020\x006f\x0064\x0020\x0034",
+    //  ZAŠTITA SABIRNICE: UKLJ  (samo nadolje)
+    (const TUint16*)L"\x0020\x005a\x0041\x0160\x0054\x0049\x0054\x0041\x0020\x0053\x0041\x0042\x0049\x0052\x004e\x0049\x0043\x0045\x003a\x0020\x0055\x004b\x004c\x004a\x0020\x0020\x0028\x0073\x0061\x006d\x006f\x0020\x006e\x0061\x0064\x006f\x006c\x006a\x0065\x0029",
+    //  ZAŠTITA SABIRNICE: ISKLJ  podizanje dopušteno
+    (const TUint16*)L"\x0020\x005a\x0041\x0160\x0054\x0049\x0054\x0041\x0020\x0053\x0041\x0042\x0049\x0052\x004e\x0049\x0043\x0045\x003a\x0020\x0049\x0053\x004b\x004c\x004a\x0020\x0020\x0070\x006f\x0064\x0069\x007a\x0061\x006e\x006a\x0065\x0020\x0064\x006f\x0070\x0075\x0161\x0074\x0065\x006e\x006f",
+    // SABIRNICA JE OSTALA SNIŽENA - ponovno pokreni
+    (const TUint16*)L"\x0053\x0041\x0042\x0049\x0052\x004e\x0049\x0043\x0041\x0020\x004a\x0045\x0020\x004f\x0053\x0054\x0041\x004c\x0041\x0020\x0053\x004e\x0049\x017d\x0045\x004e\x0041\x0020\x002d\x0020\x0070\x006f\x006e\x006f\x0076\x006e\x006f\x0020\x0070\x006f\x006b\x0072\x0065\x006e\x0069",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // POMOĆ - NATRAG izlaz, gore/dolje pomiče
+    (const TUint16*)L"\x0050\x004f\x004d\x004f\x0106\x0020\x002d\x0020\x004e\x0041\x0054\x0052\x0041\x0047\x0020\x0069\x007a\x006c\x0061\x007a\x002c\x0020\x0067\x006f\x0072\x0065\x002f\x0064\x006f\x006c\x006a\x0065\x0020\x0070\x006f\x006d\x0069\x010d\x0065",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_sl[EStrCount] =
+    {
+    // UPORABI NASTAVITEV
+    (const TUint16*)L"\x0055\x0050\x004f\x0052\x0041\x0042\x0049\x0020\x004e\x0041\x0053\x0054\x0041\x0056\x0049\x0054\x0045\x0056",
+    // POTRDI NADTAKTIRANJE <<
+    (const TUint16*)L"\x0050\x004f\x0054\x0052\x0044\x0049\x0020\x004e\x0041\x0044\x0054\x0041\x004b\x0054\x0049\x0052\x0041\x004e\x004a\x0045\x0020\x003c\x003c",
+    // POTRDI (najprej UPORABI)
+    (const TUint16*)L"\x0050\x004f\x0054\x0052\x0044\x0049\x0020\x0028\x006e\x0061\x006a\x0070\x0072\x0065\x006a\x0020\x0055\x0050\x004f\x0052\x0041\x0042\x0049\x0029",
+    // OBNOVI TOVARNIŠKO
+    (const TUint16*)L"\x004f\x0042\x004e\x004f\x0056\x0049\x0020\x0054\x004f\x0056\x0041\x0052\x004e\x0049\x0160\x004b\x004f",
+    // TEST cpu/alu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // TEST prepustnost pomnilnika
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0070\x0072\x0065\x0070\x0075\x0073\x0074\x006e\x006f\x0073\x0074\x0020\x0070\x006f\x006d\x006e\x0069\x006c\x006e\x0069\x006b\x0061",
+    // TEST celovitost sdram
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0063\x0065\x006c\x006f\x0076\x0069\x0074\x006f\x0073\x0074\x0020\x0073\x0064\x0072\x0061\x006d",
+    // TEST predpomnilnik
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0070\x0072\x0065\x0064\x0070\x006f\x006d\x006e\x0069\x006c\x006e\x0069\x006b",
+    // TEST skupni (vse)
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0073\x006b\x0075\x0070\x006e\x0069\x0020\x0028\x0076\x0073\x0065\x0029",
+    // POMOČ / kako uporabljati
+    (const TUint16*)L"\x0050\x004f\x004d\x004f\x010c\x0020\x002f\x0020\x006b\x0061\x006b\x006f\x0020\x0075\x0070\x006f\x0072\x0061\x0062\x006c\x006a\x0061\x0074\x0069",
+    // SAMODEJNO (sledi tovarniškemu)
+    (const TUint16*)L"\x0053\x0041\x004d\x004f\x0044\x0045\x004a\x004e\x004f\x0020\x0028\x0073\x006c\x0065\x0064\x0069\x0020\x0074\x006f\x0076\x0061\x0072\x006e\x0069\x0161\x006b\x0065\x006d\x0075\x0029",
+    // ROČNO
+    (const TUint16*)L"\x0052\x004f\x010c\x004e\x004f",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // poteka...
+    (const TUint16*)L"\x0070\x006f\x0074\x0065\x006b\x0061\x002e\x002e\x002e",
+    // POGON NI PRIPRAVLJEN - samo testi
+    (const TUint16*)L"\x0050\x004f\x0047\x004f\x004e\x0020\x004e\x0049\x0020\x0050\x0052\x0049\x0050\x0052\x0041\x0056\x004c\x004a\x0045\x004e\x0020\x002d\x0020\x0073\x0061\x006d\x006f\x0020\x0074\x0065\x0073\x0074\x0069",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // pritisnite POTRDI
+    (const TUint16*)L"\x0070\x0072\x0069\x0074\x0069\x0073\x006e\x0069\x0074\x0065\x0020\x0050\x004f\x0054\x0052\x0044\x0049",
+    // nič ni pripravljeno - najprej UPORABI
+    (const TUint16*)L"\x006e\x0069\x010d\x0020\x006e\x0069\x0020\x0070\x0072\x0069\x0070\x0072\x0061\x0076\x006c\x006a\x0065\x006e\x006f\x0020\x002d\x0020\x006e\x0061\x006a\x0070\x0072\x0065\x006a\x0020\x0055\x0050\x004f\x0052\x0041\x0042\x0049",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // vrnitev znižanega vodila je ubila 4 od 4
+    (const TUint16*)L"\x0076\x0072\x006e\x0069\x0074\x0065\x0076\x0020\x007a\x006e\x0069\x017e\x0061\x006e\x0065\x0067\x0061\x0020\x0076\x006f\x0064\x0069\x006c\x0061\x0020\x006a\x0065\x0020\x0075\x0062\x0069\x006c\x0061\x0020\x0034\x0020\x006f\x0064\x0020\x0034",
+    //  ZAŠČITA VODILA: VKLOP  (samo navzdol)
+    (const TUint16*)L"\x0020\x005a\x0041\x0160\x010c\x0049\x0054\x0041\x0020\x0056\x004f\x0044\x0049\x004c\x0041\x003a\x0020\x0056\x004b\x004c\x004f\x0050\x0020\x0020\x0028\x0073\x0061\x006d\x006f\x0020\x006e\x0061\x0076\x007a\x0064\x006f\x006c\x0029",
+    //  ZAŠČITA VODILA: IZKLOP  dvig je dovoljen
+    (const TUint16*)L"\x0020\x005a\x0041\x0160\x010c\x0049\x0054\x0041\x0020\x0056\x004f\x0044\x0049\x004c\x0041\x003a\x0020\x0049\x005a\x004b\x004c\x004f\x0050\x0020\x0020\x0064\x0076\x0069\x0067\x0020\x006a\x0065\x0020\x0064\x006f\x0076\x006f\x006c\x006a\x0065\x006e",
+    // VODILO JE OSTALO ZNIŽANO - znova zaženite
+    (const TUint16*)L"\x0056\x004f\x0044\x0049\x004c\x004f\x0020\x004a\x0045\x0020\x004f\x0053\x0054\x0041\x004c\x004f\x0020\x005a\x004e\x0049\x017d\x0041\x004e\x004f\x0020\x002d\x0020\x007a\x006e\x006f\x0076\x0061\x0020\x007a\x0061\x017e\x0065\x006e\x0069\x0074\x0065",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // POMOČ - NAZAJ za izhod, gor/dol pomika
+    (const TUint16*)L"\x0050\x004f\x004d\x004f\x010c\x0020\x002d\x0020\x004e\x0041\x005a\x0041\x004a\x0020\x007a\x0061\x0020\x0069\x007a\x0068\x006f\x0064\x002c\x0020\x0067\x006f\x0072\x002f\x0064\x006f\x006c\x0020\x0070\x006f\x006d\x0069\x006b\x0061",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_sr[EStrCount] =
+    {
+    // PRIMENI PODEŠAVANJE
+    (const TUint16*)L"\x0050\x0052\x0049\x004d\x0045\x004e\x0049\x0020\x0050\x004f\x0044\x0045\x0160\x0041\x0056\x0041\x004e\x004a\x0045",
+    // POTVRDI OVERKLOK <<
+    (const TUint16*)L"\x0050\x004f\x0054\x0056\x0052\x0044\x0049\x0020\x004f\x0056\x0045\x0052\x004b\x004c\x004f\x004b\x0020\x003c\x003c",
+    // POTVRDI (prvo PRIMENI)
+    (const TUint16*)L"\x0050\x004f\x0054\x0056\x0052\x0044\x0049\x0020\x0028\x0070\x0072\x0076\x006f\x0020\x0050\x0052\x0049\x004d\x0045\x004e\x0049\x0029",
+    // VRATI FABRIČKO
+    (const TUint16*)L"\x0056\x0052\x0041\x0054\x0049\x0020\x0046\x0041\x0042\x0052\x0049\x010c\x004b\x004f",
+    // TEST cpu/alu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // TEST propusnost memorije
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0070\x0072\x006f\x0070\x0075\x0073\x006e\x006f\x0073\x0074\x0020\x006d\x0065\x006d\x006f\x0072\x0069\x006a\x0065",
+    // TEST integritet sdram-a
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0069\x006e\x0074\x0065\x0067\x0072\x0069\x0074\x0065\x0074\x0020\x0073\x0064\x0072\x0061\x006d\x002d\x0061",
+    // TEST keš
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x006b\x0065\x0161",
+    // TEST zbirni (sve)
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x007a\x0062\x0069\x0072\x006e\x0069\x0020\x0028\x0073\x0076\x0065\x0029",
+    // POMOĆ / kako se koristi
+    (const TUint16*)L"\x0050\x004f\x004d\x004f\x0106\x0020\x002f\x0020\x006b\x0061\x006b\x006f\x0020\x0073\x0065\x0020\x006b\x006f\x0072\x0069\x0073\x0074\x0069",
+    // AUTO (prati fabričko)
+    (const TUint16*)L"\x0041\x0055\x0054\x004f\x0020\x0028\x0070\x0072\x0061\x0074\x0069\x0020\x0066\x0061\x0062\x0072\x0069\x010d\x006b\x006f\x0029",
+    // RUČNO
+    (const TUint16*)L"\x0052\x0055\x010c\x004e\x004f",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // izvršava se...
+    (const TUint16*)L"\x0069\x007a\x0076\x0072\x0161\x0061\x0076\x0061\x0020\x0073\x0065\x002e\x002e\x002e",
+    // MOTOR NIJE SPREMAN - samo testovi
+    (const TUint16*)L"\x004d\x004f\x0054\x004f\x0052\x0020\x004e\x0049\x004a\x0045\x0020\x0053\x0050\x0052\x0045\x004d\x0041\x004e\x0020\x002d\x0020\x0073\x0061\x006d\x006f\x0020\x0074\x0065\x0073\x0074\x006f\x0076\x0069",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // pritisnite POTVRDI
+    (const TUint16*)L"\x0070\x0072\x0069\x0074\x0069\x0073\x006e\x0069\x0074\x0065\x0020\x0050\x004f\x0054\x0056\x0052\x0044\x0049",
+    // ništa nije spremno - prvo PRIMENI
+    (const TUint16*)L"\x006e\x0069\x0161\x0074\x0061\x0020\x006e\x0069\x006a\x0065\x0020\x0073\x0070\x0072\x0065\x006d\x006e\x006f\x0020\x002d\x0020\x0070\x0072\x0076\x006f\x0020\x0050\x0052\x0049\x004d\x0045\x004e\x0049",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // vraćanje snižene magistrale ubilo je 4 od 4
+    (const TUint16*)L"\x0076\x0072\x0061\x0107\x0061\x006e\x006a\x0065\x0020\x0073\x006e\x0069\x017e\x0065\x006e\x0065\x0020\x006d\x0061\x0067\x0069\x0073\x0074\x0072\x0061\x006c\x0065\x0020\x0075\x0062\x0069\x006c\x006f\x0020\x006a\x0065\x0020\x0034\x0020\x006f\x0064\x0020\x0034",
+    //  ZAŠTITA MAGISTRALE: UKLJ  (samo nadole)
+    (const TUint16*)L"\x0020\x005a\x0041\x0160\x0054\x0049\x0054\x0041\x0020\x004d\x0041\x0047\x0049\x0053\x0054\x0052\x0041\x004c\x0045\x003a\x0020\x0055\x004b\x004c\x004a\x0020\x0020\x0028\x0073\x0061\x006d\x006f\x0020\x006e\x0061\x0064\x006f\x006c\x0065\x0029",
+    //  ZAŠTITA MAGISTRALE: ISKLJ  podizanje dozvoljeno
+    (const TUint16*)L"\x0020\x005a\x0041\x0160\x0054\x0049\x0054\x0041\x0020\x004d\x0041\x0047\x0049\x0053\x0054\x0052\x0041\x004c\x0045\x003a\x0020\x0049\x0053\x004b\x004c\x004a\x0020\x0020\x0070\x006f\x0064\x0069\x007a\x0061\x006e\x006a\x0065\x0020\x0064\x006f\x007a\x0076\x006f\x006c\x006a\x0065\x006e\x006f",
+    // MAGISTRALA JE OSTALA SNIŽENA - restartujte
+    (const TUint16*)L"\x004d\x0041\x0047\x0049\x0053\x0054\x0052\x0041\x004c\x0041\x0020\x004a\x0045\x0020\x004f\x0053\x0054\x0041\x004c\x0041\x0020\x0053\x004e\x0049\x017d\x0045\x004e\x0041\x0020\x002d\x0020\x0072\x0065\x0073\x0074\x0061\x0072\x0074\x0075\x006a\x0074\x0065",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // POMOĆ - NAZAD izlaz, gore/dole pomera
+    (const TUint16*)L"\x0050\x004f\x004d\x004f\x0106\x0020\x002d\x0020\x004e\x0041\x005a\x0041\x0044\x0020\x0069\x007a\x006c\x0061\x007a\x002c\x0020\x0067\x006f\x0072\x0065\x002f\x0064\x006f\x006c\x0065\x0020\x0070\x006f\x006d\x0065\x0072\x0061",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_et[EStrCount] =
+    {
+    // RAKENDA SÄTE
+    (const TUint16*)L"\x0052\x0041\x004b\x0045\x004e\x0044\x0041\x0020\x0053\x00c4\x0054\x0045",
+    // KINNITA KIIRENDUS <<
+    (const TUint16*)L"\x004b\x0049\x004e\x004e\x0049\x0054\x0041\x0020\x004b\x0049\x0049\x0052\x0045\x004e\x0044\x0055\x0053\x0020\x003c\x003c",
+    // KINNITA (esmalt RAKENDA)
+    (const TUint16*)L"\x004b\x0049\x004e\x004e\x0049\x0054\x0041\x0020\x0028\x0065\x0073\x006d\x0061\x006c\x0074\x0020\x0052\x0041\x004b\x0045\x004e\x0044\x0041\x0029",
+    // TAASTA TEHASESÄTTED
+    (const TUint16*)L"\x0054\x0041\x0041\x0053\x0054\x0041\x0020\x0054\x0045\x0048\x0041\x0053\x0045\x0053\x00c4\x0054\x0054\x0045\x0044",
+    // TEST cpu/alu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // TEST mälu ribalaius
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x006d\x00e4\x006c\x0075\x0020\x0072\x0069\x0062\x0061\x006c\x0061\x0069\x0075\x0073",
+    // TEST sdram terviklikkus
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0073\x0064\x0072\x0061\x006d\x0020\x0074\x0065\x0072\x0076\x0069\x006b\x006c\x0069\x006b\x006b\x0075\x0073",
+    // TEST vahemälu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x0076\x0061\x0068\x0065\x006d\x00e4\x006c\x0075",
+    // TEST koond (kõik)
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0020\x006b\x006f\x006f\x006e\x0064\x0020\x0028\x006b\x00f5\x0069\x006b\x0029",
+    // ABI / kasutusjuhend
+    (const TUint16*)L"\x0041\x0042\x0049\x0020\x002f\x0020\x006b\x0061\x0073\x0075\x0074\x0075\x0073\x006a\x0075\x0068\x0065\x006e\x0064",
+    // AUTO (jälgib tehaseoma)
+    (const TUint16*)L"\x0041\x0055\x0054\x004f\x0020\x0028\x006a\x00e4\x006c\x0067\x0069\x0062\x0020\x0074\x0065\x0068\x0061\x0073\x0065\x006f\x006d\x0061\x0029",
+    // KÄSITSI
+    (const TUint16*)L"\x004b\x00c4\x0053\x0049\x0054\x0053\x0049",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // töötab...
+    (const TUint16*)L"\x0074\x00f6\x00f6\x0074\x0061\x0062\x002e\x002e\x002e",
+    // MOOTOR POLE VALMIS - ainult testid
+    (const TUint16*)L"\x004d\x004f\x004f\x0054\x004f\x0052\x0020\x0050\x004f\x004c\x0045\x0020\x0056\x0041\x004c\x004d\x0049\x0053\x0020\x002d\x0020\x0061\x0069\x006e\x0075\x006c\x0074\x0020\x0074\x0065\x0073\x0074\x0069\x0064",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // vajutage KINNITA
+    (const TUint16*)L"\x0076\x0061\x006a\x0075\x0074\x0061\x0067\x0065\x0020\x004b\x0049\x004e\x004e\x0049\x0054\x0041",
+    // midagi pole valmis - kasuta RAKENDA
+    (const TUint16*)L"\x006d\x0069\x0064\x0061\x0067\x0069\x0020\x0070\x006f\x006c\x0065\x0020\x0076\x0061\x006c\x006d\x0069\x0073\x0020\x002d\x0020\x006b\x0061\x0073\x0075\x0074\x0061\x0020\x0052\x0041\x004b\x0045\x004e\x0044\x0041",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // alandatud siini taastamine tappis 4 neljast
+    (const TUint16*)L"\x0061\x006c\x0061\x006e\x0064\x0061\x0074\x0075\x0064\x0020\x0073\x0069\x0069\x006e\x0069\x0020\x0074\x0061\x0061\x0073\x0074\x0061\x006d\x0069\x006e\x0065\x0020\x0074\x0061\x0070\x0070\x0069\x0073\x0020\x0034\x0020\x006e\x0065\x006c\x006a\x0061\x0073\x0074",
+    //  SIINIKAITSE: SEES  (siin ainult alla)
+    (const TUint16*)L"\x0020\x0053\x0049\x0049\x004e\x0049\x004b\x0041\x0049\x0054\x0053\x0045\x003a\x0020\x0053\x0045\x0045\x0053\x0020\x0020\x0028\x0073\x0069\x0069\x006e\x0020\x0061\x0069\x006e\x0075\x006c\x0074\x0020\x0061\x006c\x006c\x0061\x0029",
+    //  SIINIKAITSE: VÄLJAS  tõstmine lubatud
+    (const TUint16*)L"\x0020\x0053\x0049\x0049\x004e\x0049\x004b\x0041\x0049\x0054\x0053\x0045\x003a\x0020\x0056\x00c4\x004c\x004a\x0041\x0053\x0020\x0020\x0074\x00f5\x0073\x0074\x006d\x0069\x006e\x0065\x0020\x006c\x0075\x0062\x0061\x0074\x0075\x0064",
+    // SIIN JÄI ALANDATUKS - taaskäivitage
+    (const TUint16*)L"\x0053\x0049\x0049\x004e\x0020\x004a\x00c4\x0049\x0020\x0041\x004c\x0041\x004e\x0044\x0041\x0054\x0055\x004b\x0053\x0020\x002d\x0020\x0074\x0061\x0061\x0073\x006b\x00e4\x0069\x0076\x0069\x0074\x0061\x0067\x0065",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // ABI - TAGASI väljub, üles/alla kerib
+    (const TUint16*)L"\x0041\x0042\x0049\x0020\x002d\x0020\x0054\x0041\x0047\x0041\x0053\x0049\x0020\x0076\x00e4\x006c\x006a\x0075\x0062\x002c\x0020\x00fc\x006c\x0065\x0073\x002f\x0061\x006c\x006c\x0061\x0020\x006b\x0065\x0072\x0069\x0062",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_lv[EStrCount] =
+    {
+    // LIETOT IESTATĪJUMU
+    (const TUint16*)L"\x004c\x0049\x0045\x0054\x004f\x0054\x0020\x0049\x0045\x0053\x0054\x0041\x0054\x012a\x004a\x0055\x004d\x0055",
+    // APSTIPRINĀT PĀRTAKTĒŠANU <<
+    (const TUint16*)L"\x0041\x0050\x0053\x0054\x0049\x0050\x0052\x0049\x004e\x0100\x0054\x0020\x0050\x0100\x0052\x0054\x0041\x004b\x0054\x0112\x0160\x0041\x004e\x0055\x0020\x003c\x003c",
+    // APSTIPRINĀT (vispirms LIETOT)
+    (const TUint16*)L"\x0041\x0050\x0053\x0054\x0049\x0050\x0052\x0049\x004e\x0100\x0054\x0020\x0028\x0076\x0069\x0073\x0070\x0069\x0072\x006d\x0073\x0020\x004c\x0049\x0045\x0054\x004f\x0054\x0029",
+    // ATJAUNOT RŪPNĪCAS
+    (const TUint16*)L"\x0041\x0054\x004a\x0041\x0055\x004e\x004f\x0054\x0020\x0052\x016a\x0050\x004e\x012a\x0043\x0041\x0053",
+    // TESTS cpu/alu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0053\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // TESTS atmiņas caurlaide
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0053\x0020\x0061\x0074\x006d\x0069\x0146\x0061\x0073\x0020\x0063\x0061\x0075\x0072\x006c\x0061\x0069\x0064\x0065",
+    // TESTS sdram integritāte
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0053\x0020\x0073\x0064\x0072\x0061\x006d\x0020\x0069\x006e\x0074\x0065\x0067\x0072\x0069\x0074\x0101\x0074\x0065",
+    // TESTS kešatmiņa
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0053\x0020\x006b\x0065\x0161\x0061\x0074\x006d\x0069\x0146\x0061",
+    // TESTS kopējais (viss)
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0053\x0020\x006b\x006f\x0070\x0113\x006a\x0061\x0069\x0073\x0020\x0028\x0076\x0069\x0073\x0073\x0029",
+    // PALĪDZĪBA / kā lietot
+    (const TUint16*)L"\x0050\x0041\x004c\x012a\x0044\x005a\x012a\x0042\x0041\x0020\x002f\x0020\x006b\x0101\x0020\x006c\x0069\x0065\x0074\x006f\x0074",
+    // AUTO (seko rūpnīcas)
+    (const TUint16*)L"\x0041\x0055\x0054\x004f\x0020\x0028\x0073\x0065\x006b\x006f\x0020\x0072\x016b\x0070\x006e\x012b\x0063\x0061\x0073\x0029",
+    // MANUĀLI
+    (const TUint16*)L"\x004d\x0041\x004e\x0055\x0100\x004c\x0049",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // darbojas...
+    (const TUint16*)L"\x0064\x0061\x0072\x0062\x006f\x006a\x0061\x0073\x002e\x002e\x002e",
+    // DZINĒJS NAV GATAVS - tikai testi
+    (const TUint16*)L"\x0044\x005a\x0049\x004e\x0112\x004a\x0053\x0020\x004e\x0041\x0056\x0020\x0047\x0041\x0054\x0041\x0056\x0053\x0020\x002d\x0020\x0074\x0069\x006b\x0061\x0069\x0020\x0074\x0065\x0073\x0074\x0069",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // nospiediet APSTIPRINĀT
+    (const TUint16*)L"\x006e\x006f\x0073\x0070\x0069\x0065\x0064\x0069\x0065\x0074\x0020\x0041\x0050\x0053\x0054\x0049\x0050\x0052\x0049\x004e\x0100\x0054",
+    // nekas nav sagatavots - vispirms LIETOT
+    (const TUint16*)L"\x006e\x0065\x006b\x0061\x0073\x0020\x006e\x0061\x0076\x0020\x0073\x0061\x0067\x0061\x0074\x0061\x0076\x006f\x0074\x0073\x0020\x002d\x0020\x0076\x0069\x0073\x0070\x0069\x0072\x006d\x0073\x0020\x004c\x0049\x0045\x0054\x004f\x0054",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // pazeminātas kopnes atgriešana nogalināja 4 no 4
+    (const TUint16*)L"\x0070\x0061\x007a\x0065\x006d\x0069\x006e\x0101\x0074\x0061\x0073\x0020\x006b\x006f\x0070\x006e\x0065\x0073\x0020\x0061\x0074\x0067\x0072\x0069\x0065\x0161\x0061\x006e\x0061\x0020\x006e\x006f\x0067\x0061\x006c\x0069\x006e\x0101\x006a\x0061\x0020\x0034\x0020\x006e\x006f\x0020\x0034",
+    //  KOPNES AIZSARDZĪBA: IESL  (tikai uz leju)
+    (const TUint16*)L"\x0020\x004b\x004f\x0050\x004e\x0045\x0053\x0020\x0041\x0049\x005a\x0053\x0041\x0052\x0044\x005a\x012a\x0042\x0041\x003a\x0020\x0049\x0045\x0053\x004c\x0020\x0020\x0028\x0074\x0069\x006b\x0061\x0069\x0020\x0075\x007a\x0020\x006c\x0065\x006a\x0075\x0029",
+    //  KOPNES AIZSARDZĪBA: IZSL  celšana atļauta
+    (const TUint16*)L"\x0020\x004b\x004f\x0050\x004e\x0045\x0053\x0020\x0041\x0049\x005a\x0053\x0041\x0052\x0044\x005a\x012a\x0042\x0041\x003a\x0020\x0049\x005a\x0053\x004c\x0020\x0020\x0063\x0065\x006c\x0161\x0061\x006e\x0061\x0020\x0061\x0074\x013c\x0061\x0075\x0074\x0061",
+    // KOPNE PALIKA PAZEMINĀTA - pārstartējiet
+    (const TUint16*)L"\x004b\x004f\x0050\x004e\x0045\x0020\x0050\x0041\x004c\x0049\x004b\x0041\x0020\x0050\x0041\x005a\x0045\x004d\x0049\x004e\x0100\x0054\x0041\x0020\x002d\x0020\x0070\x0101\x0072\x0073\x0074\x0061\x0072\x0074\x0113\x006a\x0069\x0065\x0074",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // PALĪDZĪBA - ATPAKAĻ iziet, augšup/lejup ritina
+    (const TUint16*)L"\x0050\x0041\x004c\x012a\x0044\x005a\x012a\x0042\x0041\x0020\x002d\x0020\x0041\x0054\x0050\x0041\x004b\x0041\x013b\x0020\x0069\x007a\x0069\x0065\x0074\x002c\x0020\x0061\x0075\x0067\x0161\x0075\x0070\x002f\x006c\x0065\x006a\x0075\x0070\x0020\x0072\x0069\x0074\x0069\x006e\x0061",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_lt[EStrCount] =
+    {
+    // TAIKYTI NUSTATYMĄ
+    (const TUint16*)L"\x0054\x0041\x0049\x004b\x0059\x0054\x0049\x0020\x004e\x0055\x0053\x0054\x0041\x0054\x0059\x004d\x0104",
+    // PATVIRTINTI PAGREITINIMĄ <<
+    (const TUint16*)L"\x0050\x0041\x0054\x0056\x0049\x0052\x0054\x0049\x004e\x0054\x0049\x0020\x0050\x0041\x0047\x0052\x0045\x0049\x0054\x0049\x004e\x0049\x004d\x0104\x0020\x003c\x003c",
+    // PATVIRTINTI (pirma TAIKYTI)
+    (const TUint16*)L"\x0050\x0041\x0054\x0056\x0049\x0052\x0054\x0049\x004e\x0054\x0049\x0020\x0028\x0070\x0069\x0072\x006d\x0061\x0020\x0054\x0041\x0049\x004b\x0059\x0054\x0049\x0029",
+    // ATKURTI GAMYKLINIUS
+    (const TUint16*)L"\x0041\x0054\x004b\x0055\x0052\x0054\x0049\x0020\x0047\x0041\x004d\x0059\x004b\x004c\x0049\x004e\x0049\x0055\x0053",
+    // TESTAS cpu/alu
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0041\x0053\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // TESTAS atminties pralaidumas
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0041\x0053\x0020\x0061\x0074\x006d\x0069\x006e\x0074\x0069\x0065\x0073\x0020\x0070\x0072\x0061\x006c\x0061\x0069\x0064\x0075\x006d\x0061\x0073",
+    // TESTAS sdram vientisumas
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0041\x0053\x0020\x0073\x0064\x0072\x0061\x006d\x0020\x0076\x0069\x0065\x006e\x0074\x0069\x0073\x0075\x006d\x0061\x0073",
+    // TESTAS podėlis
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0041\x0053\x0020\x0070\x006f\x0064\x0117\x006c\x0069\x0073",
+    // TESTAS bendras (viskas)
+    (const TUint16*)L"\x0054\x0045\x0053\x0054\x0041\x0053\x0020\x0062\x0065\x006e\x0064\x0072\x0061\x0073\x0020\x0028\x0076\x0069\x0073\x006b\x0061\x0073\x0029",
+    // ŽINYNAS / kaip naudoti
+    (const TUint16*)L"\x017d\x0049\x004e\x0059\x004e\x0041\x0053\x0020\x002f\x0020\x006b\x0061\x0069\x0070\x0020\x006e\x0061\x0075\x0064\x006f\x0074\x0069",
+    // AUTO (seka gamyklinius)
+    (const TUint16*)L"\x0041\x0055\x0054\x004f\x0020\x0028\x0073\x0065\x006b\x0061\x0020\x0067\x0061\x006d\x0079\x006b\x006c\x0069\x006e\x0069\x0075\x0073\x0029",
+    // RANKINIS
+    (const TUint16*)L"\x0052\x0041\x004e\x004b\x0049\x004e\x0049\x0053",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // vykdoma...
+    (const TUint16*)L"\x0076\x0079\x006b\x0064\x006f\x006d\x0061\x002e\x002e\x002e",
+    // VARIKLIS NEPARUOŠTAS - tik testai
+    (const TUint16*)L"\x0056\x0041\x0052\x0049\x004b\x004c\x0049\x0053\x0020\x004e\x0045\x0050\x0041\x0052\x0055\x004f\x0160\x0054\x0041\x0053\x0020\x002d\x0020\x0074\x0069\x006b\x0020\x0074\x0065\x0073\x0074\x0061\x0069",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // spauskite PATVIRTINTI
+    (const TUint16*)L"\x0073\x0070\x0061\x0075\x0073\x006b\x0069\x0074\x0065\x0020\x0050\x0041\x0054\x0056\x0049\x0052\x0054\x0049\x004e\x0054\x0049",
+    // niekas neparuošta - pirma TAIKYTI
+    (const TUint16*)L"\x006e\x0069\x0065\x006b\x0061\x0073\x0020\x006e\x0065\x0070\x0061\x0072\x0075\x006f\x0161\x0074\x0061\x0020\x002d\x0020\x0070\x0069\x0072\x006d\x0061\x0020\x0054\x0041\x0049\x004b\x0059\x0054\x0049",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // sumažintos magistralės grąžinimas nužudė 4 iš 4
+    (const TUint16*)L"\x0073\x0075\x006d\x0061\x017e\x0069\x006e\x0074\x006f\x0073\x0020\x006d\x0061\x0067\x0069\x0073\x0074\x0072\x0061\x006c\x0117\x0073\x0020\x0067\x0072\x0105\x017e\x0069\x006e\x0069\x006d\x0061\x0073\x0020\x006e\x0075\x017e\x0075\x0064\x0117\x0020\x0034\x0020\x0069\x0161\x0020\x0034",
+    //  MAGISTRALĖS APSAUGA: ĮJ  (tik žemyn)
+    (const TUint16*)L"\x0020\x004d\x0041\x0047\x0049\x0053\x0054\x0052\x0041\x004c\x0116\x0053\x0020\x0041\x0050\x0053\x0041\x0055\x0047\x0041\x003a\x0020\x012e\x004a\x0020\x0020\x0028\x0074\x0069\x006b\x0020\x017e\x0065\x006d\x0079\x006e\x0029",
+    //  MAGISTRALĖS APSAUGA: IŠJ  kėlimas leidžiamas
+    (const TUint16*)L"\x0020\x004d\x0041\x0047\x0049\x0053\x0054\x0052\x0041\x004c\x0116\x0053\x0020\x0041\x0050\x0053\x0041\x0055\x0047\x0041\x003a\x0020\x0049\x0160\x004a\x0020\x0020\x006b\x0117\x006c\x0069\x006d\x0061\x0073\x0020\x006c\x0065\x0069\x0064\x017e\x0069\x0061\x006d\x0061\x0073",
+    // MAGISTRALĖ LIKO SUMAŽINTA - perkraukite
+    (const TUint16*)L"\x004d\x0041\x0047\x0049\x0053\x0054\x0052\x0041\x004c\x0116\x0020\x004c\x0049\x004b\x004f\x0020\x0053\x0055\x004d\x0041\x017d\x0049\x004e\x0054\x0041\x0020\x002d\x0020\x0070\x0065\x0072\x006b\x0072\x0061\x0075\x006b\x0069\x0074\x0065",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // ŽINYNAS - ATGAL išeiti, aukštyn/žemyn slinkti
+    (const TUint16*)L"\x017d\x0049\x004e\x0059\x004e\x0041\x0053\x0020\x002d\x0020\x0041\x0054\x0047\x0041\x004c\x0020\x0069\x0161\x0065\x0069\x0074\x0069\x002c\x0020\x0061\x0075\x006b\x0161\x0074\x0079\x006e\x002f\x017e\x0065\x006d\x0079\x006e\x0020\x0073\x006c\x0069\x006e\x006b\x0074\x0069",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
+static const TUint16* const KOcStr_ca[EStrCount] =
+    {
+    // APLICA LA CONFIGURACIÓ
+    (const TUint16*)L"\x0041\x0050\x004c\x0049\x0043\x0041\x0020\x004c\x0041\x0020\x0043\x004f\x004e\x0046\x0049\x0047\x0055\x0052\x0041\x0043\x0049\x00d3",
+    // CONFIRMA LʼOVERCLOCK <<
+    (const TUint16*)L"\x0043\x004f\x004e\x0046\x0049\x0052\x004d\x0041\x0020\x004c\x02bc\x004f\x0056\x0045\x0052\x0043\x004c\x004f\x0043\x004b\x0020\x003c\x003c",
+    // CONFIRMA (primer APLICA)
+    (const TUint16*)L"\x0043\x004f\x004e\x0046\x0049\x0052\x004d\x0041\x0020\x0028\x0070\x0072\x0069\x006d\x0065\x0072\x0020\x0041\x0050\x004c\x0049\x0043\x0041\x0029",
+    // RESTAURA DE FÀBRICA
+    (const TUint16*)L"\x0052\x0045\x0053\x0054\x0041\x0055\x0052\x0041\x0020\x0044\x0045\x0020\x0046\x00c0\x0042\x0052\x0049\x0043\x0041",
+    // PROVA cpu/alu
+    (const TUint16*)L"\x0050\x0052\x004f\x0056\x0041\x0020\x0063\x0070\x0075\x002f\x0061\x006c\x0075",
+    // PROVA amplada de memòria
+    (const TUint16*)L"\x0050\x0052\x004f\x0056\x0041\x0020\x0061\x006d\x0070\x006c\x0061\x0064\x0061\x0020\x0064\x0065\x0020\x006d\x0065\x006d\x00f2\x0072\x0069\x0061",
+    // PROVA integritat sdram
+    (const TUint16*)L"\x0050\x0052\x004f\x0056\x0041\x0020\x0069\x006e\x0074\x0065\x0067\x0072\x0069\x0074\x0061\x0074\x0020\x0073\x0064\x0072\x0061\x006d",
+    // PROVA memòria cau
+    (const TUint16*)L"\x0050\x0052\x004f\x0056\x0041\x0020\x006d\x0065\x006d\x00f2\x0072\x0069\x0061\x0020\x0063\x0061\x0075",
+    // PROVA combinada (tot)
+    (const TUint16*)L"\x0050\x0052\x004f\x0056\x0041\x0020\x0063\x006f\x006d\x0062\x0069\x006e\x0061\x0064\x0061\x0020\x0028\x0074\x006f\x0074\x0029",
+    // AJUDA / com usar-ho
+    (const TUint16*)L"\x0041\x004a\x0055\x0044\x0041\x0020\x002f\x0020\x0063\x006f\x006d\x0020\x0075\x0073\x0061\x0072\x002d\x0068\x006f",
+    // AUTO (segueix la de fàbrica)
+    (const TUint16*)L"\x0041\x0055\x0054\x004f\x0020\x0028\x0073\x0065\x0067\x0075\x0065\x0069\x0078\x0020\x006c\x0061\x0020\x0064\x0065\x0020\x0066\x00e0\x0062\x0072\x0069\x0063\x0061\x0029",
+    // MANUAL
+    (const TUint16*)L"\x004d\x0041\x004e\x0055\x0041\x004c",
+    NULL,   // APPLIED
+    NULL,   // REJECTED
+    // executant...
+    (const TUint16*)L"\x0065\x0078\x0065\x0063\x0075\x0074\x0061\x006e\x0074\x002e\x002e\x002e",
+    // MOTOR NO PREPARAT - només proves
+    (const TUint16*)L"\x004d\x004f\x0054\x004f\x0052\x0020\x004e\x004f\x0020\x0050\x0052\x0045\x0050\x0041\x0052\x0041\x0054\x0020\x002d\x0020\x006e\x006f\x006d\x00e9\x0073\x0020\x0070\x0072\x006f\x0076\x0065\x0073",
+    NULL,   // engine not ready - overclock disabled
+    NULL,   // no memory for buffer
+    // premeu CONFIRMA
+    (const TUint16*)L"\x0070\x0072\x0065\x006d\x0065\x0075\x0020\x0043\x004f\x004e\x0046\x0049\x0052\x004d\x0041",
+    // res preparat - useu APLICA primer
+    (const TUint16*)L"\x0072\x0065\x0073\x0020\x0070\x0072\x0065\x0070\x0061\x0072\x0061\x0074\x0020\x002d\x0020\x0075\x0073\x0065\x0075\x0020\x0041\x0050\x004c\x0049\x0043\x0041\x0020\x0070\x0072\x0069\x006d\x0065\x0072",
+    NULL,   // bus guard ON - bus can only go down
+    NULL,   // bus guard OFF - you can now raise the bus
+    // tornar un bus abaixat a fàbrica va matar 4 de 4
+    (const TUint16*)L"\x0074\x006f\x0072\x006e\x0061\x0072\x0020\x0075\x006e\x0020\x0062\x0075\x0073\x0020\x0061\x0062\x0061\x0069\x0078\x0061\x0074\x0020\x0061\x0020\x0066\x00e0\x0062\x0072\x0069\x0063\x0061\x0020\x0076\x0061\x0020\x006d\x0061\x0074\x0061\x0072\x0020\x0034\x0020\x0064\x0065\x0020\x0034",
+    //  PROTECCIÓ DEL BUS: SÍ  (el bus només baixa)
+    (const TUint16*)L"\x0020\x0050\x0052\x004f\x0054\x0045\x0043\x0043\x0049\x00d3\x0020\x0044\x0045\x004c\x0020\x0042\x0055\x0053\x003a\x0020\x0053\x00cd\x0020\x0020\x0028\x0065\x006c\x0020\x0062\x0075\x0073\x0020\x006e\x006f\x006d\x00e9\x0073\x0020\x0062\x0061\x0069\x0078\x0061\x0029",
+    //  PROTECCIÓ DEL BUS: NO  pujar-lo és permès
+    (const TUint16*)L"\x0020\x0050\x0052\x004f\x0054\x0045\x0043\x0043\x0049\x00d3\x0020\x0044\x0045\x004c\x0020\x0042\x0055\x0053\x003a\x0020\x004e\x004f\x0020\x0020\x0070\x0075\x006a\x0061\x0072\x002d\x006c\x006f\x0020\x00e9\x0073\x0020\x0070\x0065\x0072\x006d\x00e8\x0073",
+    // EL BUS HA QUEDAT ABAIXAT - reinicieu
+    (const TUint16*)L"\x0045\x004c\x0020\x0042\x0055\x0053\x0020\x0048\x0041\x0020\x0051\x0055\x0045\x0044\x0041\x0054\x0020\x0041\x0042\x0041\x0049\x0058\x0041\x0054\x0020\x002d\x0020\x0072\x0065\x0069\x006e\x0069\x0063\x0069\x0065\x0075",
+    NULL,   // WARNING: bus below stock
+    NULL,   // return to stock rebooted 3 of 3
+    NULL,   // bus above stock - measured on E90, works
+    NULL,   // above 129: untested, DPLL may not lock
+    NULL,   // relock FAILED - rolled back in blob
+    // AJUDA - ENRERE per sortir, amunt/avall desplaça
+    (const TUint16*)L"\x0041\x004a\x0055\x0044\x0041\x0020\x002d\x0020\x0045\x004e\x0052\x0045\x0052\x0045\x0020\x0070\x0065\x0072\x0020\x0073\x006f\x0072\x0074\x0069\x0072\x002c\x0020\x0061\x006d\x0075\x006e\x0074\x002f\x0061\x0076\x0061\x006c\x006c\x0020\x0064\x0065\x0073\x0070\x006c\x0061\x00e7\x0061",
+    NULL,   // VERDICT: all subsystems clean
+    NULL,   // VERDICT: WEAK LINK = SDRAM/bus
+    NULL,   // VERDICT: WEAK LINK = cache
+    NULL,   // VERDICT: WEAK LINK = CPU core
+    NULL,   // use left/right, then APPLY
+    NULL,   // bus divider back to auto
+    NULL,   // WARNING: DSP above stock CRASHES on any DSP use
+    NULL,   // use MULT instead - it raises DSP safely
+    NULL,   // send these two lines to add a profile
+    NULL,   // see docs/PORTING.md in the source
+    NULL,   // UNKNOWN DEVICE (uid %08x) - refusing
+    NULL,   // no profile for machine uid %08x; nothing touched
+    NULL,   // no profile for THIS build - nothing touched
+    NULL,   // patcher.ldd missing or driver refused
+    NULL,   // use left/right to change divider
+    NULL,   // switch DIVIDERS to MANUAL first
+    NULL,   // DSP divider already set
+    NULL,   // applying m%d...
+    NULL,   // DSP divider not available on this phone
+    NULL,   // the setter address was never measured here
+    NULL,   //   ... %d more
+    NULL,   // combined: round %d of %d
+    NULL,   // dsp: firmware rejected this divider
+    NULL,   // dsp: MISMATCH - register did not take it
+    NULL,   // dsp: no timer - reverting at once
+    NULL,   // dsp /%d held %d s, then auto-revert
+    NULL,   // bus stays /%d clamped - reboot for stock
+    NULL,   // bus clamped: l3 %d (reboot for stock)
+    NULL,   //  DSPDIV /%d  DSP %u  revert in %ds
+    NULL,   //  DSPDIV /%d  DSP %u  (live /%d)
+    NULL,   //  BUSDIV /%d CLAMPED /%d  SDRAM %u
+    NULL,   //  BUSDIV /%d  SDRAM %u  %d.%d%%
+    NULL,   //  BUSDIV /%d auto  SDRAM %u  %d.%d%%
+    NULL,   // dsp reverted to /%d (%S)
+    NULL,   // timeout
+    NULL,   // restore stock
+    NULL,   //  TEST PROFILE: not needed, device is known
+    NULL,   //  TEST PROFILE: %S
+    NULL,   //  TEST PROFILE: none available
+    NULL,   // left/right to choose, OK to try it
+    NULL,   // UNVERIFIED addresses - this may reboot the phone
+    NULL,   // the phone must be freshly booted
+    NULL,   // trying %S ...
+    NULL,   // test profile works - engine is ready
+    NULL,   // found pwrdown global at %08x
+    };
+
 static const TUint16* const KOcHelp_en[] =
     {
     // WHAT THIS IS
@@ -1929,22 +3255,32 @@ void OcStrInit()
             gActiveName = (const TUint16*)L"\x0070\x006c";
             break;
         case ELangGerman:
+        case ELangAustrian:
+        case ELangSwissGerman:
             gStr = KOcStr_de;
             gActiveName = (const TUint16*)L"\x0064\x0065";
             break;
         case ELangFrench:
+        case ELangSwissFrench:
+        case ELangBelgianFrench:
+        case ELangCanadianFrench:
+        case ELangInternationalFrench:
             gStr = KOcStr_fr;
             gActiveName = (const TUint16*)L"\x0066\x0072";
             break;
         case ELangSpanish:
+        case ELangInternationalSpanish:
+        case ELangLatinAmericanSpanish:
             gStr = KOcStr_es;
             gActiveName = (const TUint16*)L"\x0065\x0073";
             break;
         case ELangItalian:
+        case ELangSwissItalian:
             gStr = KOcStr_it;
             gActiveName = (const TUint16*)L"\x0069\x0074";
             break;
         case ELangPortuguese:
+        case ELangBrazilianPortuguese:
             gStr = KOcStr_pt;
             gActiveName = (const TUint16*)L"\x0070\x0074";
             break;
@@ -1953,14 +3289,17 @@ void OcStrInit()
             gActiveName = (const TUint16*)L"\x0063\x0073";
             break;
         case ELangDutch:
+        case ELangBelgianFlemish:
             gStr = KOcStr_nl;
             gActiveName = (const TUint16*)L"\x006e\x006c";
             break;
         case ELangSwedish:
+        case ELangFinlandSwedish:
             gStr = KOcStr_sv;
             gActiveName = (const TUint16*)L"\x0073\x0076";
             break;
         case ELangTurkish:
+        case ELangCyprusTurkish:
             gStr = KOcStr_tr;
             gActiveName = (const TUint16*)L"\x0074\x0072";
             break;
@@ -1971,6 +3310,60 @@ void OcStrInit()
         case ELangHungarian:
             gStr = KOcStr_hu;
             gActiveName = (const TUint16*)L"\x0068\x0075";
+            break;
+        case ELangGreek:
+        case ELangCyprusGreek:
+            gStr = KOcStr_el;
+            gActiveName = (const TUint16*)L"\x0065\x006c";
+            break;
+        case ELangFinnish:
+            gStr = KOcStr_fi;
+            gActiveName = (const TUint16*)L"\x0066\x0069";
+            break;
+        case ELangDanish:
+            gStr = KOcStr_da;
+            gActiveName = (const TUint16*)L"\x0064\x0061";
+            break;
+        case ELangNorwegian:
+        case ELangNorwegianNynorsk:
+            gStr = KOcStr_no;
+            gActiveName = (const TUint16*)L"\x006e\x006f";
+            break;
+        case ELangSlovak:
+            gStr = KOcStr_sk;
+            gActiveName = (const TUint16*)L"\x0073\x006b";
+            break;
+        case ELangBulgarian:
+            gStr = KOcStr_bg;
+            gActiveName = (const TUint16*)L"\x0062\x0067";
+            break;
+        case ELangCroatian:
+            gStr = KOcStr_hr;
+            gActiveName = (const TUint16*)L"\x0068\x0072";
+            break;
+        case ELangSlovenian:
+            gStr = KOcStr_sl;
+            gActiveName = (const TUint16*)L"\x0073\x006c";
+            break;
+        case ELangSerbian:
+            gStr = KOcStr_sr;
+            gActiveName = (const TUint16*)L"\x0073\x0072";
+            break;
+        case ELangEstonian:
+            gStr = KOcStr_et;
+            gActiveName = (const TUint16*)L"\x0065\x0074";
+            break;
+        case ELangLatvian:
+            gStr = KOcStr_lv;
+            gActiveName = (const TUint16*)L"\x006c\x0076";
+            break;
+        case ELangLithuanian:
+            gStr = KOcStr_lt;
+            gActiveName = (const TUint16*)L"\x006c\x0074";
+            break;
+        case ELangCatalan:
+            gStr = KOcStr_ca;
+            gActiveName = (const TUint16*)L"\x0063\x0061";
             break;
         default:
             break;
@@ -2001,7 +3394,7 @@ TPtrC OcHelpLine(TInt aIndex)
 
 TInt OcStrLanguageCount()
     {
-    return 15;
+    return 28;
     }
 
 TPtrC OcStrActiveLanguage()

@@ -44,7 +44,31 @@ const TLANG = {
     cs: 'ELangCzech',      nl: 'ELangDutch',     sv: 'ELangSwedish',
     tr: 'ELangTurkish',    ro: 'ELangRomanian',  hu: 'ELangHungarian',
     el: 'ELangGreek',      fi: 'ELangFinnish',   da: 'ELangDanish',
-    no: 'ELangNorwegian',  sk: 'ELangSlovak',
+    no: 'ELangNorwegian',  sk: 'ELangSlovak',    bg: 'ELangBulgarian',
+    hr: 'ELangCroatian',   sl: 'ELangSlovenian', sr: 'ELangSerbian',
+    et: 'ELangEstonian',   lv: 'ELangLatvian',   lt: 'ELangLithuanian',
+    ca: 'ELangCatalan',
+};
+
+// Регіональні варіанти. Symbian розрізняє австрійську німецьку, бельгійську
+// французьку, бразильську португальську й таке інше окремими константами, і
+// апарат, налаштований на таку мову, без цієї таблиці мовчки отримував би
+// англійську, хоча переклад у нас є. Ідею взято з PS1Emulator/src/symbian/i18n.cpp.
+const ALIAS = {
+    en: ['ELangAmerican', 'ELangAustralian', 'ELangCanadianEnglish',
+         'ELangInternationalEnglish', 'ELangSouthAfricanEnglish',
+         'ELangNewZealand'],
+    de: ['ELangAustrian', 'ELangSwissGerman'],
+    fr: ['ELangSwissFrench', 'ELangBelgianFrench', 'ELangCanadianFrench',
+         'ELangInternationalFrench'],
+    it: ['ELangSwissItalian'],
+    pt: ['ELangBrazilianPortuguese'],
+    es: ['ELangInternationalSpanish', 'ELangLatinAmericanSpanish'],
+    nl: ['ELangBelgianFlemish'],
+    sv: ['ELangFinlandSwedish'],
+    tr: ['ELangCyprusTurkish'],
+    el: ['ELangCyprusGreek'],
+    no: ['ELangNorwegianNynorsk'],
 };
 
 let h = `// ЗГЕНЕРОВАНО tools/gen_strings.js з src/strings.json. Руками не правити.
@@ -123,7 +147,10 @@ langs.slice(1).forEach(lang => {
     const sym = TLANG[lang];
     if (!sym) throw new Error('немає TLanguage для ' + lang);
     c += `        case ${sym}:
-            gStr = KOcStr_${lang};
+`;
+    (ALIAS[lang] || []).forEach(a => { c += `        case ${a}:
+`; });
+    c += `            gStr = KOcStr_${lang};
 `;
     if (data.help[lang])
         c += `            gHelp = KOcHelp_${lang};
