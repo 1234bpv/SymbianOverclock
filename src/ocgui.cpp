@@ -365,8 +365,8 @@ void COcView::ConstructL(const TRect& aRect)
             TPtrC first(sw.Left(nl == KErrNotFound ? sw.Length() : nl));
             AddLogF(_L("firmware: %S"), &first);
             }
-        AddLog(_L("send these two lines to add a profile"));
-        AddLog(_L("see docs/PORTING.md in the source"));
+        AddLog(OcStr(EStrUnknownSend));
+        AddLog(OcStr(EStrUnknownSeeDocs));
         }
         iMult = 86;
         ActivateL();       // вікно мусить лишитись живим, щоб відмову було видно
@@ -885,13 +885,13 @@ void COcView::RunCombined()
     AddLogF(_L("SDRAM %u.%02u MB/s e=%d"), vInt / 100, vInt % 100, eInt);
 
     if (eAlu == 0 && eCache == 0 && eMem == 0 && eInt == 0)
-        AddLog(_L("VERDICT: all subsystems clean"));
+        AddLog(OcStr(EStrVerdictClean));
     else if (eInt > 0 || eMem > 0)
-        AddLog(_L("VERDICT: WEAK LINK = SDRAM/bus"));
+        AddLog(OcStr(EStrVerdictWeakBus));
     else if (eCache > 0)
-        AddLog(_L("VERDICT: WEAK LINK = cache"));
+        AddLog(OcStr(EStrVerdictWeakCache));
     else
-        AddLog(_L("VERDICT: WEAK LINK = CPU core"));
+        AddLog(OcStr(EStrVerdictWeakCpu));
     }
 
 void COcView::Activate(TRowId aRow)
@@ -950,11 +950,11 @@ void COcView::Activate(TRowId aRow)
                 {
                 iL3Div = 0;
                 iArmed = EFalse;
-                AddLog(_L("bus divider back to auto"));
+                AddLog(OcStr(EStrBusBackToAuto));
                 }
             else
                 {
-                AddLog(_L("use left/right, then APPLY"));
+                AddLog(OcStr(EStrHintArrows));
                 }
             break;
 
@@ -1024,8 +1024,8 @@ void COcView::Activate(TRowId aRow)
                 {
                 // Не «може бути», а виміряно: 330 МГц валить апарат, щойно на
                 // C55x щось запускається - аудіо, камера, будь-що.
-                AddLog(_L("WARNING: DSP above stock CRASHES on any DSP use"));
-                AddLog(_L("use MULT instead - it raises DSP safely"));
+                AddLog(OcStr(EStrWarnDspAbove));
+                AddLog(OcStr(EStrWarnDspUseMult));
                 }
             break;
             }

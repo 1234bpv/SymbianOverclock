@@ -38,6 +38,16 @@ enum TOcStrId
     EStrAboveTested,
     EStrRelockFailed,
     EStrHelpTitle,
+    EStrVerdictClean,
+    EStrVerdictWeakBus,
+    EStrVerdictWeakCache,
+    EStrVerdictWeakCpu,
+    EStrHintArrows,
+    EStrBusBackToAuto,
+    EStrWarnDspAbove,
+    EStrWarnDspUseMult,
+    EStrUnknownSend,
+    EStrUnknownSeeDocs,
     EStrCount
     };
 

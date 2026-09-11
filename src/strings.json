@@ -132,6 +132,46 @@
     "HelpTitle": {
       "en": "HELP - BACK to return, up/down to scroll",
       "uk": "ДОВІДКА - НАЗАД вихід, вгору/вниз гортати"
+    },
+    "VerdictClean": {
+      "en": "VERDICT: all subsystems clean",
+      "uk": "ВИСНОВОК: усі підсистеми чисті"
+    },
+    "VerdictWeakBus": {
+      "en": "VERDICT: WEAK LINK = SDRAM/bus",
+      "uk": "ВИСНОВОК: СЛАБКА ЛАНКА = SDRAM/шина"
+    },
+    "VerdictWeakCache": {
+      "en": "VERDICT: WEAK LINK = cache",
+      "uk": "ВИСНОВОК: СЛАБКА ЛАНКА = кеш"
+    },
+    "VerdictWeakCpu": {
+      "en": "VERDICT: WEAK LINK = CPU core",
+      "uk": "ВИСНОВОК: СЛАБКА ЛАНКА = ядро ЦП"
+    },
+    "HintArrows": {
+      "en": "use left/right, then APPLY",
+      "uk": "крутіть вліво/вправо, тоді ЗАСТОСУВАТИ"
+    },
+    "BusBackToAuto": {
+      "en": "bus divider back to auto",
+      "uk": "дільник шини повернено на автопідбір"
+    },
+    "WarnDspAbove": {
+      "en": "WARNING: DSP above stock CRASHES on any DSP use",
+      "uk": "УВАГА: DSP вище штатного ВАЛИТЬ апарат при будь-якому вжитку DSP"
+    },
+    "WarnDspUseMult": {
+      "en": "use MULT instead - it raises DSP safely",
+      "uk": "беріть MULT - він піднімає DSP безпечно"
+    },
+    "UnknownSend": {
+      "en": "send these two lines to add a profile",
+      "uk": "надішліть ці два рядки, щоб додати профіль"
+    },
+    "UnknownSeeDocs": {
+      "en": "see docs/PORTING.md in the source",
+      "uk": "подробиці - docs/PORTING.md у сирцях"
     }
   },
   "help": {
