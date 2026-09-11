@@ -90,20 +90,20 @@
       "uk": "запобіжник УВІМКНЕНО - шина лише вниз"
     },
     "GuardOff": {
-      "en": "bus guard OFF - raising the bus killed 4 of 4",
-      "uk": "запобіжник ВИМКНЕНО - підйом шини вбив 4 з 4"
+      "en": "bus guard OFF - you can now raise the bus",
+      "uk": "запобіжник ВИМКНЕНО - шину тепер можна піднімати"
     },
     "GuardNote": {
-      "en": "nothing is written to flash; a reboot recovers",
-      "uk": "у флеш не пишеться нічого; ребут повертає все"
+      "en": "returning a lowered bus to stock killed 4 of 4",
+      "uk": "повернення зниженої шини до штатної вбило 4 з 4"
     },
     "GuardRowOn": {
       "en": " BUS GUARD: ON  (bus can only go down)",
       "uk": " ЗАПОБІЖНИК ШИНИ: УВІМК (лише вниз)"
     },
     "GuardRowOff": {
-      "en": " BUS GUARD: OFF  raising bus died 4 of 4",
-      "uk": " ЗАПОБІЖНИК ШИНИ: ВИМК  підйом вбив 4 з 4"
+      "en": " BUS GUARD: OFF  raising the bus allowed",
+      "uk": " ЗАПОБІЖНИК ШИНИ: ВИМК  підйом дозволено"
     },
     "BusLeftLowered": {
       "en": "BUS LEFT LOWERED - reboot for stock",
@@ -118,8 +118,8 @@
       "uk": "повернення до штатної дало ребут 3 з 3"
     },
     "WarnBusAbove": {
-      "en": "WARNING: bus above stock - untested",
-      "uk": "УВАГА: шина вища за штатну - не перевірено"
+      "en": "bus above stock - measured on E90, works",
+      "uk": "шина вища за штатну - на E90 зміряно, працює"
     },
     "AboveTested": {
       "en": "above 129: untested, DPLL may not lock",
@@ -172,6 +172,38 @@
     "UnknownSeeDocs": {
       "en": "see docs/PORTING.md in the source",
       "uk": "подробиці - docs/PORTING.md у сирцях"
+    },
+    "UnknownDevice": {
+      "en": "UNKNOWN DEVICE (uid %08x) - refusing",
+      "uk": "НЕВІДОМИЙ АПАРАТ (uid %08x) - відмова"
+    },
+    "NoProfileUid": {
+      "en": "no profile for machine uid %08x; nothing touched",
+      "uk": "профілю для uid %08x немає; нічого не чіпали"
+    },
+    "NoProfileBuild": {
+      "en": "no profile for THIS build - nothing touched",
+      "uk": "профілю для ЦІЄЇ збірки немає - нічого не чіпали"
+    },
+    "PatcherMissing": {
+      "en": "patcher.ldd missing or driver refused",
+      "uk": "patcher.ldd відсутній або драйвер відмовив"
+    },
+    "HintArrowsDiv": {
+      "en": "use left/right to change divider",
+      "uk": "дільник міняють стрілками вліво/вправо"
+    },
+    "NeedManual": {
+      "en": "switch DIVIDERS to MANUAL first",
+      "uk": "спершу переведіть ДІЛЬНИКИ у ВРУЧНУ"
+    },
+    "DspAlreadySet": {
+      "en": "DSP divider already set",
+      "uk": "дільник DSP уже такий"
+    },
+    "Applying": {
+      "en": "applying m%d...",
+      "uk": "застосовую m%d..."
     }
   },
   "help": {
@@ -212,11 +244,13 @@
       "a smaller divider means a faster bus.",
       "",
       "BUS GUARD",
-      "Returning the bus from a lowered state back",
-      "to stock rebooted the phone four times out",
-      "of four. The guard therefore refuses to",
-      "raise the bus and is ON by default. Turn it",
-      "off only if you accept a likely reboot.",
+      "Returning a lowered bus back to stock rebooted",
+      "the phone four times out of four, and that is",
+      "the only case known to be fatal. Raising the",
+      "bus above stock works and is where the gain",
+      "is. The guard cannot tell one from the other,",
+      "so by default it blocks every raise. A reboot",
+      "undoes whatever turning it off leads to.",
       "",
       "THE TESTS",
       "TEST cpu/alu measures the core and TEST mem",
@@ -273,11 +307,13 @@
       "означає швидшу шину.",
       "",
       "ЗАПОБІЖНИК ШИНИ",
-      "Повернення шини зі зниженого стану до",
-      "штатного перезавантажило апарат чотири рази",
-      "з чотирьох. Тому запобіжник не дає піднімати",
-      "шину і типово увімкнений. Вимикайте, лише",
-      "якщо готові до ребута.",
+      "Повернення зниженої шини до штатної",
+      "перезавантажило апарат чотири рази з чотирьох,",
+      "і це єдиний відомий смертельний випадок. Підйом",
+      "вище штатної працює, і саме там увесь приріст.",
+      "Розрізнити ці два випадки запобіжник не вміє,",
+      "тож типово блокує будь-який підйом. Ребут",
+      "скасовує все, до чого призведе його вимкнення.",
       "",
       "ТЕСТИ",
       "ТЕСТ ЦП міряє ядро, ТЕСТ СМУГИ ПАМʼЯТІ міряє",

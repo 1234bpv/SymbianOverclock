@@ -350,9 +350,9 @@ void COcView::ConstructL(const TRect& aRect)
         {
         TInt uid = 0;
         HAL::Get(HALData::EMachineUid, uid);
-        iStatus.Format(_L("UNKNOWN DEVICE (uid %08x) - refusing"), (TUint32)uid);
+        iStatus.Format(OcStr(EStrUnknownDevice), (TUint32)uid);
         AddLog(iStatus);
-        AddLogF(_L("no profile for machine uid %08x; nothing touched"),
+        AddLogF(OcStr(EStrNoProfileUid),
                 (TUint32)uid);
         // Невідомий апарат - це не глухий кут, а початок портування, і рівно
         // ці два рядки потрібні, щоб зробити для нього профіль. Тому вони
@@ -411,10 +411,10 @@ void COcView::ConstructL(const TRect& aRect)
             TPtrC fw(iEngine->Firmware());
             if (fw.Length())
                 AddLogF(_L("device firmware: %S"), &fw);
-            AddLog(_L("no profile for THIS build - nothing touched"));
+            AddLog(OcStr(EStrNoProfileBuild));
             }
         else
-            AddLog(_L("patcher.ldd missing or driver refused"));
+            AddLog(OcStr(EStrPatcherMissing));
         iMult = 86;
         }
     ActivateL();
@@ -853,7 +853,7 @@ void COcView::RunCombined()
     TUint32* buf = Buffer();
     if (!buf)
         {
-        AddLog(_L("no memory for buffer"));
+        AddLog(OcStr(EStrNoMemory));
         return;
         }
     const TInt kRounds = 3;
@@ -966,7 +966,7 @@ void COcView::Activate(TRowId aRow)
             // relock DPLL. Ребут повертає штатний дільник у будь-якому разі.
             if (iDspDiv == iEngine->DspDiv())
                 {
-                AddLog(_L("DSP divider already set"));
+                AddLog(OcStr(EStrDspAlreadySet));
                 break;
                 }
             TInt rc = KErrGeneral;
@@ -1064,7 +1064,7 @@ void COcView::Activate(TRowId aRow)
                 break;
                 }
             TUint32 st = 0;
-            iStatus.Format(_L("applying m%d..."), iArmedMult);
+            iStatus.Format(OcStr(EStrApplying), iArmedMult);
             Repaint();
             // Дати вікну намалюватись і на мить затихнути перед переходом.
             User::After(150000);
@@ -1147,7 +1147,7 @@ void COcView::Activate(TRowId aRow)
                 {
                 // На рядку дільника OK нічого не застосовує - значення
                 // крутиться вліво/вправо. Так менше шансів зачепити випадково.
-                AddLog(_L("use left/right to change divider"));
+                AddLog(OcStr(EStrHintArrowsDiv));
                 }
             else
                 {
@@ -1261,7 +1261,7 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
                 {
                 if (!iManual)
                     {
-                    AddLog(_L("switch DIVIDERS to MANUAL first"));
+                    AddLog(OcStr(EStrNeedManual));
                     }
                 else
                     {

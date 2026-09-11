@@ -114,7 +114,10 @@ struct TOcProfile
     TOcHost         iHost;            // носій примітиву (див. TOcHost)
     TUint32         iDvfsBody;        // тіло DoControl носія; 0 якщо носія нема
     TUint32         iRomSramRoutine;  // idle/relock рутина power.dll (для обходу DPLL)
-    TUint32         iDspSetter;       // штатний сеттер дільника DSP у power.dll
+    // Штатний сеттер дільника DSP у power.dll. НУЛЬ означає "не міряно для цього
+    // апарата", і ApplyDspDiv на такому профілі відмовляє: нуль тут - це адреса
+    // переходу, а не ознака "пропустити".
+    TUint32         iDspSetter;
     TUint32         iPwrDownGlobal;   // глобал power-down (резолв адреси SRAM)
     // Штатна розкладка тактування САМЕ цього апарата: панель різна, тож DSS/L3
     // між моделями відрізняються, і опорну точку не можна брати спільну.
@@ -140,8 +143,9 @@ const TOcProfile* ProfileForThisDevice();
 
 // Профіль Nokia E90 (RA-6, 400.34.93). Чотири адреси виведено офлайн із XIP
 // (findings §31), dvfs у прошивці немає -> iDvfsBody=0, стратегія EReadMeasureOnly.
-// Розгінного шляху ще немає: Prepare() (шлях EReadDvfs) для нього НЕ придатний
-// і мусить відмовляти, а не патчити. Носій читання на E90 - бутстрап Usbc.
+// ВЖЕ НЕ ТАК (2026-09-09): розгін на E90 працює, носієм READ/EXEC-примітиву
+// служить Usbc (EHostUsbc), і апарат проходить увесь цикл. Лишився нулем лише
+// iDspSetter - дільник DSP на E90 не міряли, і ApplyDspDiv через це відмовляє.
 extern const TOcProfile KProfileE90;
 
 // Регістри (віртуальні адреси; фізична = мінус 0x7E000000 для вікна 0x48xxxxxx).

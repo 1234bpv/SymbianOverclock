@@ -38,10 +38,10 @@ Measured on the E90 with the built-in benchmarks and a 3D test on the large
 screen:
 
 ```
-                        bus        memory     3D
-stock                 110 MHz     339 MB/s   16.33 fps
-bus divider 6 -> 4    165 MHz     509 MB/s   24.55 fps
-plus multiplier 131   201 MHz     569 MB/s   28.20 fps
+                        bus        core       memory     3D
+stock                 110 MHz     330 MHz    339 MB/s   16.33 fps
+bus divider 6 -> 4    165 MHz     330 MHz    509 MB/s   24.55 fps
+plus multiplier 105   201 MHz     403 MHz    569 MB/s   28.20 fps
 ```
 
 The important part is not the top number but where the limit sits. Raising the
@@ -50,9 +50,12 @@ chip 3D is limited by memory, not by the CPU. The core itself tops out near
 500 MHz on both phones without a voltage change, and the multiplier is
 effectively exhausted there.
 
+The highest core clock reached on the E90 is a separate measurement:
+multiplier 131, that is 503 MHz, at 534 MB/s of memory bandwidth.
+
 Repeat runs of the same configuration differ by about 10% on the memory
 benchmark and 7% on frames, so a single run cannot resolve anything smaller
-than that.
+than that. Both numbers in the second row come from repeats of one state.
 
 ## 4. Requirements
 
@@ -75,10 +78,12 @@ The full instructions are inside the application under `HELP`, in English and
 Ukrainian, so they are available on the phone itself with no network.
 
 `BUSDIV` sets the memory bus divider, where a smaller divider means a faster
-bus. `BUS GUARD` is on by default and refuses to raise the bus, because
-returning the bus from a lowered state to stock rebooted the phone four times
-out of four. Raising the bus from stock upwards, on the other hand, works and
-is where most of the gain is. Turning the guard off is an explicit choice.
+bus. `BUS GUARD` is on by default and refuses every request that would raise
+the bus, because returning the bus to stock from a lowered state rebooted the
+phone four times out of four. That is the only case ever observed to be fatal:
+raising the bus above stock, which is where most of the gain is, has been
+measured on the E90 and works. The guard cannot tell the two apart, so turning
+it off is an explicit choice, and a reboot undoes whatever it leads to.
 
 ## 6. Known limitations
 
@@ -95,6 +100,10 @@ measured.
 
 Requires the S60 3rd Edition FP1 SDK, the CSL ARM toolchain with GCCE, and
 Perl 5.20 or older. `EPOCROOT` must be set without the drive letter.
+
+The build scripts and `group/ocgui.pkg` carry absolute paths from the author's
+machine and will need editing to build elsewhere; a ready signed package is
+attached to the GitHub release for anyone who only wants to install it.
 
 ```
 tools\build.cmd                 build the probe and the application

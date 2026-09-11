@@ -48,6 +48,14 @@ enum TOcStrId
     EStrWarnDspUseMult,
     EStrUnknownSend,
     EStrUnknownSeeDocs,
+    EStrUnknownDevice,
+    EStrNoProfileUid,
+    EStrNoProfileBuild,
+    EStrPatcherMissing,
+    EStrHintArrowsDiv,
+    EStrNeedManual,
+    EStrDspAlreadySet,
+    EStrApplying,
     EStrCount
     };
 

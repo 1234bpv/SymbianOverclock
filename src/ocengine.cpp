@@ -837,7 +837,7 @@ _LIT(KStepOpenDvfs,    "opening dvfs_interface");
 _LIT(KStepResolveSram, "resolving SRAM chunk");
 _LIT(KStepVerifySram,  "verifying SRAM copy");
 _LIT(KStepReadRegs,    "reading PRCM registers");
-_LIT(KStepUnsupported, "profile has no dvfs read path (E90)");
+_LIT(KStepUnsupported, "profile has no read path for this host");
 _LIT(KStepFirmware,    "firmware does not match the profile");
 _LIT(KStepReady,       "ready");
 
@@ -1006,6 +1006,17 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     {
     aVerify = -1;
     aReadValue = 0;
+
+    // Той самий гейт, що і в Prepare(), і з тієї самої причини. Рівень 2 і вище
+    // НАКЛАДАЄ патч, а профіль тут за замовчуванням еталонний (RM-320), бо
+    // викликач може не звати SetProfile. Без цієї перевірки "selftest 2" на
+    // чужому апараті записав би адресу RM-320 у чуже ядро - тобто саме те, від
+    // чого гейт і ставили.
+    if (aLevel >= 2 && CheckFirmware() != KErrNone)
+        {
+        iStep = EOcStepFirmware;
+        return KErrNotSupported;
+        }
 
     iStep = EOcStepLoadDriver;
     TInt r = User::LoadLogicalDevice(KPatcherFile);
@@ -1584,6 +1595,13 @@ TInt COcEngine::ApplyDspDiv(TInt aDiv, TInt& aSetterRc)
     aSetterRc = KErrGeneral;
     if (!iReady)
         return KErrNotReady;
+    // Профіль без сеттера DSP (E90: адреса не міряна, тому нуль) - відмова ДО
+    // будь-якої дії. Без цієї перевірки блоб виконав би blx 0 у режимі ядра:
+    // нуль тут не "нічого не робити", а перехід за нульовою адресою. Це рівно
+    // той клас помилки, проти якого стоїть заборона "нічого, що може зависнути,
+    // за замовчуванням" - а пункт DSPDIV у GUI доступний завжди.
+    if (iProfile->iDspSetter == 0)
+        return KErrNotSupported;
     // Перевіряємо і в себе теж. Сеттер пропускає значення >31, а Modify32
     // маскує їх 0x1F - тобто 32 записало б у поле 0 і зупинило клок DSP.
     if (aDiv < 1 || aDiv > 31)
