@@ -1687,7 +1687,14 @@ static void ProbeHal()
             // адреси в ядро.
             { HALData::EMachineUid,           "EMachineUid"          },
             { HALData::EModel,                "EModel"               },
-            { HALData::EManufacturer,         "EManufacturer"        }
+            { HALData::EManufacturer,         "EManufacturer"        },
+            // Кандидати на апаратний вимикач автозапуску: зовнішнє живлення й
+            // стан кришки. Обидва є в SDK, але чи повертає їх ЦЕЙ апарат -
+            // питання заміру, а не документації. KErrNotSupported тут теж
+            // відповідь: значить, вимикач має бути інший.
+            { HALData::EPowerExternal,        "EPowerExternal"       },
+            { HALData::EPowerBatteryStatus,   "EPowerBatteryStatus"  },
+            { HALData::ECaseState,            "ECaseState"           }
         };
     const TInt n = sizeof(attrs) / sizeof(attrs[0]);
     for (TInt i = 0; i < n; ++i)

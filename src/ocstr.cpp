@@ -165,6 +165,12 @@ static const TUint16* const KOcStr_en[EStrCount] =
     (const TUint16*)L"\x0074\x0065\x0073\x0074\x0020\x0070\x0072\x006f\x0066\x0069\x006c\x0065\x0020\x0077\x006f\x0072\x006b\x0073\x0020\x002d\x0020\x0065\x006e\x0067\x0069\x006e\x0065\x0020\x0069\x0073\x0020\x0072\x0065\x0061\x0064\x0079",
     // found pwrdown global at %08x
     (const TUint16*)L"\x0066\x006f\x0075\x006e\x0064\x0020\x0070\x0077\x0072\x0064\x006f\x0077\x006e\x0020\x0067\x006c\x006f\x0062\x0061\x006c\x0020\x0061\x0074\x0020\x0025\x0030\x0038\x0078",
+    //  KEEP ON EXIT: ON  (clock stays after exit)
+    (const TUint16*)L"\x0020\x004b\x0045\x0045\x0050\x0020\x004f\x004e\x0020\x0045\x0058\x0049\x0054\x003a\x0020\x004f\x004e\x0020\x0020\x0028\x0063\x006c\x006f\x0063\x006b\x0020\x0073\x0074\x0061\x0079\x0073\x0020\x0061\x0066\x0074\x0065\x0072\x0020\x0065\x0078\x0069\x0074\x0029",
+    //  KEEP ON EXIT: OFF  (stock clock on exit)
+    (const TUint16*)L"\x0020\x004b\x0045\x0045\x0050\x0020\x004f\x004e\x0020\x0045\x0058\x0049\x0054\x003a\x0020\x004f\x0046\x0046\x0020\x0020\x0028\x0073\x0074\x006f\x0063\x006b\x0020\x0063\x006c\x006f\x0063\x006b\x0020\x006f\x006e\x0020\x0065\x0078\x0069\x0074\x0029",
+    // a reboot restores stock clocks in any case
+    (const TUint16*)L"\x0061\x0020\x0072\x0065\x0062\x006f\x006f\x0074\x0020\x0072\x0065\x0073\x0074\x006f\x0072\x0065\x0073\x0020\x0073\x0074\x006f\x0063\x006b\x0020\x0063\x006c\x006f\x0063\x006b\x0073\x0020\x0069\x006e\x0020\x0061\x006e\x0079\x0020\x0063\x0061\x0073\x0065",
     };
 
 static const TUint16* const KOcStr_uk[EStrCount] =
@@ -323,6 +329,12 @@ static const TUint16* const KOcStr_uk[EStrCount] =
     (const TUint16*)L"\x0442\x0435\x0441\x0442\x043e\x0432\x0438\x0439\x0020\x043f\x0440\x043e\x0444\x0456\x043b\x044c\x0020\x043f\x0440\x0430\x0446\x044e\x0454\x0020\x002d\x0020\x0440\x0443\x0448\x0456\x0439\x0020\x0433\x043e\x0442\x043e\x0432\x0438\x0439",
     // глобал power-down знайдено за %08x
     (const TUint16*)L"\x0433\x043b\x043e\x0431\x0430\x043b\x0020\x0070\x006f\x0077\x0065\x0072\x002d\x0064\x006f\x0077\x006e\x0020\x0437\x043d\x0430\x0439\x0434\x0435\x043d\x043e\x0020\x0437\x0430\x0020\x0025\x0030\x0038\x0078",
+    //  ЗБЕРІГАТИ ПРИ ВИХОДІ: ТАК  (частота лишається)
+    (const TUint16*)L"\x0020\x0417\x0411\x0415\x0420\x0406\x0413\x0410\x0422\x0418\x0020\x041f\x0420\x0418\x0020\x0412\x0418\x0425\x041e\x0414\x0406\x003a\x0020\x0422\x0410\x041a\x0020\x0020\x0028\x0447\x0430\x0441\x0442\x043e\x0442\x0430\x0020\x043b\x0438\x0448\x0430\x0454\x0442\x044c\x0441\x044f\x0029",
+    //  ЗБЕРІГАТИ ПРИ ВИХОДІ: НІ  (вихід знімає розгін)
+    (const TUint16*)L"\x0020\x0417\x0411\x0415\x0420\x0406\x0413\x0410\x0422\x0418\x0020\x041f\x0420\x0418\x0020\x0412\x0418\x0425\x041e\x0414\x0406\x003a\x0020\x041d\x0406\x0020\x0020\x0028\x0432\x0438\x0445\x0456\x0434\x0020\x0437\x043d\x0456\x043c\x0430\x0454\x0020\x0440\x043e\x0437\x0433\x0456\x043d\x0029",
+    // штатне тактування ребут повертає в будь-якому разі
+    (const TUint16*)L"\x0448\x0442\x0430\x0442\x043d\x0435\x0020\x0442\x0430\x043a\x0442\x0443\x0432\x0430\x043d\x043d\x044f\x0020\x0440\x0435\x0431\x0443\x0442\x0020\x043f\x043e\x0432\x0435\x0440\x0442\x0430\x0454\x0020\x0432\x0020\x0431\x0443\x0434\x044c\x002d\x044f\x043a\x043e\x043c\x0443\x0020\x0440\x0430\x0437\x0456",
     };
 
 static const TUint16* const KOcStr_ru[EStrCount] =
@@ -425,6 +437,9 @@ static const TUint16* const KOcStr_ru[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_pl[EStrCount] =
@@ -527,6 +542,9 @@ static const TUint16* const KOcStr_pl[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_de[EStrCount] =
@@ -629,6 +647,9 @@ static const TUint16* const KOcStr_de[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_fr[EStrCount] =
@@ -731,6 +752,9 @@ static const TUint16* const KOcStr_fr[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_es[EStrCount] =
@@ -833,6 +857,9 @@ static const TUint16* const KOcStr_es[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_it[EStrCount] =
@@ -935,6 +962,9 @@ static const TUint16* const KOcStr_it[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_pt[EStrCount] =
@@ -1037,6 +1067,9 @@ static const TUint16* const KOcStr_pt[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_cs[EStrCount] =
@@ -1139,6 +1172,9 @@ static const TUint16* const KOcStr_cs[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_nl[EStrCount] =
@@ -1241,6 +1277,9 @@ static const TUint16* const KOcStr_nl[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_sv[EStrCount] =
@@ -1343,6 +1382,9 @@ static const TUint16* const KOcStr_sv[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_tr[EStrCount] =
@@ -1445,6 +1487,9 @@ static const TUint16* const KOcStr_tr[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_ro[EStrCount] =
@@ -1547,6 +1592,9 @@ static const TUint16* const KOcStr_ro[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_hu[EStrCount] =
@@ -1649,6 +1697,9 @@ static const TUint16* const KOcStr_hu[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_el[EStrCount] =
@@ -1751,6 +1802,9 @@ static const TUint16* const KOcStr_el[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_fi[EStrCount] =
@@ -1853,6 +1907,9 @@ static const TUint16* const KOcStr_fi[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_da[EStrCount] =
@@ -1955,6 +2012,9 @@ static const TUint16* const KOcStr_da[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_no[EStrCount] =
@@ -2057,6 +2117,9 @@ static const TUint16* const KOcStr_no[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_sk[EStrCount] =
@@ -2159,6 +2222,9 @@ static const TUint16* const KOcStr_sk[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_bg[EStrCount] =
@@ -2261,6 +2327,9 @@ static const TUint16* const KOcStr_bg[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_hr[EStrCount] =
@@ -2363,6 +2432,9 @@ static const TUint16* const KOcStr_hr[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_sl[EStrCount] =
@@ -2465,6 +2537,9 @@ static const TUint16* const KOcStr_sl[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_sr[EStrCount] =
@@ -2567,6 +2642,9 @@ static const TUint16* const KOcStr_sr[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_et[EStrCount] =
@@ -2669,6 +2747,9 @@ static const TUint16* const KOcStr_et[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_lv[EStrCount] =
@@ -2771,6 +2852,9 @@ static const TUint16* const KOcStr_lv[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_lt[EStrCount] =
@@ -2873,6 +2957,9 @@ static const TUint16* const KOcStr_lt[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcStr_ca[EStrCount] =
@@ -2975,6 +3062,9 @@ static const TUint16* const KOcStr_ca[EStrCount] =
     NULL,   // trying %S ...
     NULL,   // test profile works - engine is ready
     NULL,   // found pwrdown global at %08x
+    NULL,   //  KEEP ON EXIT: ON  (clock stays after exit)
+    NULL,   //  KEEP ON EXIT: OFF  (stock clock on exit)
+    NULL,   // a reboot restores stock clocks in any case
     };
 
 static const TUint16* const KOcHelp_en[] =

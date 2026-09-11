@@ -83,6 +83,9 @@ enum TOcStrId
     EStrTestProfileTrying,
     EStrTestProfileOk,
     EStrTestProfileFoundGlobal,
+    EStrKeepRowOn,
+    EStrKeepRowOff,
+    EStrKeepNote,
     EStrCount
     };
 

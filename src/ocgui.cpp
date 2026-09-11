@@ -231,6 +231,7 @@ enum TRowId
     ERowApply,
     ERowConfirm,
     ERowRestore,
+    ERowKeep,            // чи лишати розгін після виходу із застосунку
     ERowTestAlu,
     ERowTestMem,
     ERowTestIntegrity,
@@ -295,6 +296,7 @@ private:
     TInt   iMpuDiv;          // редагований дільник MPU (1,2,4,6,8)
     TInt   iL3Div;           // дільник шини; 0 = лишити на автопідборі
     TInt   iLiveL3;          // дільник шини, який СТОЇТЬ у залізі (0 = не читали)
+    TBool  iKeep;            // розгін лишається після виходу
     TBool  iBusGuard;        // ETrue = підйом шини заборонено (типово)
     TInt   iDspDiv;          // редагований дільник DSP (окремий від iArmed шлях)
     CPeriodic* iDspTimer;    // сторож автоповернення дільника DSP
@@ -319,7 +321,7 @@ COcView::COcView()
     iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iBusGuard(ETrue), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
     iArmed(EFalse), iArmedMult(0), iArmedCore(0),
     iArmedMpu(0),
-    iLogCount(0), iBuf(NULL), iBufWords(0), iKnownDevice(EFalse), iTestProfile(0), iHelp(EFalse), iHelpTop(0)
+    iLogCount(0), iBuf(NULL), iBufWords(0), iKeep(ETrue), iKnownDevice(EFalse), iTestProfile(0), iHelp(EFalse), iHelpTop(0)
     {
     }
 
@@ -345,6 +347,11 @@ void COcView::ConstructL(const TRect& aRect)
         gFcFreq = (TUint32)fc;
 
     iEngine = COcEngine::NewL();
+    // Розгін лишається після виходу: користувач застосував його свідомо, і
+    // знімати це за нього лише тому, що він закрив вікно, безпідставно.
+    // Патч ядра при цьому знімається завжди - він, на відміну від частоти,
+    // є міною на потім. Ребут повертає штатне тактування в будь-якому разі.
+    iEngine->KeepOnExit(iKeep);
 
     // Профіль апарата добираємо самі: командного рядка тут немає, а чужий
     // профіль означав би патч чужих адрес у ядро. Невідомий апарат - чесна
@@ -476,21 +483,29 @@ TInt COcView::DspRevertTick(TAny* aSelf)
     return 0;
     }
 
-// Обидві зміни переживають наш процес, тож знімати їх треба явно й у порядку:
-// спершу частота, потім підмінене тіло функції ядра. Лишити друге - означає
-// поставити міну: будь-який інший клієнт dvfs_interface, що викличе DoControl(1)
-// з ненульовим a1, розіменує довільну адресу в режимі ядра.
+// Дві зміни переживають наш процес, і поводяться з ними по-різному.
+//
+// Підмінене тіло функції ядра знімається ЗАВЖДИ. Лишити його - означає
+// поставити міну: будь-який інший клієнт dvfs_interface, що викличе
+// DoControl(1) з ненульовим a1, розіменує довільну адресу в режимі ядра.
+//
+// Частота, дільник шини й дільник DSP - навпаки, лишаються, якщо користувач
+// того хоче (рядок KEEP ON EXIT, типово увімкнений). Закрите вікно не є
+// підставою скасовувати те, що людина застосувала свідомо; штатне тактування
+// повертає ребут. Заразом це прибирає єдину справді небезпечну операцію зі
+// шляху виходу: повернення зниженої шини до штатної вбило апарат чотири рази
+// з чотирьох, а тепер вихід його просто не робить.
 void COcView::ShutdownL()
     {
     if (!iEngine)
         return;
-    if (iEngine->IsOverclocked())
+    if (!iKeep && iEngine->IsOverclocked())
         {
         TUint32 st = 0;
         iEngine->RestoreStock(st);
         }
     CancelDspRevert();
-    if (iEngine->IsDspChanged())
+    if (!iKeep && iEngine->IsDspChanged())
         {
         TInt rc = 0;
         iEngine->RestoreDspDiv(rc);
@@ -729,6 +744,11 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         TBuf<48> nm;
         nm.Copy(TPtrC8((const TUint8*)tp->iId));
         aOut.Format(OcStr(EStrTestProfileRow), &nm);
+        return;
+        }
+    if (aRow == ERowKeep)
+        {
+        aOut.Copy(OcStr(iKeep ? EStrKeepRowOn : EStrKeepRowOff));
         return;
         }
     if (aRow == ERowBusGuard)
@@ -1003,6 +1023,18 @@ void COcView::Activate(TRowId aRow)
             TPtrC md(OcStr(iManual ? EStrModeManual : EStrModeAuto));
             AddLogF(_L("dividers: %S"), &md);
             }
+            break;
+
+        case ERowKeep:
+            // Частота переживає процес сама по собі - це не наша послуга, а
+            // властивість заліза. Питання лише в тому, чи знімає її деструктор,
+            // і відповідь на нього тепер за користувачем. Ребут повертає штатне
+            // тактування в будь-якому разі, тож незворотного тут немає.
+            iKeep = !iKeep;
+            iEngine->KeepOnExit(iKeep);
+            AddLog(OcStr(iKeep ? EStrKeepRowOn : EStrKeepRowOff));
+            if (iKeep)
+                AddLog(OcStr(EStrKeepNote));
             break;
 
         case ERowBusGuard:
