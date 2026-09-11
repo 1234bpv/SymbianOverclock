@@ -121,6 +121,13 @@ struct TOcProfile
     TUint32         iStockClkSel1Core;
     TUint32         iStockClkSelMpu;
     TInt            iStockMult;
+    // Версія прошивки, під яку виведено адреси вище, як вона стоїть у рядку
+    // SysUtil::GetSWVersion (напр. "31.0.015"). Адреси залежать від збірки, а
+    // не лише від моделі, тож збіг машинного uid сам по собі нічого не
+    // гарантує: на іншій збірці той самий патч ляже не на той код. Порожній
+    // рядок вимикає перевірку - так лишається місце для профілю, версію якого
+    // ще не звіряли, але тоді це має бути видно в документації, а не мовчки.
+    const char*     iFwVersion;
     };
 
 // Еталонний профіль, доведений на апараті (N95 8GB RM-320, прошивка 31.0.015).
@@ -277,6 +284,7 @@ enum TOcStep
     EOcStepVerifySram,        // звірка копії з ROM-оригіналом
     EOcStepReadRegs,
     EOcStepUnsupported,       // профіль не підтримує шлях EReadDvfs (напр. E90)
+    EOcStepFirmware,          // прошивка апарата не та, під яку виведено адреси
     EOcStepReady
     };
 
@@ -424,9 +432,14 @@ public:
     void SetBusGuard(TBool aOn) { iBusGuard = aOn; }
     TBool BusGuard() const { return iBusGuard; }
 
+    // Версія прошивки, ПРОЧИТАНА з апарата (перший рядок SysUtil::GetSWVersion).
+    // Порожня, доки Prepare() не викликали.
+    const TDesC& Firmware() const { return iFirmware; }
+
 private:
     COcEngine();
     void ConstructL();
+    TInt CheckFirmware();
     TInt Poke(TUint32 aAddr, const TDesC8& aBytes);
     TInt PokeWords(TUint32 aAddr, const TUint32* aWords, TInt aCount);
     TInt ApplyReadPatch();
@@ -462,6 +475,7 @@ private:
     // й лишає апарат на зниженій шині, а користувачеві каже перезавантажитись.
     TBool    iRestoreNeedsReboot;
     TBool    iBusGuard;
+    TBuf<64> iFirmware;
     TUint32  iLastCoreWritten;
     TInt     iAppliedMult;
     TUint32  iSram;

@@ -1,0 +1,261 @@
+{
+  "_comment": "Джерело локалізації. node tools/gen_strings.js -> src/ocstr.cpp",
+  "languages": [
+    "en",
+    "uk"
+  ],
+  "strings": {
+    "RowApply": {
+      "en": "APPLY SETTING",
+      "uk": "ЗАСТОСУВАТИ"
+    },
+    "RowConfirmArmed": {
+      "en": "CONFIRM OVERCLOCK <<",
+      "uk": "ПІДТВЕРДИТИ РОЗГІН <<"
+    },
+    "RowConfirmIdle": {
+      "en": "CONFIRM (arm first)",
+      "uk": "ПІДТВЕРДИТИ (спершу APPLY)"
+    },
+    "RowRestore": {
+      "en": "RESTORE STOCK",
+      "uk": "ПОВЕРНУТИ ШТАТНЕ"
+    },
+    "RowTestAlu": {
+      "en": "TEST cpu/alu",
+      "uk": "ТЕСТ ЦП"
+    },
+    "RowTestMem": {
+      "en": "TEST mem bandwidth",
+      "uk": "ТЕСТ СМУГИ ПАМʼЯТІ"
+    },
+    "RowTestInt": {
+      "en": "TEST sdram integrity",
+      "uk": "ТЕСТ ЦІЛІСНОСТІ SDRAM"
+    },
+    "RowTestCache": {
+      "en": "TEST cache",
+      "uk": "ТЕСТ КЕША"
+    },
+    "RowTestAll": {
+      "en": "TEST combined (all)",
+      "uk": "ТЕСТ УСЬОГО"
+    },
+    "RowHelp": {
+      "en": "HELP / how to use",
+      "uk": "ДОВІДКА / як користуватись"
+    },
+    "ModeAuto": {
+      "en": "AUTO (track stock)",
+      "uk": "АВТО (за штатним)"
+    },
+    "ModeManual": {
+      "en": "MANUAL",
+      "uk": "ВРУЧНУ"
+    },
+    "Applied": {
+      "en": "APPLIED",
+      "uk": "ЗАСТОСОВАНО"
+    },
+    "Rejected": {
+      "en": "REJECTED",
+      "uk": "ВІДХИЛЕНО"
+    },
+    "Running": {
+      "en": "running...",
+      "uk": "працює..."
+    },
+    "NotReady": {
+      "en": "ENGINE NOT READY - tests only",
+      "uk": "РУШІЙ НЕ ГОТОВИЙ - лише тести"
+    },
+    "EngineDisabled": {
+      "en": "engine not ready - overclock disabled",
+      "uk": "рушій не готовий - розгін вимкнено"
+    },
+    "NoMemory": {
+      "en": "no memory for buffer",
+      "uk": "не вистачило памʼяті на буфер"
+    },
+    "PressConfirm": {
+      "en": "press CONFIRM to apply",
+      "uk": "натисніть ПІДТВЕРДИТИ"
+    },
+    "NothingArmed": {
+      "en": "nothing armed - use APPLY first",
+      "uk": "нічого не озброєно - спершу ЗАСТОСУВАТИ"
+    },
+    "GuardOn": {
+      "en": "bus guard ON - bus can only go down",
+      "uk": "запобіжник УВІМКНЕНО - шина лише вниз"
+    },
+    "GuardOff": {
+      "en": "bus guard OFF - raising the bus killed 4 of 4",
+      "uk": "запобіжник ВИМКНЕНО - підйом шини вбив 4 з 4"
+    },
+    "GuardNote": {
+      "en": "nothing is written to flash; a reboot recovers",
+      "uk": "у флеш не пишеться нічого; ребут повертає все"
+    },
+    "GuardRowOn": {
+      "en": " BUS GUARD: ON  (bus can only go down)",
+      "uk": " ЗАПОБІЖНИК ШИНИ: УВІМК (лише вниз)"
+    },
+    "GuardRowOff": {
+      "en": " BUS GUARD: OFF  raising bus died 4 of 4",
+      "uk": " ЗАПОБІЖНИК ШИНИ: ВИМК  підйом вбив 4 з 4"
+    },
+    "BusLeftLowered": {
+      "en": "BUS LEFT LOWERED - reboot for stock",
+      "uk": "ШИНУ ЛИШЕНО ЗНИЖЕНОЮ - ребут поверне штатну"
+    },
+    "WarnBusBelow": {
+      "en": "WARNING: bus below stock",
+      "uk": "УВАГА: шина нижча за штатну"
+    },
+    "WarnBusReturn": {
+      "en": "return to stock rebooted 3 of 3",
+      "uk": "повернення до штатної дало ребут 3 з 3"
+    },
+    "WarnBusAbove": {
+      "en": "WARNING: bus above stock - untested",
+      "uk": "УВАГА: шина вища за штатну - не перевірено"
+    },
+    "AboveTested": {
+      "en": "above 129: untested, DPLL may not lock",
+      "uk": "вище 129: не перевірено, DPLL може не захопитись"
+    },
+    "RelockFailed": {
+      "en": "relock FAILED - rolled back in blob",
+      "uk": "relock НЕ ВДАВСЯ - відкат усередині блоба"
+    },
+    "HelpTitle": {
+      "en": "HELP - BACK to return, up/down to scroll",
+      "uk": "ДОВІДКА - НАЗАД вихід, вгору/вниз гортати"
+    }
+  },
+  "help": {
+    "en": [
+      "WHAT THIS IS",
+      "A runtime overclock for Symbian 9.2 phones",
+      "built on the TI OMAP 2420: Nokia N95 8GB",
+      "and Nokia E90. It changes the DPLL",
+      "multiplier and the clock dividers while the",
+      "phone is running.",
+      "",
+      "SAFETY - READ THIS FIRST",
+      "Nothing is ever written to flash. Every",
+      "change lives in registers only, so a reboot",
+      "always returns the phone to its stock",
+      "330 MHz. The worst outcome of a bad setting",
+      "is an immediate reboot, and you lose only",
+      "what was unsaved.",
+      "",
+      "HOW TO USE IT",
+      "1. MULT sets the DPLL multiplier. The",
+      "   header shows what the new setting gives",
+      "   before you apply anything.",
+      "2. APPLY SETTING only arms the change.",
+      "3. CONFIRM performs it, stepping one",
+      "   multiplier at a time.",
+      "4. RESTORE STOCK puts the multiplier back.",
+      "",
+      "Stock is 86, that is 330 MHz. Both phones",
+      "reach about 500 MHz without a voltage",
+      "change, which is the silicon limit.",
+      "",
+      "THE BUS MATTERS MORE THAN THE CORE",
+      "In 3D this chip is limited by memory, not by",
+      "the CPU. On the E90 raising the bus alone",
+      "took 16.3 to 24.6 fps with the core left",
+      "untouched. BUSDIV sets the bus divider, and",
+      "a smaller divider means a faster bus.",
+      "",
+      "BUS GUARD",
+      "Returning the bus from a lowered state back",
+      "to stock rebooted the phone four times out",
+      "of four. The guard therefore refuses to",
+      "raise the bus and is ON by default. Turn it",
+      "off only if you accept a likely reboot.",
+      "",
+      "THE TESTS",
+      "TEST cpu/alu measures the core and TEST mem",
+      "bandwidth measures the bus. The two must",
+      "move independently: that is how you tell a",
+      "real change from a reported one. TEST sdram",
+      "integrity catches silent memory corruption,",
+      "so run it after any bus change.",
+      "",
+      "TEST cache currently does far more",
+      "arithmetic per byte than the memory test, so",
+      "its number reflects the ALU and cannot be",
+      "compared with the memory result.",
+      "",
+      "IF THE PHONE REBOOTS",
+      "Nothing is damaged. Switch it on and it",
+      "comes up at stock clocks. Step back one",
+      "multiplier and try again."
+    ],
+    "uk": [
+      "ЩО ЦЕ",
+      "Розгін у рантаймі для телефонів на Symbian",
+      "9.2 з процесором TI OMAP 2420: Nokia N95",
+      "8GB і Nokia E90. Міняє множник DPLL і",
+      "дільники тактування просто під час роботи",
+      "апарата.",
+      "",
+      "БЕЗПЕКА - ПРОЧИТАЙТЕ ПЕРШИМ",
+      "У флеш не пишеться нічого й ніколи. Усі",
+      "зміни живуть лише в регістрах, тож ребут",
+      "завжди повертає апарат на штатні 330 МГц.",
+      "Найгірше, чим закінчується невдале",
+      "значення, - миттєве перезавантаження, і",
+      "втрачається тільки незбережене.",
+      "",
+      "ЯК КОРИСТУВАТИСЬ",
+      "1. MULT задає множник DPLL. У шапці видно,",
+      "   що дасть нове значення, ще до того як ви",
+      "   щось застосуєте.",
+      "2. ЗАСТОСУВАТИ лише озброює зміну.",
+      "3. ПІДТВЕРДИТИ виконує її, ідучи по одному",
+      "   кроку множника.",
+      "4. ПОВЕРНУТИ ШТАТНЕ вертає множник назад.",
+      "",
+      "Штатне значення - 86, тобто 330 МГц. Обидва",
+      "апарати беруть близько 500 МГц без підйому",
+      "напруги, і це межа кремнію.",
+      "",
+      "ШИНА ВАЖИТЬ БІЛЬШЕ ЗА ЯДРО",
+      "У 3D цей процесор упирається в памʼять, а не",
+      "в ЦП. На E90 підйом самої лише шини дав",
+      "16.3 -> 24.6 fps при незмінному ядрі.",
+      "BUSDIV задає дільник шини, і менший дільник",
+      "означає швидшу шину.",
+      "",
+      "ЗАПОБІЖНИК ШИНИ",
+      "Повернення шини зі зниженого стану до",
+      "штатного перезавантажило апарат чотири рази",
+      "з чотирьох. Тому запобіжник не дає піднімати",
+      "шину і типово увімкнений. Вимикайте, лише",
+      "якщо готові до ребута.",
+      "",
+      "ТЕСТИ",
+      "ТЕСТ ЦП міряє ядро, ТЕСТ СМУГИ ПАМʼЯТІ міряє",
+      "шину. Ці два числа мусять рухатись",
+      "незалежно: саме так відрізняють справжню",
+      "зміну від повідомленої. ТЕСТ ЦІЛІСНОСТІ",
+      "ловить тихе псування памʼяті, тож робіть його",
+      "після кожної зміни шини.",
+      "",
+      "ТЕСТ КЕША зараз виконує набагато більше",
+      "арифметики на байт, ніж тест памʼяті, тож",
+      "його число показує ALU і з результатом",
+      "памʼяті не порівнюється.",
+      "",
+      "ЯКЩО АПАРАТ ПЕРЕЗАВАНТАЖИВСЯ",
+      "Нічого не пошкоджено. Увімкніть його - він",
+      "підніметься на штатних частотах. Зменште",
+      "множник на крок і спробуйте знову."
+    ]
+  }
+}

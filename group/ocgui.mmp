@@ -31,6 +31,7 @@ EPOCHEAPSIZE    0x10000 0x800000
 SOURCEPATH      ..\src
 SOURCE          ocgui.cpp
 SOURCE          ocengine.cpp
+SOURCE          ocstr.cpp
 
 // Ресурс застосунку. Ім'я мусить збігатися з app_file у ocgui_reg.rss -
 // фреймворк шукає рівно \resource\apps\<app_file>.rsc.
@@ -48,6 +49,7 @@ SYSTEMINCLUDE   \epoc32\include
 LIBRARY         euser.lib
 LIBRARY         efsrv.lib
 LIBRARY         hal.lib
+LIBRARY         sysutil.lib
 LIBRARY         apparc.lib
 LIBRARY         cone.lib
 LIBRARY         eikcore.lib

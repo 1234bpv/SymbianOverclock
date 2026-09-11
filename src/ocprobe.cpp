@@ -463,6 +463,11 @@ static COcEngine *PrepareEngine()
         TBuf8<64> step;
         step.Copy(COcEngine::StepName(e->FailedAt()));
         LogF(_L8("engine NOT ready: err %d at step [%S]"), r, &step);
+        {
+        TBuf8<64> fw;
+        fw.Copy(e->Firmware());
+        LogF(_L8("  device firmware read as [%S] (empty = SysUtil failed)"), &fw);
+        }
         delete e;
         return NULL;
         }

@@ -3,6 +3,7 @@
 #include "ocengine.h"
 #include <e32svr.h>
 #include <hal.h>
+#include <sysutil.h>
 
 _LIT(KPatcherFile, "patcher.ldd");
 _LIT(KPatcherName, "RomPatcherPlus.Driver");
@@ -28,7 +29,7 @@ const TUint32 KRomSramRoutine = 0x800a7f6cu;
 // (E90 та ін.) - iRead інший, а iDvfsBody = 0.
 const TOcProfile KProfileRM320 =
     {
-    "RM-320 31.0.015",
+    "RM-320 35.0.001/31.0.015",
     0x20002d84u,            // HAL EMachineUid, знято з апарата
     EReadDvfs,
     EHostDvfs,
@@ -38,7 +39,14 @@ const TOcProfile KProfileRM320 =
     KPwrDownGlobal,
     KStockClkSel1Core,
     KStockClkSelMpu,
-    KStockMult
+    KStockMult,
+    // Дві збірки, і підстави для них РІЗНІ. 35.0.001 - те, що стоїть на апараті,
+    // на якому весь розгін і доведено (перевірено 2026-09-11 гейтом: апарат
+    // повідомляє "V 35.0.001"). 31.0.015 - образ, з якого адреси виводили
+    // офлайн (out/roms/rm320.rom), і назва профілю досі казала саме про нього.
+    // Те, що ті самі адреси працюють на обох, і є доказ, що між цими збірками
+    // код не зсунувся.
+    "35.0.001;31.0.015"
     };
 
 // --- Nokia E90 (RA-6, 400.34.93) --------------------------------------------
@@ -96,8 +104,9 @@ const TOcProfile KProfileE90 =
     KE90PwrDownGlobal,
     0x04360626,             // iStockClkSel1Core: ВИМІРЯНО на апараті 2026-09-09
     2,                      // iStockClkSelMpu:   ВИМІРЯНО там само
-    86                      // iStockMult: ВИМІРЯНО (CM_CLKSEL1_PLL=0x00056400,
+    86,                     // iStockMult: ВИМІРЯНО (CM_CLKSEL1_PLL=0x00056400,
                             //   mult=86 div=4 sys_clk=19.2 -> 330.24 МГц, як RM-320)
+    "400.34.93"
     };
 
 // Добір профілю за апаратом. Список тримати тут, поруч із самими профілями.
@@ -829,6 +838,7 @@ _LIT(KStepResolveSram, "resolving SRAM chunk");
 _LIT(KStepVerifySram,  "verifying SRAM copy");
 _LIT(KStepReadRegs,    "reading PRCM registers");
 _LIT(KStepUnsupported, "profile has no dvfs read path (E90)");
+_LIT(KStepFirmware,    "firmware does not match the profile");
 _LIT(KStepReady,       "ready");
 
 const TDesC& COcEngine::StepName(TOcStep aStep)
@@ -844,6 +854,7 @@ const TDesC& COcEngine::StepName(TOcStep aStep)
         case EOcStepVerifySram:  return KStepVerifySram;
         case EOcStepReadRegs:    return KStepReadRegs;
         case EOcStepUnsupported: return KStepUnsupported;
+        case EOcStepFirmware:    return KStepFirmware;
         case EOcStepReady:       return KStepReady;
         default:                 return KStepIdle;
         }
@@ -1047,8 +1058,60 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     return Prepare();
     }
 
+// Гейт по прошивці.
+//
+// Адреси профілю виведені з КОНКРЕТНОЇ збірки прошивки, а не з моделі апарата.
+// Збіг машинного uid означає лише "той самий телефон", і на іншій збірці той
+// самий патч ляже не на той код - це вже не "ребут повертає як було", а запис
+// у випадкову функцію ядра. Поки апарат був один і прошивка своя, різниці не
+// було; з появою чужих апаратів вона стає головним ризиком проєкту.
+//
+// Тому: версію читаємо з апарата й вимагаємо збігу з тією, під яку виведено
+// адреси. Не змогли прочитати - теж відмова: "не вдалось перевірити" це не
+// "перевірено". Профіль із порожнім iFwVersion не гейтимо взагалі, і це має
+// бути видно в документації, а не лише тут.
+TInt COcEngine::CheckFirmware()
+    {
+    iFirmware.Zero();
+    if (!iProfile->iFwVersion || !iProfile->iFwVersion[0])
+        return KErrNone;
+
+    TBuf<KSysUtilVersionTextLength> v;
+    if (SysUtil::GetSWVersion(v) != KErrNone)
+        return KErrNotSupported;
+
+    // Рядок версії багаторядковий: версія, дата, модель, копірайт,
+    // тож у журнал беремо лише перший рядок - решта там ні для чого.
+    TInt nl = v.Locate(TChar(10));
+    iFirmware.Copy(v.Left(nl == KErrNotFound ? Min(v.Length(), iFirmware.MaxLength())
+                                             : Min(nl, iFirmware.MaxLength())));
+
+    // Збірок у профілі може бути кілька, через ';'. Перелік, а не одна версія,
+    // бо адреси між сусідніми збірками часто збігаються - але кожну таку
+    // збірку сюди вписують ЛИШЕ після перевірки, а не за схожістю номера.
+    TBuf<128> list;
+    list.Copy(TPtrC8((const TUint8*)iProfile->iFwVersion));
+    TInt pos = 0;
+    while (pos < list.Length())
+        {
+        TInt sep = list.Mid(pos).Locate(';');
+        const TInt end = (sep == KErrNotFound) ? list.Length() : pos + sep;
+        const TPtrC one = list.Mid(pos, end - pos);
+        if (one.Length() && v.Find(one) != KErrNotFound)
+            return KErrNone;
+        pos = end + 1;
+        }
+    return KErrNotSupported;
+    }
+
 TInt COcEngine::Prepare()
     {
+    if (CheckFirmware() != KErrNone)
+        {
+        iStep = EOcStepFirmware;
+        return KErrNotSupported;
+        }
+
     // Запобіжник переносу: уся ця процедура патчить iDvfsBody і читає ядро через
     // цей патч. На профілі без dvfs (E90: iRead != EReadDvfs, iDvfsBody == 0)
     // накладання патча пішло б в адресу 0 чужого ядра й повісило б апарат

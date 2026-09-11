@@ -33,11 +33,13 @@
 #include <gdi.h>
 #include <w32std.h>
 #include <hal.h>
+#include <sysutil.h>
 
 #include "ocengine.h"
+#include "ocstr.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 1.8.0");
+_LIT(KAppVersion, "SymbianOverclock 1.9.0");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -234,6 +236,7 @@ enum TRowId
     ERowTestIntegrity,
     ERowTestCache,
     ERowTestCombined,
+    ERowHelp,            // вбудована інструкція
     ERowCount
     };
 
@@ -246,6 +249,7 @@ public:
     ~COcView();
 
     void Draw(const TRect& aRect) const;
+    void DrawHelp(CWindowGc& aGc, const TRect& aRect) const;
     TKeyResponse OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aType);
     void ShutdownL();
 
@@ -302,6 +306,8 @@ private:
     TUint32* iBuf;
     TInt   iBufWords;
     TBuf<80> iStatus;
+    TBool  iHelp;            // ETrue = показуємо сторінку довідки
+    TInt   iHelpTop;         // з якого рядка довідки малюємо
     };
 
 COcView::COcView()
@@ -309,7 +315,7 @@ COcView::COcView()
     iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iBusGuard(ETrue), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
     iArmed(EFalse), iArmedMult(0), iArmedCore(0),
     iArmedMpu(0),
-    iLogCount(0), iBuf(NULL), iBufWords(0)
+    iLogCount(0), iBuf(NULL), iBufWords(0), iHelp(EFalse), iHelpTop(0)
     {
     }
 
@@ -324,6 +330,9 @@ COcView* COcView::NewL(const TRect& aRect)
 
 void COcView::ConstructL(const TRect& aRect)
     {
+    // Мову беремо один раз і до першого видимого рядка: інакше частина
+    // журналу лишилась би англійською, а частина - ні.
+    OcStrInit();
     CreateWindowL();
     SetRect(aRect);
 
@@ -345,6 +354,20 @@ void COcView::ConstructL(const TRect& aRect)
         AddLog(iStatus);
         AddLogF(_L("no profile for machine uid %08x; nothing touched"),
                 (TUint32)uid);
+        // Невідомий апарат - це не глухий кут, а початок портування, і рівно
+        // ці два рядки потрібні, щоб зробити для нього профіль. Тому вони
+        // видимі просто на екрані, а не сховані в збірці для розробника.
+        {
+        TBuf<KSysUtilVersionTextLength> sw;
+        if (SysUtil::GetSWVersion(sw) == KErrNone)
+            {
+            TInt nl = sw.Locate(TChar(10));
+            TPtrC first(sw.Left(nl == KErrNotFound ? sw.Length() : nl));
+            AddLogF(_L("firmware: %S"), &first);
+            }
+        AddLog(_L("send these two lines to add a profile"));
+        AddLog(_L("see docs/PORTING.md in the source"));
+        }
         iMult = 86;
         ActivateL();       // вікно мусить лишитись живим, щоб відмову було видно
         return;
@@ -381,7 +404,17 @@ void COcView::ConstructL(const TRect& aRect)
         iStatus.Format(_L("NOT READY (%d) at: %S"), r,
                        &COcEngine::StepName(iEngine->FailedAt()));
         AddLog(iStatus);
-        AddLog(_L("patcher.ldd missing or driver refused"));
+        // Розбіжність прошивки - не поломка, а свідома відмова, і сплутати
+        // її з "драйвер не став" не можна: лікується вона зовсім іншим.
+        if (iEngine->FailedAt() == EOcStepFirmware)
+            {
+            TPtrC fw(iEngine->Firmware());
+            if (fw.Length())
+                AddLogF(_L("device firmware: %S"), &fw);
+            AddLog(_L("no profile for THIS build - nothing touched"));
+            }
+        else
+            AddLog(_L("patcher.ldd missing or driver refused"));
         iMult = 86;
         }
     ActivateL();
@@ -515,11 +548,6 @@ void COcView::ReportResult(const TDesC& aName, const TTestResult& aRes,
             aRes.iValue % 100, &aUnit, aRes.iErrors);
     }
 
-_LIT(KModeAuto, "AUTO (track stock)");
-_LIT(KModeManual, "MANUAL");
-// Вердикт про запис дільників - словами, щоб його було видно з екрана апарата.
-_LIT(KDivApplied,  "APPLIED");
-_LIT(KDivRejected, "REJECTED");
 _LIT(KUnitMitr, "Mitr/s");
 _LIT(KUnitMbs, "MB/s");
 _LIT(KNameAlu, "ALU");
@@ -565,12 +593,12 @@ void COcView::WarnBus(TInt aDiv)
         // чисто (два прогони, нуль зіпсованих слів у SDRAM), а ось ПОВЕРНЕННЯ
         // з неї валило апарат три рази з трьох - і повним relock, і легким
         // переписом дільників (findings §26.12-26.14).
-        AddLog(_L("WARNING: bus below stock"));
-        AddLog(_L("return to stock rebooted 3 of 3"));
+        AddLog(OcStr(EStrWarnBusBelow));
+        AddLog(OcStr(EStrWarnBusReturn));
         }
     else if (aDiv < stock)
         {
-        AddLog(_L("WARNING: bus above stock - untested"));
+        AddLog(OcStr(EStrWarnBusAbove));
         }
     }
 
@@ -682,9 +710,9 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         // Рядок каже не лише стан, а й ціну: чотири смерті з чотирьох -
         // це єдина цифра, яка тут щось важить.
         if (iBusGuard)
-            aOut.Copy(_L(" BUS GUARD: ON  (bus can only go down)"));
+            aOut.Copy(OcStr(EStrGuardRowOn));
         else
-            aOut.Copy(_L(" BUS GUARD: OFF  raising bus died 4 of 4"));
+            aOut.Copy(OcStr(EStrGuardRowOff));
         return;
         }
     if (aRow == ERowDsp)
@@ -710,7 +738,10 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         }
     if (aRow == ERowMode)
         {
-        aOut.Format(_L("DIVIDERS: %S"), iManual ? &KModeManual : &KModeAuto);
+        {
+        TPtrC md(OcStr(iManual ? EStrModeManual : EStrModeAuto));
+        aOut.Format(_L("DIVIDERS: %S"), &md);
+        }
         return;
         }
     if (aRow >= ERowDivFirst && aRow <= ERowDivLast)
@@ -755,17 +786,18 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         }
     switch (aRow)
         {
-        case ERowApply:   aOut.Copy(_L("APPLY SETTING")); break;
+        case ERowApply:   aOut.Copy(OcStr(EStrRowApply)); break;
         case ERowConfirm:
-            aOut.Copy(iArmed ? _L("CONFIRM OVERCLOCK <<")
-                             : _L("CONFIRM (arm first)"));
+            aOut.Copy(OcStr(iArmed ? EStrRowConfirmArmed
+                                   : EStrRowConfirmIdle));
             break;
-        case ERowRestore: aOut.Copy(_L("RESTORE STOCK")); break;
-        case ERowTestAlu: aOut.Copy(_L("TEST cpu/alu")); break;
-        case ERowTestMem: aOut.Copy(_L("TEST mem bandwidth")); break;
-        case ERowTestIntegrity: aOut.Copy(_L("TEST sdram integrity")); break;
-        case ERowTestCache: aOut.Copy(_L("TEST cache")); break;
-        default: aOut.Copy(_L("TEST combined (all)")); break;
+        case ERowRestore: aOut.Copy(OcStr(EStrRowRestore)); break;
+        case ERowTestAlu: aOut.Copy(OcStr(EStrRowTestAlu)); break;
+        case ERowTestMem: aOut.Copy(OcStr(EStrRowTestMem)); break;
+        case ERowTestIntegrity: aOut.Copy(OcStr(EStrRowTestInt)); break;
+        case ERowTestCache: aOut.Copy(OcStr(EStrRowTestCache)); break;
+        case ERowHelp: aOut.Copy(OcStr(EStrRowHelp)); break;
+        default: aOut.Copy(OcStr(EStrRowTestAll)); break;
         }
     }
 
@@ -773,12 +805,12 @@ void COcView::RunTest(TRowId aRow)
     {
     // Тести блокують цикл подій на секунди. Без цього рядка екран просто
     // завмирає, і виглядає це так, ніби кнопка не спрацювала.
-    iStatus.Copy(_L("running..."));
+    iStatus.Copy(OcStr(EStrRunning));
     Repaint();
     TUint32* buf = Buffer();
     if (!buf && aRow != ERowTestAlu)
         {
-        AddLog(_L("no memory for buffer"));
+        AddLog(OcStr(EStrNoMemory));
         return;
         }
     switch (aRow)
@@ -864,14 +896,21 @@ void COcView::RunCombined()
 
 void COcView::Activate(TRowId aRow)
     {
+    if (aRow == ERowHelp)
+        {
+        iHelp = ETrue;
+        iHelpTop = 0;
+        Repaint();
+        return;
+        }
     if (!iEngine || !iEngine->IsReady())
         {
-        if (aRow >= ERowTestAlu)
+        if (aRow >= ERowTestAlu && aRow != ERowHelp)
             {
             RunTest(aRow);          // тести працюють і без патчера
             return;
             }
-        AddLog(_L("engine not ready - overclock disabled"));
+        AddLog(OcStr(EStrEngineDisabled));
         return;
         }
 
@@ -882,7 +921,10 @@ void COcView::Activate(TRowId aRow)
                 SyncManualFromAuto();
             iManual = !iManual;
             iArmed = EFalse;
-            AddLogF(_L("dividers: %S"), iManual ? &KModeManual : &KModeAuto);
+            {
+            TPtrC md(OcStr(iManual ? EStrModeManual : EStrModeAuto));
+            AddLogF(_L("dividers: %S"), &md);
+            }
             break;
 
         case ERowBusGuard:
@@ -890,11 +932,11 @@ void COcView::Activate(TRowId aRow)
             iEngine->SetBusGuard(iBusGuard);
             iArmed = EFalse;
             if (iBusGuard)
-                AddLog(_L("bus guard ON - bus can only go down"));
+                AddLog(OcStr(EStrGuardOn));
             else
                 {
-                AddLog(_L("bus guard OFF - raising the bus killed 4 of 4"));
-                AddLog(_L("nothing is written to flash; a reboot recovers"));
+                AddLog(OcStr(EStrGuardOff));
+                AddLog(OcStr(EStrGuardNote));
                 }
             break;
 
@@ -1009,8 +1051,8 @@ void COcView::Activate(TRowId aRow)
             AddLogF(_L("armed m%d CPU %u BUS %u"), iArmedMult, c.MpuKhz() / 1000,
                     l3 ? c.CoreKhz() / (TUint32)l3 / 1000 : 0);
             if (iArmedMult > KOcMultTested)
-                AddLog(_L("above 129: untested, DPLL may not lock"));
-            AddLog(_L("press CONFIRM to apply"));
+                AddLog(OcStr(EStrAboveTested));
+            AddLog(OcStr(EStrPressConfirm));
             }
             break;
 
@@ -1018,7 +1060,7 @@ void COcView::Activate(TRowId aRow)
             {
             if (!iArmed)
                 {
-                AddLog(_L("nothing armed - use APPLY first"));
+                AddLog(OcStr(EStrNothingArmed));
                 break;
                 }
             TUint32 st = 0;
@@ -1043,11 +1085,13 @@ void COcView::Activate(TRowId aRow)
             if (iEngine->LiveCore(liveCore) == KErrNone)
                 {
                 iLiveL3 = (TInt)(liveCore & KCoreL3Mask);
+                TPtrC verdict(OcStr((liveCore == wroteCore) ? EStrApplied
+                                                           : EStrRejected));
                 AddLogF(_L("core %08x (want %08x) l3=%d dss1=%d %S"),
                         liveCore, wroteCore,
                         (TInt)(liveCore & KCoreL3Mask),
                         (TInt)((liveCore & KCoreDss1Mask) >> KCoreDss1Shift),
-                        (liveCore == wroteCore) ? &KDivApplied : &KDivRejected);
+                        &verdict);
                 }
             }
             if (r != KErrNone)
@@ -1064,7 +1108,7 @@ void COcView::Activate(TRowId aRow)
                 {
                 // Блоб уже сам відкатився на попереднє значення всередині
                 // критичної секції, тож тут лишається тільки повідомити.
-                AddLog(_L("relock FAILED - rolled back in blob"));
+                AddLog(OcStr(EStrRelockFailed));
                 }
             iArmed = EFalse;
             break;
@@ -1080,7 +1124,7 @@ void COcView::Activate(TRowId aRow)
             // Шину назад не піднімаємо: чотири смерті з чотирьох на двох апаратах
             // (findings 38.2). Знижена шина безпечна, ребут повертає штатну.
             if (iEngine->RestoreNeedsReboot())
-                AddLog(_L("BUS LEFT LOWERED - reboot for stock"));
+                AddLog(OcStr(EStrBusLeftLowered));
             {
             TUint32 lc = 0;
             if (iEngine->LiveCore(lc) == KErrNone)
@@ -1117,6 +1161,27 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
     {
     if (aType != EEventKey)
         return EKeyWasNotConsumed;
+
+    if (iHelp)
+        {
+        const TInt total = OcHelpLineCount();
+        if (aKeyEvent.iCode == EKeyDownArrow)
+            {
+            if (iHelpTop < total - 1)
+                ++iHelpTop;
+            }
+        else if (aKeyEvent.iCode == EKeyUpArrow)
+            {
+            if (iHelpTop > 0)
+                --iHelpTop;
+            }
+        else
+            {
+            iHelp = EFalse;
+            }
+        Repaint();
+        return EKeyWasConsumed;
+        }
 
     const TInt vis = VisibleRows();
     switch (aKeyEvent.iCode)
@@ -1176,7 +1241,7 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
                 iEngine->SetBusGuard(iBusGuard);
                 iArmed = EFalse;
                 if (!iBusGuard)
-                    AddLog(_L("bus guard OFF - raising the bus killed 4 of 4"));
+                    AddLog(OcStr(EStrGuardOff));
                 }
             else if (iRow == ERowDsp)
                 {
@@ -1250,6 +1315,27 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
     return EKeyWasConsumed;
     }
 
+// Довідка на весь екран. Тим самим дрібним шрифтом, що й решта: рядки в
+// src/strings.json уже нарізані під цю ширину, тож переносу тут немає.
+void COcView::DrawHelp(CWindowGc& aGc, const TRect& aRect) const
+    {
+    const CFont* font = CEikonEnv::Static()->AnnotationFont();
+    aGc.UseFont(font);
+    aGc.SetPenColor(KRgbBlack);
+    const TInt lh = font->HeightInPixels() + 1;
+    const TInt x = aRect.iTl.iX + 2;
+    TInt y = aRect.iTl.iY + lh;
+    aGc.DrawText(OcStr(EStrHelpTitle), TPoint(x, y));
+    y += lh * 2;
+    const TInt total = OcHelpLineCount();
+    for (TInt i = iHelpTop; i < total && y <= aRect.iBr.iY - 2; ++i)
+        {
+        aGc.DrawText(OcHelpLine(i), TPoint(x, y));
+        y += lh;
+        }
+    aGc.DiscardFont();
+    }
+
 void COcView::Draw(const TRect& /*aRect*/) const
     {
     CWindowGc& gc = SystemGc();
@@ -1258,6 +1344,12 @@ void COcView::Draw(const TRect& /*aRect*/) const
     gc.SetBrushStyle(CGraphicsContext::ESolidBrush);
     gc.SetBrushColor(KRgbWhite);
     gc.Clear(r);
+
+    if (iHelp)
+        {
+        DrawHelp(gc, r);
+        return;
+        }
 
     // Дрібний шрифт і явне обрізання: з NormalFont вміст не влазив, і рядки
     // логу малювались за краєм екрана (виглядало як "тести не працюють").
@@ -1299,7 +1391,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
         }
     else
         {
-        gc.DrawText(_L("ENGINE NOT READY - tests only"), TPoint(x, y));
+        gc.DrawText(OcStr(EStrNotReady), TPoint(x, y));
         y += lh;
         if (iStatus.Length())
             {

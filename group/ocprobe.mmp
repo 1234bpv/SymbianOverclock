@@ -35,3 +35,4 @@ SYSTEMINCLUDE   \epoc32\include
 LIBRARY         euser.lib
 LIBRARY         efsrv.lib
 LIBRARY         hal.lib
+LIBRARY         sysutil.lib
