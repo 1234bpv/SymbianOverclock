@@ -74,6 +74,15 @@ enum TOcStrId
     EStrDspReverted,
     EStrReasonTimeout,
     EStrReasonRestore,
+    EStrTestProfileKnown,
+    EStrTestProfileRow,
+    EStrTestProfileNone,
+    EStrTestProfilePick,
+    EStrTestProfileWarn1,
+    EStrTestProfileWarn2,
+    EStrTestProfileTrying,
+    EStrTestProfileOk,
+    EStrTestProfileFoundGlobal,
     EStrCount
     };
 

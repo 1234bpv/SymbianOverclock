@@ -131,7 +131,30 @@ struct TOcProfile
     // рядок вимикає перевірку - так лишається місце для профілю, версію якого
     // ще не звіряли, але тоді це має бути видно в документації, а не мовчки.
     const char*     iFwVersion;
+    // Профіль НЕ доведений на апараті: адреси виведено з образу прошивки, а
+    // перевірка була лише офлайнова. Такий профіль ніколи не добирається
+    // автоматично - його можна лише вибрати вручну, свідомо.
+    TBool           iExperimental;
+    // Орієнтир для пошуку глобала power-down, коли iPwrDownGlobal == 0.
+    // Береться з літерального пулу пари геттер/сеттер у ROM.
+    TUint32         iPwrDownHint;
+    // Вісім перших слів relock-рутини, як вони лежать в образі прошивки, з якої
+    // виведено адреси. Після накладання READ-патча двигун читає їх з апарата й
+    // звіряє. Це робить дві речі одразу: доводить, що патч ЖИВИЙ (інакше
+    // читання повертало б не наші дані), і доводить, що iRomSramRoutine
+    // показує саме на relock-рутину САМЕ ЦІЄЇ збірки. NULL вимикає перевірку.
+    const TUint32*  iSramSignature;
     };
+
+// Вісім слів прологу relock-рутини power.dll. Однакові в усіх розібраних
+// образах OMAP2420 (RM-320, RM-159, N82), тож це підпис самої функції, а не
+// конкретної збірки - і саме як підпис функції він тут і вживається.
+extern const TUint32 KSramRoutineSignature[8];
+
+// Півкілобайта в обидва боки від орієнтира. Вікно мале навмисно: кожна проба -
+// це читання за довільною адресою В РЕЖИМІ ЯДРА, і непримапана сторінка коштує
+// перезавантаження, а не помилки.
+const TUint32 KPwrDownSearchSpan = 0x200;
 
 // Еталонний профіль, доведений на апараті (N95 8GB RM-320, прошивка 31.0.015).
 extern const TOcProfile KProfileRM320;
@@ -140,6 +163,11 @@ extern const TOcProfile KProfileRM320;
 // ЄДИНА правильна відповідь у такому разі: мовчазне падіння на еталонний
 // профіль означало б патч адрес RM-320 у чуже ядро.
 const TOcProfile* ProfileForThisDevice();
+
+// Тестові профілі: виведені офлайн, на залізі не перевірені, автоматично НЕ
+// добираються. Вибирає їх лише користувач і лише свідомо.
+TInt TestProfileCount();
+const TOcProfile* TestProfile(TInt aIndex);
 
 // Профіль Nokia E90 (RA-6, 400.34.93). Чотири адреси виведено офлайн із XIP
 // (findings §31), dvfs у прошивці немає -> iDvfsBody=0, стратегія EReadMeasureOnly.
@@ -439,11 +467,17 @@ public:
     // Версія прошивки, ПРОЧИТАНА з апарата (перший рядок SysUtil::GetSWVersion).
     // Порожня, доки Prepare() не викликали.
     const TDesC& Firmware() const { return iFirmware; }
+    // Адреса глобала, знайдена пошуком (0, якщо профіль знав її сам).
+    TUint32 FoundGlobal() const { return iFoundGlobal; }
+    // Перевірка механізму пошуку на апараті з відомою відповіддю.
+    TInt TryDiscoverGlobal(TUint32& aGlobal, TUint32& aSram);
 
 private:
     COcEngine();
     void ConstructL();
     TInt CheckFirmware();
+    TInt ChaseSram(TUint32 aGlobal, TUint32& aSram);
+    TInt DiscoverPwrDownGlobal(TUint32& aGlobal, TUint32& aSram);
     TInt Poke(TUint32 aAddr, const TDesC8& aBytes);
     TInt PokeWords(TUint32 aAddr, const TUint32* aWords, TInt aCount);
     TInt ApplyReadPatch();
@@ -480,6 +514,7 @@ private:
     TBool    iRestoreNeedsReboot;
     TBool    iBusGuard;
     TBuf<64> iFirmware;
+    TUint32  iFoundGlobal;     // що знайшов пошук; 0 = профіль знав адресу сам
     TUint32  iLastCoreWritten;
     TInt     iAppliedMult;
     TUint32  iSram;

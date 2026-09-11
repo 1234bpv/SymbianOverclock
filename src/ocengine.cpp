@@ -27,6 +27,16 @@ const TUint32 KRomSramRoutine = 0x800a7f6cu;
 // dvfsBody - зсув тіла DoControl(1); romSram - idle-рутина power.dll; dspSetter -
 // сеттер дільника DSP; pwrDown - глобал power-down. Де dvfs в прошивці нема
 // (E90 та ін.) - iRead інший, а iDvfsBody = 0.
+const TUint32 KSramRoutineSignature[8] =
+    { 0xe92d40feu,   // stmdb sp!, {r1-r7, lr}
+      0xe59f1128u,   // ldr   r1, [pc, #296]
+      0xe59f5128u,   // ldr   r5, [pc, #296]
+      0xe3a03000u,   // mov   r3, #0
+      0xee073f9au,   // mcr   p15, 0, r3, c7, c10, 4   барʼєр запису
+      0xe5914070u,   // ldr   r4, [r1, #112]           SDRC
+      0xe3844048u,   // orr   r4, r4, #72
+      0xe5814070u }; // str   r4, [r1, #112]
+
 const TOcProfile KProfileRM320 =
     {
     "RM-320 35.0.001/31.0.015",
@@ -46,7 +56,10 @@ const TOcProfile KProfileRM320 =
     // офлайн (out/roms/rm320.rom), і назва профілю досі казала саме про нього.
     // Те, що ті самі адреси працюють на обох, і є доказ, що між цими збірками
     // код не зсунувся.
-    "35.0.001;31.0.015"
+    "35.0.001;31.0.015",
+    EFalse,                 // доведений на апараті
+    0xc80030ecu,            // орієнтир: потрібен лише щоб ПЕРЕВІРИТИ пошук
+    KSramRoutineSignature
     };
 
 // --- Nokia E90 (RA-6, 400.34.93) --------------------------------------------
@@ -106,8 +119,89 @@ const TOcProfile KProfileE90 =
     2,                      // iStockClkSelMpu:   ВИМІРЯНО там само
     86,                     // iStockMult: ВИМІРЯНО (CM_CLKSEL1_PLL=0x00056400,
                             //   mult=86 div=4 sys_clk=19.2 -> 330.24 МГц, як RM-320)
-    "400.34.93"
+    "400.34.93",
+    EFalse,                 // доведений на апараті
+    0xc80030ecu,            // орієнтир: те саме, для перевірки пошуку
+    KSramRoutineSignature
     };
+
+// --- ТЕСТОВІ профілі --------------------------------------------------------
+//
+// Обидва виведені ОФЛАЙН з образів прошивок і на залізі не перевірені жодного
+// разу. Тому вони ніколи не добираються автоматично: машинний uid у них нуль, а
+// ProfileForThisDevice їх пропускає. Вибрати такий профіль можна лише руками й
+// свідомо.
+//
+// Що саме доведено, а що ні. Три адреси power.dll звірено побайтово з еталоном
+// RM-320 прямо в образах: у RM-159 вони збігаються один в один, у N82 зсунуті
+// рівно на +0x10, і код у цих місцях тотожний. Адресу iDvfsBody знайдено за
+// сигнатурою тіла DoControl(1) - по одному-єдиному збігу на весь 43-мегабайтний
+// образ, причому на еталонному образі та сама сигнатура точно відтворює відому
+// адресу 0x80148410, тобто метод перевірено на відомій відповіді.
+//
+// Чого НЕ доведено. Глобал power-down офлайн знайти не вдалось: сигнатура пари
+// геттер/сеттер дає на RM-320 сусідню пару (0xc80030ec замість справжніх
+// 0xc80030c8), тобто метод НЕ підтверджено. Тому тут стоїть орієнтир, а сама
+// адреса шукається на апараті зі звіркою копії SRAM. Версії збірок теж невідомі:
+// рядка версії в резидентному XIP немає, тож гейт по прошивці для цих профілів
+// порожній, і його роль бере на себе звірка підпису relock-рутини після патча.
+//
+// Штатна розкладка тактування невідома - нулі означають "взяти з апарата на
+// старті". Через це апарат перед першим запуском мусить бути щойно
+// перезавантажений, інакше опорна точка з'їде.
+const TOcProfile KProfileN95Classic =
+    {
+    "RM-159 N95 classic (TEST)",
+    0,                      // машинний uid невідомий: авто-добору немає
+    EReadDvfs,
+    EHostDvfs,
+    0x8014b5f0u,            // iDvfsBody: єдиний збіг сигнатури в образі
+    0x800a7f6cu,            // iRomSramRoutine: байт-у-байт як RM-320
+    0x800ac59cu,            // iDspSetter: байт-у-байт як RM-320
+    0,                      // iPwrDownGlobal: шукати на апараті
+    0,                      // iStockClkSel1Core: зняти з апарата
+    0,                      // iStockClkSelMpu: зняти з апарата
+    0,                      // iStockMult: зняти з апарата
+    "",                     // збірка невідома, гейт порожній
+    ETrue,
+    0xc80030ecu,            // орієнтир пошуку глобала
+    KSramRoutineSignature
+    };
+
+const TOcProfile KProfileN82 =
+    {
+    "RM-313 N82 (TEST)",
+    0,
+    EReadDvfs,
+    EHostDvfs,
+    0x801411e0u,            // iDvfsBody: єдиний збіг сигнатури в образі
+    0x800a7f7cu,            // iRomSramRoutine: RM-320 + 0x10, код тотожний
+    0x800ac5acu,            // iDspSetter: RM-320 + 0x10, код тотожний
+    0,
+    0,
+    0,
+    0,
+    "",
+    ETrue,
+    0xc80030ecu,
+    KSramRoutineSignature
+    };
+
+// Тестові профілі окремим списком - саме щоб їх не можна було взяти випадково.
+static const TOcProfile* const KTestProfiles[] =
+    { &KProfileN95Classic, &KProfileN82 };
+
+TInt TestProfileCount()
+    {
+    return (TInt)(sizeof(KTestProfiles) / sizeof(KTestProfiles[0]));
+    }
+
+const TOcProfile* TestProfile(TInt aIndex)
+    {
+    if (aIndex < 0 || aIndex >= TestProfileCount())
+        return NULL;
+    return KTestProfiles[aIndex];
+    }
 
 // Добір профілю за апаратом. Список тримати тут, поруч із самими профілями.
 //
@@ -125,7 +219,7 @@ const TOcProfile* ProfileForThisDevice()
         return NULL;
 
     for (TInt i = 0; i < n; ++i)
-        if (known[i]->iMachineUid == (TUint32)uid)
+        if (!known[i]->iExperimental && known[i]->iMachineUid == (TUint32)uid)
             return known[i];
     return NULL;
     }
@@ -715,7 +809,7 @@ COcEngine::COcEngine()
   : iProfile(&KProfileRM320),
     iPatcherOpen(EFalse), iDvfsOpen(EFalse), iReady(EFalse), iExecMode(EFalse), iPatched(EFalse), iShadowed(EFalse),
     iApplied(EFalse), iKeep(EFalse), iRestoreNeedsReboot(EFalse),
-    iBusGuard(ETrue), iLastCoreWritten(0), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
+    iBusGuard(ETrue), iFoundGlobal(0), iLastCoreWritten(0), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
     iBootCore(0), iBootMpu(0), iBootMult(0),
     iStockDspDiv(0), iDspDiv(0), iStep(EOcStepIdle)
     {
@@ -858,6 +952,81 @@ const TDesC& COcEngine::StepName(TOcStep aStep)
         case EOcStepReady:       return KStepReady;
         default:                 return KStepIdle;
         }
+    }
+
+// Ланцюг глобал -> обʼєкт -> копія SRAM, зі звіркою копії з оригіналом у ROM.
+//
+// Звірка була в одне слово, і для єдиної відомої адреси цього вистачало. Для
+// ПОШУКУ одного слова замало: 0xe92d40fe трапляється в памʼяті часто, і
+// випадковий кандидат пройшов би. Тому тут вісім слів - це вже підпис функції,
+// а не збіг.
+TInt COcEngine::ChaseSram(TUint32 aGlobal, TUint32& aSram)
+    {
+    aSram = 0;
+    TUint32 obj = (TUint32)iDvfs.ReadOrCall(aGlobal + 4);
+    if (obj < 0xc0000000u || obj >= 0xf0000000u || (obj & 3))
+        return KErrNotFound;
+    TUint32 sram = (TUint32)iDvfs.ReadOrCall(obj + 16);
+    if (sram < 0xc0000000u || (sram & 3))
+        return KErrNotFound;
+
+    iStep = EOcStepVerifySram;
+    for (TInt i = 0; i < 8; ++i)
+        {
+        const TUint32 copy = (TUint32)iDvfs.ReadOrCall(sram + i * 4);
+        const TUint32 rom  = (TUint32)iDvfs.ReadOrCall(iProfile->iRomSramRoutine + i * 4);
+        if (copy != rom)
+            return KErrCorrupt;
+        }
+    aSram = sram;
+    return KErrNone;
+    }
+
+// Пошук глобала power-down у вікні навколо орієнтира, взятого з ROM.
+//
+// Орієнтир - це значення літерального пулу пари геттер/сеттер, знайденої в
+// образі за сигнатурою. На RM-320 цей пул дає 0xc80030ec, тоді як справжній
+// глобал 0xc80030c8, тобто поруч, але НЕ той самий: сигнатура знаходить сусідню
+// пару. Саме тому офлайнове значення в профіль не кладуть, а шукають на
+// апараті - і приймають лише те, що пройшло звірку SRAM.
+TInt COcEngine::DiscoverPwrDownGlobal(TUint32& aGlobal, TUint32& aSram)
+    {
+    aGlobal = 0;
+    aSram = 0;
+    const TUint32 hint = iProfile->iPwrDownHint;
+    if (!hint)
+        return KErrNotSupported;
+    const TUint32 lo = (hint > KPwrDownSearchSpan) ? hint - KPwrDownSearchSpan : 0;
+    const TUint32 hi = hint + KPwrDownSearchSpan;
+    for (TUint32 a = lo; a <= hi; a += 4)
+        {
+        TUint32 sram = 0;
+        if (ChaseSram(a, sram) == KErrNone)
+            {
+            aGlobal = a;
+            aSram = sram;
+            return KErrNone;
+            }
+        }
+    return KErrNotFound;
+    }
+
+// Прогін пошуку НА ВИМОГУ, коли адреса вже відома. Сенс один: перевірити сам
+// механізм там, де правильну відповідь знаємо наперед, і побачити, чи він її
+// відтворює. Без цього тестові профілі спирались би на неперевірений метод -
+// рівно та помилка, яку офлайновий пошук глобала вже раз зробив.
+TInt COcEngine::TryDiscoverGlobal(TUint32& aGlobal, TUint32& aSram)
+    {
+    // Читання працює лише всередині сеансу патча: Prepare() знімає патч за
+    // собою, тож тут його треба накласти заново й обовʼязково зняти після.
+    TInt r = ApplyReadPatch();
+    if (r != KErrNone)
+        return r;
+    r = ReopenDvfs();
+    if (r == KErrNone)
+        r = DiscoverPwrDownGlobal(aGlobal, aSram);
+    EndPatchSession();
+    return r;
     }
 
 TInt COcEngine::Poke(TUint32 aAddr, const TDesC8& aBytes)
@@ -1132,7 +1301,8 @@ TInt COcEngine::Prepare()
     // або звіряти SRAM проти нуля - гарантований спосіб покласти апарат, тож
     // відмовляємо ДО будь-якого дотику до ядра.
     if (iProfile->iRead != EReadDvfs || iProfile->iDvfsBody == 0
-        || iProfile->iRomSramRoutine == 0 || iProfile->iPwrDownGlobal == 0)
+        || iProfile->iRomSramRoutine == 0
+        || (iProfile->iPwrDownGlobal == 0 && iProfile->iPwrDownHint == 0))
         {
         iStep = EOcStepUnsupported;
         return KErrNotSupported;
@@ -1218,21 +1388,41 @@ TInt COcEngine::PrepareProbe()
             return KErrNotReady;
         }
 
-    iStep = EOcStepResolveSram;
-    TUint32 obj = (TUint32)iDvfs.ReadOrCall(iProfile->iPwrDownGlobal + 4);
-    if (obj < 0xc0000000u || obj >= 0xf0000000u || (obj & 3))
-        return KErrNotFound;
-    TUint32 sram = (TUint32)iDvfs.ReadOrCall(obj + 16);
-    if (sram < 0xc0000000u || (sram & 3))
-        return KErrNotFound;
+    // Підпис relock-рутини. Читаємо ЧЕРЕЗ патч, тож один цей блок доводить і
+    // те, що патч живий, і те, що iRomSramRoutine показує куди треба. Для
+    // тестового профілю це головна перевірка: версії збірки ми не знаємо, і
+    // гейт по прошивці там порожній.
+    if (iProfile->iSramSignature)
+        {
+        iStep = EOcStepVerifySram;
+        for (TInt i = 0; i < 8; ++i)
+            if ((TUint32)iDvfs.ReadOrCall(iProfile->iRomSramRoutine + i * 4)
+                != iProfile->iSramSignature[i])
+                return KErrCorrupt;
+        }
 
-    // Адресі не віримо без звірки: перше слово копії мусить дорівнювати
-    // першому слову оригіналу в ROM. Інакше писали б у випадкову память ядра.
-    iStep = EOcStepVerifySram;
-    TUint32 w0 = (TUint32)iDvfs.ReadOrCall(sram);
-    TUint32 romw0 = (TUint32)iDvfs.ReadOrCall(iProfile->iRomSramRoutine);
-    if (w0 != romw0)
-        return KErrCorrupt;
+    iStep = EOcStepResolveSram;
+    TUint32 sram = 0;
+    TUint32 global = iProfile->iPwrDownGlobal;
+    if (global)
+        {
+        r = ChaseSram(global, sram);
+        if (r != KErrNone)
+            return r;
+        }
+    else
+        {
+        // Профіль без адреси глобала (тестовий). Не вгадуємо: пробуємо вузьке
+        // вікно навколо орієнтира з ROM і беремо ту адресу, ланцюг якої дає
+        // копію SRAM, побайтово тотожну оригіналу. Помилковий кандидат таку
+        // звірку не пройде, а вікно свідомо мале - читання довільної адреси
+        // ядра виконується В РЕЖИМІ ЯДРА, і непримаплена сторінка означала б
+        // не помилку, а перезавантаження.
+        r = DiscoverPwrDownGlobal(global, sram);
+        if (r != KErrNone)
+            return r;
+        iFoundGlobal = global;
+        }
     iSram = sram;
 
     iStep = EOcStepReadRegs;
@@ -1250,8 +1440,13 @@ TInt COcEngine::PrepareProbe()
     iBootMpu = mpud;
     iBootMult = (TInt)((sel1 >> 12) & 0x3ff);
     // Опорна точка - стала. Чому саме так - у коментарі при KStockClkSel1Core.
-    iStockCore = iProfile->iStockClkSel1Core;
-    iStockMpu = iProfile->iStockClkSelMpu;
+    // Нуль у профілі означає "штатної розкладки для цього апарата ми не знаємо"
+    // - так у тестових профілів. Тоді опорною точкою стає те, що застали на
+    // старті, і саме тому такий апарат мусить бути щойно перезавантажений.
+    // Для доведених профілів опорна точка лишається сталою (див. коментар при
+    // KStockClkSel1Core): живі регістри розігнаного апарата з'їхали б.
+    iStockCore = iProfile->iStockClkSel1Core ? iProfile->iStockClkSel1Core : core;
+    iStockMpu = iProfile->iStockClkSelMpu ? iProfile->iStockClkSelMpu : mpud;
     // Дільник DSP. Прошивка його в рантаймі не змінює жодного разу: обидва
     // штатні сеттери (power.dll @0x800AC59C, ehwaomap.pdd @0x801AE900) в усьому
     // ROM не викликаються й не експортуються. Тож знятого тут значення досить
@@ -1279,8 +1474,8 @@ TInt COcEngine::PrepareProbe()
     sel2 = bestSel2 ? bestSel2 : 2;
     // Декодуємо ШТАТНУ розкладку, а не застану: sys_clk і дільник DPLL беремо з
     // заліза (вони незмінні), множник і дільники - з констант.
-    iStockClocks.Decode(sel1, sel2, iProfile->iStockClkSelMpu, iProfile->iStockClkSel1Core);
-    iStockClocks.iMult = iProfile->iStockMult;
+    iStockClocks.Decode(sel1, sel2, iStockMpu, iStockCore);
+    iStockClocks.iMult = iProfile->iStockMult ? iProfile->iStockMult : iBootMult;
     // А ось поточний множник - саме той, що в залізі: рампа має йти звідти, де
     // апарат стоїть насправді. iApplied при цьому лишається хибним: він означає
     // "це МИ змінили", і чужий розгін чіпати мовчки, у деструкторі, не можна.

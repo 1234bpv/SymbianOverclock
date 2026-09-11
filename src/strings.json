@@ -276,6 +276,42 @@
     "ReasonRestore": {
       "en": "restore stock",
       "uk": "повернення штатного"
+    },
+    "TestProfileKnown": {
+      "en": " TEST PROFILE: not needed, device is known",
+      "uk": " ТЕСТОВИЙ ПРОФІЛЬ: не потрібен, апарат відомий"
+    },
+    "TestProfileRow": {
+      "en": " TEST PROFILE: %S",
+      "uk": " ТЕСТОВИЙ ПРОФІЛЬ: %S"
+    },
+    "TestProfileNone": {
+      "en": " TEST PROFILE: none available",
+      "uk": " ТЕСТОВИЙ ПРОФІЛЬ: немає жодного"
+    },
+    "TestProfilePick": {
+      "en": "left/right to choose, OK to try it",
+      "uk": "стрілки - вибір, OK - спробувати"
+    },
+    "TestProfileWarn1": {
+      "en": "UNVERIFIED addresses - this may reboot the phone",
+      "uk": "АДРЕСИ НЕ ПЕРЕВІРЕНІ - апарат може перезавантажитись"
+    },
+    "TestProfileWarn2": {
+      "en": "the phone must be freshly booted",
+      "uk": "апарат має бути щойно перезавантажений"
+    },
+    "TestProfileTrying": {
+      "en": "trying %S ...",
+      "uk": "пробую %S ..."
+    },
+    "TestProfileOk": {
+      "en": "test profile works - engine is ready",
+      "uk": "тестовий профіль працює - рушій готовий"
+    },
+    "TestProfileFoundGlobal": {
+      "en": "found pwrdown global at %08x",
+      "uk": "глобал power-down знайдено за %08x"
     }
   },
   "help": {

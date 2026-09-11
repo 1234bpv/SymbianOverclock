@@ -237,6 +237,7 @@ enum TRowId
     ERowTestCache,
     ERowTestCombined,
     ERowHelp,            // вбудована інструкція
+    ERowTestProfile,     // ручний вибір неперевіреного профілю
     ERowCount
     };
 
@@ -306,6 +307,8 @@ private:
     TUint32* iBuf;
     TInt   iBufWords;
     TBuf<80> iStatus;
+    TBool  iKnownDevice;     // профіль добрано автоматично
+    TInt   iTestProfile;     // вибраний тестовий профіль; -1 = жоден
     TBool  iHelp;            // ETrue = показуємо сторінку довідки
     TInt   iHelpTop;         // з якого рядка довідки малюємо
     };
@@ -315,7 +318,7 @@ COcView::COcView()
     iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iBusGuard(ETrue), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
     iArmed(EFalse), iArmedMult(0), iArmedCore(0),
     iArmedMpu(0),
-    iLogCount(0), iBuf(NULL), iBufWords(0), iHelp(EFalse), iHelpTop(0)
+    iLogCount(0), iBuf(NULL), iBufWords(0), iKnownDevice(EFalse), iTestProfile(0), iHelp(EFalse), iHelpTop(0)
     {
     }
 
@@ -372,6 +375,7 @@ void COcView::ConstructL(const TRect& aRect)
         ActivateL();       // вікно мусить лишитись живим, щоб відмову було видно
         return;
         }
+    iKnownDevice = ETrue;
     iEngine->SetProfile(*prof);
     {
     TBuf<32> pid;
@@ -705,6 +709,27 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
                         d / 10, (d < 0 ? -d : d) % 10);
         return;
         }
+    if (aRow == ERowTestProfile)
+        {
+        // Тестовий профіль потрібен лише там, де апарат не впізнано. На
+        // відомому апараті пропонувати неперевірені адреси нема сенсу й
+        // шкідливо: доведений профіль завжди кращий.
+        if (iKnownDevice)
+            {
+            aOut.Copy(OcStr(EStrTestProfileKnown));
+            return;
+            }
+        const TOcProfile* tp = TestProfile(iTestProfile);
+        if (!tp)
+            {
+            aOut.Copy(OcStr(EStrTestProfileNone));
+            return;
+            }
+        TBuf<48> nm;
+        nm.Copy(TPtrC8((const TUint8*)tp->iId));
+        aOut.Format(OcStr(EStrTestProfileRow), &nm);
+        return;
+        }
     if (aRow == ERowBusGuard)
         {
         // Рядок каже не лише стан, а й ціну: чотири смерті з чотирьох -
@@ -905,7 +930,7 @@ void COcView::Activate(TRowId aRow)
         }
     if (!iEngine || !iEngine->IsReady())
         {
-        if (aRow >= ERowTestAlu && aRow != ERowHelp)
+        if (aRow >= ERowTestAlu && aRow != ERowHelp && aRow != ERowTestProfile)
             {
             RunTest(aRow);          // тести працюють і без патчера
             return;
@@ -926,6 +951,44 @@ void COcView::Activate(TRowId aRow)
             AddLogF(_L("dividers: %S"), &md);
             }
             break;
+
+        case ERowTestProfile:
+            {
+            if (iKnownDevice)
+                break;
+            const TOcProfile* tp = TestProfile(iTestProfile);
+            if (!tp)
+                break;
+            TBuf<48> nm;
+            nm.Copy(TPtrC8((const TUint8*)tp->iId));
+            AddLog(OcStr(EStrTestProfileWarn1));
+            AddLog(OcStr(EStrTestProfileWarn2));
+            AddLogF(OcStr(EStrTestProfileTrying), &nm);
+            Repaint();
+            iEngine->SetProfile(*tp);
+            TInt pr = iEngine->Prepare();
+            if (pr == KErrNone)
+                {
+                AddLog(OcStr(EStrTestProfileOk));
+                if (iEngine->FoundGlobal())
+                    AddLogF(OcStr(EStrTestProfileFoundGlobal), iEngine->FoundGlobal());
+                iMult = iEngine->BootMult();
+                iArmedMult = iMult;
+                iCoreReg = iEngine->StockCore();
+                iArmedCore = iCoreReg;
+                iMpuDiv = (TInt)(iEngine->BootMpu() & KMpuDivMask);
+                iArmedMpu = iEngine->StockMpu();
+                iDspDiv = iEngine->StockDspDiv();
+                iLiveL3 = (TInt)(iEngine->BootCore() & KCoreL3Mask);
+                }
+            else
+                {
+                iStatus.Format(_L("NOT READY (%d) at: %S"), pr,
+                               &COcEngine::StepName(iEngine->FailedAt()));
+                AddLog(iStatus);
+                }
+            break;
+            }
 
         case ERowBusGuard:
             iBusGuard = !iBusGuard;
@@ -1241,6 +1304,15 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
                     iCoreReg = CoreFieldSet(iCoreReg, ECoreL3, nv);
                     iArmed = EFalse;
                     WarnBus(nv);
+                    }
+                }
+            else if (iRow == ERowTestProfile)
+                {
+                const TInt cnt = TestProfileCount();
+                if (!iKnownDevice && cnt > 0)
+                    {
+                    iTestProfile = (iTestProfile + dir + cnt) % cnt;
+                    AddLog(OcStr(EStrTestProfilePick));
                     }
                 }
             else if (iRow == ERowBusGuard)

@@ -948,6 +948,26 @@ static void ProbeDspSet(TInt aDiv, TBool aKeep, TInt aSoakSec, TInt aMode)
 
 // Бісекція причини перезавантажень. Один рівень за прогін; після кожного
 // апарат треба лишити в спокої і подивитись, чи вистоїть.
+// Перевірка пошуку глобала power-down там, де правильна відповідь відома з
+// профілю. Друкує знайдене поруч із очікуваним - збіг означає, що механізм,
+// на який спираються тестові профілі, працює.
+static void ProbeDiscover()
+    {
+    Log(_L8("--- discover pwrdown global (mechanism check) ---"));
+    COcEngine *e = PrepareEngine();
+    if (!e)
+        return;
+    TUint32 found = 0, sram = 0;
+    TInt r = e->TryDiscoverGlobal(found, sram);
+    LogF(_L8("  search -> r=%d  found=%08x  sram=%08x"), r, found, sram);
+    LogF(_L8("  engine resolved sram=%08x"), e->SramAddress());
+    if (r == KErrNone && sram == e->SramAddress())
+        Log(_L8("  MECHANISM OK: search reproduced the known SRAM address"));
+    else
+        Log(_L8("  MECHANISM FAILED: search did not reproduce the known answer"));
+    delete e;
+    }
+
 static void ProbeLevel(TInt aLevel)
     {
     LogF(_L8("--- LEVEL TEST %d ---"), aLevel);
@@ -2455,6 +2475,8 @@ static void RunL()
         ProbePmuTest();
     else if (cmd.Find(_L("blobtest")) != KErrNotFound)
         ProbeBlobTest();
+    else if (cmd.Find(_L("patcher discover")) != KErrNotFound)
+        ProbeDiscover();
     else if (cmd.Find(_L("patcher engine")) != KErrNotFound)
         ProbeEngine();
     else if (cmd.Find(_L("patcher clocks")) != KErrNotFound)
