@@ -58,6 +58,22 @@ enum TOcStrId
     EStrApplying,
     EStrDspNoSetter,
     EStrDspNoSetterWhy,
+    EStrMoreRows,
+    EStrCombinedRound,
+    EStrDspRejected,
+    EStrDspMismatch,
+    EStrDspNoTimer,
+    EStrDspHeld,
+    EStrBusStaysClamped,
+    EStrBusClamped,
+    EStrRowDspRevert,
+    EStrRowDspLive,
+    EStrRowBusClamped,
+    EStrRowBusManual,
+    EStrRowBusAuto,
+    EStrDspReverted,
+    EStrReasonTimeout,
+    EStrReasonRestore,
     EStrCount
     };
 

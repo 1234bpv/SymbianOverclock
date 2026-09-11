@@ -455,7 +455,7 @@ void COcView::RestoreDspNow(const TDesC& aWhy)
     TInt rc = 0;
     iEngine->RestoreDspDiv(rc);
     iDspDiv = iEngine->DspDiv();
-    AddLogF(_L("dsp reverted to /%d (%S)"), iDspDiv, &aWhy);
+    AddLogF(OcStr(EStrDspReverted), iDspDiv, &aWhy);
     Repaint();
     }
 
@@ -467,7 +467,7 @@ TInt COcView::DspRevertTick(TAny* aSelf)
         self->Repaint();            // видно, скільки лишилось
         return 0;
         }
-    self->RestoreDspNow(_L("timeout"));
+    self->RestoreDspNow(OcStr(EStrReasonTimeout));
     return 0;
     }
 
@@ -690,7 +690,7 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
             {
             TOcClocks cc;
             iEngine->ClocksFor(iMult, cc);
-            aOut.Format(_L(" BUSDIV /%d CLAMPED /%d  SDRAM %u"), v, iLiveL3,
+            aOut.Format(OcStr(EStrRowBusClamped), v, iLiveL3,
                         cc.CoreKhz() / (TUint32)iLiveL3 / 1000);
             return;
             }
@@ -698,10 +698,10 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         const TUint32 want = iEngine->StockClocks().L3Khz();
         const TInt d = want ? (TInt)(((TInt64)got - want) * 1000 / want) : 0;
         if (iL3Div)
-            aOut.Format(_L(" BUSDIV /%d  SDRAM %u  %d.%d%%"), v, got / 1000,
+            aOut.Format(OcStr(EStrRowBusManual), v, got / 1000,
                         d / 10, (d < 0 ? -d : d) % 10);
         else
-            aOut.Format(_L(" BUSDIV /%d auto  SDRAM %u  %d.%d%%"), v, got / 1000,
+            aOut.Format(OcStr(EStrRowBusAuto), v, got / 1000,
                         d / 10, (d < 0 ? -d : d) % 10);
         return;
         }
@@ -729,10 +729,10 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         iEngine->ClocksFor(iMult, c);
         TUint32 got = iDspDiv ? c.CoreKhz() / (TUint32)iDspDiv : 0;
         if (iDspLeftSec > 0)
-            aOut.Format(_L(" DSPDIV /%d  DSP %u  revert in %ds"), iDspDiv,
+            aOut.Format(OcStr(EStrRowDspRevert), iDspDiv,
                         got / 1000, iDspLeftSec);
         else
-            aOut.Format(_L(" DSPDIV /%d  DSP %u  (live /%d)"), iDspDiv,
+            aOut.Format(OcStr(EStrRowDspLive), iDspDiv,
                         got / 1000, iEngine->DspDiv());
         return;
         }
@@ -862,7 +862,7 @@ void COcView::RunCombined()
 
     for (TInt round = 0; round < kRounds; ++round)
         {
-        iStatus.Format(_L("combined: round %d of %d"), round + 1, kRounds);
+        iStatus.Format(OcStr(EStrCombinedRound), round + 1, kRounds);
         Repaint();
 
         TTestResult a = TestAlu(800000);
@@ -986,7 +986,7 @@ void COcView::Activate(TRowId aRow)
                 }
             if (rc == KErrArgument)
                 {
-                AddLog(_L("dsp: firmware rejected this divider"));
+                AddLog(OcStr(EStrDspRejected));
                 break;
                 }
             if (rc != KErrNone)
@@ -1000,7 +1000,7 @@ void COcView::Activate(TRowId aRow)
             AddLogF(_L("dsp: /%d applied, live /%d"), iDspDiv, live);
             if (live != iDspDiv)
                 {
-                AddLog(_L("dsp: MISMATCH - register did not take it"));
+                AddLog(OcStr(EStrDspMismatch));
                 break;
                 }
             // Повернення до штатного - без сторожа: воно безпечне й остаточне.
@@ -1017,7 +1017,7 @@ void COcView::Activate(TRowId aRow)
             if (terr != KErrNone || !iDspTimer)
                 {
                 // Немає сторожа - немає й права тримати нештатний дільник.
-                AddLog(_L("dsp: no timer - reverting at once"));
+                AddLog(OcStr(EStrDspNoTimer));
                 TInt rc2 = 0;
                 iEngine->RestoreDspDiv(rc2);
                 iDspDiv = iEngine->DspDiv();
@@ -1026,7 +1026,7 @@ void COcView::Activate(TRowId aRow)
             iDspLeftSec = KDspHoldSec;
             iDspTimer->Start(1000000, 1000000,
                              TCallBack(COcView::DspRevertTick, this));
-            AddLogF(_L("dsp /%d held %d s, then auto-revert"), iDspDiv,
+            AddLogF(OcStr(EStrDspHeld), iDspDiv,
                     KDspHoldSec);
             if (iDspDiv < iEngine->StockDspDiv())
                 {
@@ -1053,7 +1053,7 @@ void COcView::Activate(TRowId aRow)
             TInt l3 = CoreFieldValue(iArmedCore, ECoreL3);
             if (iBusGuard && iLiveL3 && l3 < iLiveL3)
                 {
-                AddLogF(_L("bus stays /%d clamped - reboot for stock"), iLiveL3);
+                AddLogF(OcStr(EStrBusStaysClamped), iLiveL3);
                 l3 = iLiveL3;
                 }
             AddLogF(_L("armed m%d CPU %u BUS %u"), iArmedMult, c.MpuKhz() / 1000,
@@ -1087,7 +1087,7 @@ void COcView::Activate(TRowId aRow)
             // затискає живим значенням, бо підйом шини смертельний (findings 38.2).
             const TUint32 wroteCore = iEngine->LastCoreWritten();
             if (wroteCore != iArmedCore)
-                AddLogF(_L("bus clamped: l3 %d (reboot for stock)"),
+                AddLogF(OcStr(EStrBusClamped),
                         (TInt)(wroteCore & KCoreL3Mask));
             TUint32 liveCore = 0;
             if (iEngine->LiveCore(liveCore) == KErrNone)
@@ -1140,7 +1140,7 @@ void COcView::Activate(TRowId aRow)
             }
             // Дільник DSP - у тому ж «повернути все як було»: інакше довелося б
             // памʼятати, що RESTORE STOCK стосується не всього.
-            RestoreDspNow(_L("restore stock"));
+            RestoreDspNow(OcStr(EStrReasonRestore));
             iMult = iEngine->StockMult();
             iCoreReg = iEngine->StockCore();
             iMpuDiv = iEngine->StockClocks().iMpuDiv;
@@ -1425,7 +1425,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
     // Позначка, що список довший за екран.
     if (last < ERowCount && y < yMax)
         {
-        line.Format(_L("  ... %d more"), ERowCount - last);
+        line.Format(OcStr(EStrMoreRows), ERowCount - last);
         gc.DrawText(line, TPoint(x, y));
         y += lh;
         }

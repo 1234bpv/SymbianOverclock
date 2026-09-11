@@ -212,6 +212,70 @@
     "DspNoSetterWhy": {
       "en": "the setter address was never measured here",
       "uk": "адресу сеттера для нього не міряли"
+    },
+    "MoreRows": {
+      "en": "  ... %d more",
+      "uk": "  ... ще %d"
+    },
+    "CombinedRound": {
+      "en": "combined: round %d of %d",
+      "uk": "усе разом: коло %d з %d"
+    },
+    "DspRejected": {
+      "en": "dsp: firmware rejected this divider",
+      "uk": "dsp: прошивка відхилила цей дільник"
+    },
+    "DspMismatch": {
+      "en": "dsp: MISMATCH - register did not take it",
+      "uk": "dsp: РОЗБІЖНІСТЬ - регістр не взяв"
+    },
+    "DspNoTimer": {
+      "en": "dsp: no timer - reverting at once",
+      "uk": "dsp: немає таймера - повертаю одразу"
+    },
+    "DspHeld": {
+      "en": "dsp /%d held %d s, then auto-revert",
+      "uk": "dsp /%d тримається %d с, тоді автоповернення"
+    },
+    "BusStaysClamped": {
+      "en": "bus stays /%d clamped - reboot for stock",
+      "uk": "шина лишається /%d затиснутою - ребут поверне штатну"
+    },
+    "BusClamped": {
+      "en": "bus clamped: l3 %d (reboot for stock)",
+      "uk": "шину затиснуто: l3 %d (ребут поверне штатну)"
+    },
+    "RowDspRevert": {
+      "en": " DSPDIV /%d  DSP %u  revert in %ds",
+      "uk": " DSPDIV /%d  DSP %u  повернення через %dс"
+    },
+    "RowDspLive": {
+      "en": " DSPDIV /%d  DSP %u  (live /%d)",
+      "uk": " DSPDIV /%d  DSP %u  (у залізі /%d)"
+    },
+    "RowBusClamped": {
+      "en": " BUSDIV /%d CLAMPED /%d  SDRAM %u",
+      "uk": " BUSDIV /%d ЗАТИСНУТО /%d  SDRAM %u"
+    },
+    "RowBusManual": {
+      "en": " BUSDIV /%d  SDRAM %u  %d.%d%%",
+      "uk": " BUSDIV /%d  SDRAM %u  %d.%d%%"
+    },
+    "RowBusAuto": {
+      "en": " BUSDIV /%d auto  SDRAM %u  %d.%d%%",
+      "uk": " BUSDIV /%d авто  SDRAM %u  %d.%d%%"
+    },
+    "DspReverted": {
+      "en": "dsp reverted to /%d (%S)",
+      "uk": "dsp повернено на /%d (%S)"
+    },
+    "ReasonTimeout": {
+      "en": "timeout",
+      "uk": "час вийшов"
+    },
+    "ReasonRestore": {
+      "en": "restore stock",
+      "uk": "повернення штатного"
     }
   },
   "help": {
