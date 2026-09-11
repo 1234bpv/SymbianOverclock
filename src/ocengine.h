@@ -155,6 +155,12 @@ extern const TUint32 KSramRoutineSignature[8];
 // це читання за довільною адресою В РЕЖИМІ ЯДРА, і непримапана сторінка коштує
 // перезавантаження, а не помилки.
 const TUint32 KPwrDownSearchSpan = 0x200;
+// Межі ядрових даних. Усе, що пошук читає, мусить лежати в них.
+const TUint32 KKernDataLo = 0xc0000000u;
+const TUint32 KKernDataHi = 0xf0000000u;
+// Межі XIP ROM: усе, що ми звіряємо байтами, лежить тут.
+const TUint32 KRomLo = 0x80000000u;
+const TUint32 KRomHi = 0x90000000u;
 
 // Еталонний профіль, доведений на апараті (N95 8GB RM-320, прошивка 31.0.015).
 extern const TOcProfile KProfileRM320;
@@ -316,6 +322,7 @@ enum TOcStep
     EOcStepVerifySram,        // звірка копії з ROM-оригіналом
     EOcStepReadRegs,
     EOcStepUnsupported,       // профіль не підтримує шлях EReadDvfs (напр. E90)
+    EOcStepVerifyBody,        // байти за адресою патча не ті, що ми чекали
     EOcStepFirmware,          // прошивка апарата не та, під яку виведено адреси
     EOcStepReady
     };
@@ -360,11 +367,10 @@ public:
     // Порівнюємо з опорною точкою ЦЬОГО апарата, а не з еталонною. Інакше на
     // E90, у якого штатний l3div=6 проти 4 у RM-320, кожен прогін хибно звітував
     // би "NOT STOCK AT START" на цілком штатному апараті.
-    TBool BootedNonStock() const
-        { return iBootMult != iProfile->iStockMult
-              || iBootCore != iProfile->iStockClkSel1Core
-              || (iBootMpu & KMpuDivMask)
-                     != (iProfile->iStockClkSelMpu & KMpuDivMask); }
+    // Беремо РОЗВ'ЯЗАНУ опорну точку (iStock*), а не поля профілю: у тестових
+    // профілях ті поля нульові, і пряме порівняння давало б "NON-STOCK" на
+    // цілком штатному апараті просто тому, що профіль їх не заповнює.
+    TBool BootedNonStock() const;
 
     TInt ReadReg(TUint32 aAddr, TUint32& aOut);
     // Кілька адрес за одне накладання READ-патчу. Менше вікон, у які може
@@ -468,6 +474,11 @@ public:
     // Порожня, доки Prepare() не викликали.
     const TDesC& Firmware() const { return iFirmware; }
     // Адреса глобала, знайдена пошуком (0, якщо профіль знав її сам).
+    // Слова, знятi з живого ROM. Потрiбнi лише для друку в пробнику: побачити,
+    // що звiрка справдi зiйшлась, а не впала в запасну гiлку з константою.
+    TUint32 OrigWord(TInt aI) const
+        { return (aI >= 0 && aI < iOrigCount) ? iOrigWords[aI] : 0; }
+    TInt OrigCount() const { return iOrigCount; }
     TUint32 FoundGlobal() const { return iFoundGlobal; }
     // Перевірка механізму пошуку на апараті з відомою відповіддю.
     TInt TryDiscoverGlobal(TUint32& aGlobal, TUint32& aSram);
@@ -476,6 +487,7 @@ private:
     COcEngine();
     void ConstructL();
     TInt CheckFirmware();
+    TInt CaptureOriginal();
     TInt ChaseSram(TUint32 aGlobal, TUint32& aSram);
     TInt DiscoverPwrDownGlobal(TUint32& aGlobal, TUint32& aSram);
     TInt Poke(TUint32 aAddr, const TDesC8& aBytes);
@@ -500,6 +512,11 @@ private:
     const TOcProfile* iProfile;
     RPatcherChannel iPatcher;
     RDvfsChannel    iDvfs;
+    // Штатні слова тіла DoControl, ЗНЯТІ З ЖИВОГО ROM цього апарата. Константа
+    // тут не годиться: у ній зміщення bl/ldr/b, а вони в кожної збірки свої,
+    // тож відкат константою на чужій збірці зіпсував би драйвер до ребута.
+    TUint32  iOrigWords[6];
+    TInt     iOrigCount;
     TBool    iPatcherOpen;
     TBool    iDvfsOpen;
     TBool    iReady;

@@ -807,7 +807,7 @@ TUint32 TOcClocks::L3Khz() const
 
 COcEngine::COcEngine()
   : iProfile(&KProfileRM320),
-    iPatcherOpen(EFalse), iDvfsOpen(EFalse), iReady(EFalse), iExecMode(EFalse), iPatched(EFalse), iShadowed(EFalse),
+    iOrigCount(0), iPatcherOpen(EFalse), iDvfsOpen(EFalse), iReady(EFalse), iExecMode(EFalse), iPatched(EFalse), iShadowed(EFalse),
     iApplied(EFalse), iKeep(EFalse), iRestoreNeedsReboot(EFalse),
     iBusGuard(ETrue), iFoundGlobal(0), iLastCoreWritten(0), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
     iBootCore(0), iBootMpu(0), iBootMult(0),
@@ -866,9 +866,9 @@ TInt COcEngine::RestoreKernelCode()
     {
     if (!iPatcherOpen || !iPatched)
         return KErrNone;
-    TInt words = 0;
-    const TUint32* orig = HostOriginal(iProfile, words);
-    TInt r = PokeWords(iProfile->iDvfsBody, orig, words);
+    if (iOrigCount != 6)
+        return KErrNotReady;
+    TInt r = PokeWords(iProfile->iDvfsBody, iOrigWords, 6);
     if (r == KErrNone)
         {
         iPatched = EFalse;
@@ -915,7 +915,7 @@ TInt COcEngine::VerifyRestored()
         // ми дивимось на самі байти, і жодного виклику в ядро не робимо.
         const volatile TUint32* body = (const volatile TUint32*)iProfile->iDvfsBody;
         for (TInt i = 0; i < 6; ++i)
-            if (body[i] != KUsbcOriginal[i])
+            if (body[i] != iOrigWords[i])
                 return 0;
         return 1;
         }
@@ -933,6 +933,7 @@ _LIT(KStepVerifySram,  "verifying SRAM copy");
 _LIT(KStepReadRegs,    "reading PRCM registers");
 _LIT(KStepUnsupported, "profile has no read path for this host");
 _LIT(KStepFirmware,    "firmware does not match the profile");
+_LIT(KStepVerifyBody,  "code at the patch address is not what we expect");
 _LIT(KStepReady,       "ready");
 
 const TDesC& COcEngine::StepName(TOcStep aStep)
@@ -949,6 +950,7 @@ const TDesC& COcEngine::StepName(TOcStep aStep)
         case EOcStepReadRegs:    return KStepReadRegs;
         case EOcStepUnsupported: return KStepUnsupported;
         case EOcStepFirmware:    return KStepFirmware;
+        case EOcStepVerifyBody:  return KStepVerifyBody;
         case EOcStepReady:       return KStepReady;
         default:                 return KStepIdle;
         }
@@ -964,10 +966,10 @@ TInt COcEngine::ChaseSram(TUint32 aGlobal, TUint32& aSram)
     {
     aSram = 0;
     TUint32 obj = (TUint32)iDvfs.ReadOrCall(aGlobal + 4);
-    if (obj < 0xc0000000u || obj >= 0xf0000000u || (obj & 3))
+    if (obj < KKernDataLo || obj >= KKernDataHi || (obj & 3))
         return KErrNotFound;
     TUint32 sram = (TUint32)iDvfs.ReadOrCall(obj + 16);
-    if (sram < 0xc0000000u || (sram & 3))
+    if (sram < KKernDataLo || sram >= KKernDataHi || (sram & 3))
         return KErrNotFound;
 
     iStep = EOcStepVerifySram;
@@ -996,7 +998,14 @@ TInt COcEngine::DiscoverPwrDownGlobal(TUint32& aGlobal, TUint32& aSram)
     const TUint32 hint = iProfile->iPwrDownHint;
     if (!hint)
         return KErrNotSupported;
-    const TUint32 lo = (hint > KPwrDownSearchSpan) ? hint - KPwrDownSearchSpan : 0;
+    // Підказку бере профіль, а профіль може дописати стороння людина за
+    // docs/PORTING.md. Тому діапазон перевіряємо тут, а не покладаємось на те,
+    // що в таблиці лежить осмислене число: читання йде в режимі ядра, і адреса
+    // поза ядровими даними - це виняток у ядрі, а не KErrNotFound. Верхня межа
+    // заразом не дає hint + span обгорнутись і зациклити пошук.
+    if (hint < KKernDataLo || hint >= KKernDataHi || (hint & 3))
+        return KErrArgument;
+    const TUint32 lo = hint - KPwrDownSearchSpan;
     const TUint32 hi = hint + KPwrDownSearchSpan;
     for (TUint32 a = lo; a <= hi; a += 4)
         {
@@ -1082,6 +1091,11 @@ TInt COcEngine::ReopenDvfs()
 // а апарат до цієї роботи був стабільний, тож нову churn вносити нема за що.
 TInt COcEngine::ApplyReadPatch()
     {
+    // Без знятого оригіналу патч накладати не можна: відкочувати буде нічим.
+    // Перевірка стоїть тут, а не лише в Prepare(), щоб жоден із кількох шляхів
+    // патчення не міг обійти її повз.
+    if (iOrigCount != 6)
+        return KErrNotReady;
     TInt r = PokeWords(iProfile->iDvfsBody, HostReadPatch(iProfile), 4);
     if (r != KErrNone)
         return r;
@@ -1093,6 +1107,11 @@ TInt COcEngine::ApplyReadPatch()
 
 TInt COcEngine::ApplyExecPatch()
     {
+    // Без знятого оригіналу патч накладати не можна: відкочувати буде нічим.
+    // Перевірка стоїть тут, а не лише в Prepare(), щоб жоден із кількох шляхів
+    // патчення не міг обійти її повз.
+    if (iOrigCount != 6)
+        return KErrNotReady;
     // Байти беремо з асемблерного шаблону, а не з масиву констант: кодування
     // інструкцій рахує асемблер, а не я вручну.
     const TBool r2 = (iProfile->iHost == EHostUsbc);
@@ -1215,6 +1234,12 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     if (aLevel < 2)
         return KErrNone;
 
+    // Оригінал знімаємо саме тут: рівні 0 і 1 ядра не чіпають, і вимагати від
+    // них звірки байтів означало б відмовляти в нешкідливій перевірці.
+    iStep = EOcStepVerifyBody;
+    if (CaptureOriginal() != KErrNone)
+        return KErrCorrupt;
+
     // Рівень 2: перший дотик до коду ядра. Саме тут виникає ROM-shadow сторінка,
     // і вона лишається до перезавантаження навіть після відновлення вмісту.
     iStep = EOcStepOpenDvfs;
@@ -1250,6 +1275,85 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
 // адреси. Не змогли прочитати - теж відмова: "не вдалось перевірити" це не
 // "перевірено". Профіль із порожнім iFwVersion не гейтимо взагалі, і це має
 // бути видно в документації, а не лише тут.
+// Визначення тут, а не в класі: опорні поля оголошені нижче за цей метод, і
+// компілятор GCCE 3.x таке тіло в класі не приймає.
+TBool COcEngine::BootedNonStock() const
+    {
+    return iBootMult != iStockClocks.iMult
+        || iBootCore != iStockCore
+        || (iBootMpu & KMpuDivMask) != (iStockMpu & KMpuDivMask);
+    }
+
+// Знімає штатні слова тіла DoControl із живого ROM і переконується, що там
+// справді те, що ми думаємо. Сенс подвійний.
+//
+// По-перше, відкат. Раніше сюди підставлялась константа KDvfsOriginal, але в
+// ній слова bl, ldr [pc,#imm] і b - зміщення, унікальні для збірки RM-320. На
+// іншій збірці такий відкат записав би в чуже тіло чужі зміщення, і драйвер
+// лишився б зіпсованим до перезавантаження. Живі слова вільні від цієї вади за
+// побудовою.
+//
+// По-друге, впізнання апарата. Тестовий профіль не має ні машинного uid, ні
+// прошивкового гейту, тож байти за адресою патча - єдине, що ще відрізняє
+// правильний апарат від будь-якого іншого Symbian-телефона. XIP читається з
+// режиму користувача (findings §34), тож перевірка коштує нуль і робиться ДО
+// першого запису в ядро.
+//
+// Маска повторює сигнатуру пошуку (tools/romscan.js): три слова точні, у трьох
+// решти звіряється лише код операції, бо зміщення там і мають різнитись.
+TInt COcEngine::CaptureOriginal()
+    {
+    iOrigCount = 0;
+    const TUint32 a = iProfile->iDvfsBody;
+    if (a < KRomLo || a >= KRomHi || (a & 3))
+        return KErrArgument;
+    const volatile TUint32* body = (const volatile TUint32*)a;
+    TUint32 w[6];
+    for (TInt i = 0; i < 6; ++i)
+        w[i] = body[i];
+
+    TBool ok = EFalse;
+    if (iProfile->iHost == EHostUsbc)
+        {
+        ok = ETrue;
+        for (TInt i = 0; i < 6; ++i)
+            if (w[i] != KUsbcOriginal[i])
+                ok = EFalse;
+        }
+    else
+        {
+        ok = (w[0] == 0xe92d4010u)
+          && (w[1] == 0xe3a00001u)
+          && ((w[2] >> 24) == 0xebu)
+          && ((w[3] & 0xfffff000u) == 0xe59f1000u)
+          && (w[4] == 0xe8bd4010u)
+          && ((w[5] >> 24) == 0xeau);
+        }
+
+    if (ok)
+        {
+        for (TInt i = 0; i < 6; ++i)
+            iOrigWords[i] = w[i];
+        iOrigCount = 6;
+        return KErrNone;
+        }
+
+    // Не збіглося. Для профілю з прошивковим гейтом це майже напевно слід
+    // попереднього прогону, який не встиг відкотитись: там константа доведено
+    // відповідає саме цій збірці, тож нею й лікуємо. Для тестового профілю
+    // такої опори немає - це просто чужий апарат, і писати в нього не можна.
+    if (iProfile->iFwVersion && iProfile->iFwVersion[0])
+        {
+        TInt words = 0;
+        const TUint32* orig = HostOriginal(iProfile, words);
+        for (TInt i = 0; i < 6; ++i)
+            iOrigWords[i] = orig[i];
+        iOrigCount = 6;
+        return KErrNone;
+        }
+    return KErrCorrupt;
+    }
+
 TInt COcEngine::CheckFirmware()
     {
     iFirmware.Zero();
@@ -1307,6 +1411,10 @@ TInt COcEngine::Prepare()
         iStep = EOcStepUnsupported;
         return KErrNotSupported;
         }
+
+    iStep = EOcStepVerifyBody;
+    if (CaptureOriginal() != KErrNone)
+        return KErrCorrupt;
 
     iStep = EOcStepLoadDriver;
     TInt r = User::LoadLogicalDevice(KPatcherFile);

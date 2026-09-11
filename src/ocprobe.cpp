@@ -473,6 +473,9 @@ static COcEngine *PrepareEngine()
         }
     LogF(_L8("engine ready: SRAM @%08x, stock mult %d"),
          e->SramAddress(), e->StockMult());
+    LogF(_L8("orig body (%d words, live ROM): %08x %08x %08x %08x %08x %08x"),
+         e->OrigCount(), e->OrigWord(0), e->OrigWord(1), e->OrigWord(2),
+         e->OrigWord(3), e->OrigWord(4), e->OrigWord(5));
     LogClocks(_L8("stock"), e->StockClocks());
     // Опорна точка стала (KStockClkSel1Core), тож розбіжність із нею мусить
     // бути видно з логу відразу. Раніше цей випадок мовчки ставав новою нормою:

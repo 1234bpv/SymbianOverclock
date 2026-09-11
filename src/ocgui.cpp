@@ -39,7 +39,7 @@
 #include "ocstr.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 2.0.0");
+_LIT(KAppVersion, "SymbianOverclock 2.0.1");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -258,6 +258,7 @@ private:
     COcView();
     void ConstructL(const TRect& aRect);
     void Activate(TRowId aRow);
+    void ActivateTestProfile();
     void EnsureVisible(TInt aVisibleRows);
     TInt VisibleRows() const;
     // Значення CM_CLKSEL1_CORE, яке піде на апарат: або автопідбір, або ручне.
@@ -919,6 +920,50 @@ void COcView::RunCombined()
         AddLog(OcStr(EStrVerdictWeakCpu));
     }
 
+// Пробне підключення неперевіреного профілю. Живе окремим методом, бо
+// викликається до перевірки готовності двигуна - на невідомому апараті він
+// саме тому й не готовий, що профілю ще немає.
+void COcView::ActivateTestProfile()
+    {
+    if (iKnownDevice || !iEngine)
+        return;
+    const TOcProfile* tp = TestProfile(iTestProfile);
+    if (!tp)
+        return;
+    TBuf<48> nm;
+    nm.Copy(TPtrC8((const TUint8*)tp->iId));
+    AddLog(OcStr(EStrTestProfileWarn1));
+    AddLog(OcStr(EStrTestProfileWarn2));
+    AddLogF(OcStr(EStrTestProfileTrying), &nm);
+    Repaint();
+    iEngine->SetProfile(*tp);
+    const TInt pr = iEngine->Prepare();
+    if (pr == KErrNone)
+        {
+        // Статус досі каже "невідомий апарат" - після вдалого підключення це
+        // вже неправда, і лишати його поверх робочого екрана не можна.
+        iStatus.Zero();
+        AddLog(OcStr(EStrTestProfileOk));
+        if (iEngine->FoundGlobal())
+            AddLogF(OcStr(EStrTestProfileFoundGlobal), iEngine->FoundGlobal());
+        iMult = iEngine->BootMult();
+        iArmedMult = iMult;
+        iCoreReg = iEngine->StockCore();
+        iArmedCore = iCoreReg;
+        iMpuDiv = (TInt)(iEngine->BootMpu() & KMpuDivMask);
+        iArmedMpu = iEngine->StockMpu();
+        iDspDiv = iEngine->StockDspDiv();
+        iLiveL3 = (TInt)(iEngine->BootCore() & KCoreL3Mask);
+        }
+    else
+        {
+        iStatus.Format(_L("NOT READY (%d) at: %S"), pr,
+                       &COcEngine::StepName(iEngine->FailedAt()));
+        AddLog(iStatus);
+        }
+    Repaint();
+    }
+
 void COcView::Activate(TRowId aRow)
     {
     if (aRow == ERowHelp)
@@ -926,6 +971,14 @@ void COcView::Activate(TRowId aRow)
         iHelp = ETrue;
         iHelpTop = 0;
         Repaint();
+        return;
+        }
+    // Тестовий профіль обробляємо до перевірки IsReady(): двигун не готовий
+    // саме на невідомому апараті, а цей рядок існує рівно для такого апарата.
+    // Якщо лишити його після перевірки, він ніколи не спрацює.
+    if (aRow == ERowTestProfile && !iKnownDevice)
+        {
+        ActivateTestProfile();
         return;
         }
     if (!iEngine || !iEngine->IsReady())
@@ -951,44 +1004,6 @@ void COcView::Activate(TRowId aRow)
             AddLogF(_L("dividers: %S"), &md);
             }
             break;
-
-        case ERowTestProfile:
-            {
-            if (iKnownDevice)
-                break;
-            const TOcProfile* tp = TestProfile(iTestProfile);
-            if (!tp)
-                break;
-            TBuf<48> nm;
-            nm.Copy(TPtrC8((const TUint8*)tp->iId));
-            AddLog(OcStr(EStrTestProfileWarn1));
-            AddLog(OcStr(EStrTestProfileWarn2));
-            AddLogF(OcStr(EStrTestProfileTrying), &nm);
-            Repaint();
-            iEngine->SetProfile(*tp);
-            TInt pr = iEngine->Prepare();
-            if (pr == KErrNone)
-                {
-                AddLog(OcStr(EStrTestProfileOk));
-                if (iEngine->FoundGlobal())
-                    AddLogF(OcStr(EStrTestProfileFoundGlobal), iEngine->FoundGlobal());
-                iMult = iEngine->BootMult();
-                iArmedMult = iMult;
-                iCoreReg = iEngine->StockCore();
-                iArmedCore = iCoreReg;
-                iMpuDiv = (TInt)(iEngine->BootMpu() & KMpuDivMask);
-                iArmedMpu = iEngine->StockMpu();
-                iDspDiv = iEngine->StockDspDiv();
-                iLiveL3 = (TInt)(iEngine->BootCore() & KCoreL3Mask);
-                }
-            else
-                {
-                iStatus.Format(_L("NOT READY (%d) at: %S"), pr,
-                               &COcEngine::StepName(iEngine->FailedAt()));
-                AddLog(iStatus);
-                }
-            break;
-            }
 
         case ERowBusGuard:
             iBusGuard = !iBusGuard;
