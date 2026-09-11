@@ -204,6 +204,14 @@
     "Applying": {
       "en": "applying m%d...",
       "uk": "застосовую m%d..."
+    },
+    "DspNoSetter": {
+      "en": "DSP divider not available on this phone",
+      "uk": "дільник DSP на цьому апараті недоступний"
+    },
+    "DspNoSetterWhy": {
+      "en": "the setter address was never measured here",
+      "uk": "адресу сеттера для нього не міряли"
     }
   },
   "help": {

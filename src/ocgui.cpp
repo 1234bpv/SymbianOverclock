@@ -971,6 +971,14 @@ void COcView::Activate(TRowId aRow)
                 }
             TInt rc = KErrGeneral;
             TInt r = iEngine->ApplyDspDiv(iDspDiv, rc);
+            if (r == KErrNotSupported)
+                {
+                // Профіль без адреси сеттера. Кажемо чому, бо інакше це
+                // виглядає як поламаний пункт меню.
+                AddLog(OcStr(EStrDspNoSetter));
+                AddLog(OcStr(EStrDspNoSetterWhy));
+                break;
+                }
             if (r != KErrNone)
                 {
                 AddLogF(_L("dsp: not applied, r=%d"), r);

@@ -56,6 +56,8 @@ enum TOcStrId
     EStrNeedManual,
     EStrDspAlreadySet,
     EStrApplying,
+    EStrDspNoSetter,
+    EStrDspNoSetterWhy,
     EStrCount
     };
 
