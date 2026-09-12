@@ -39,7 +39,7 @@
 #include "ocstr.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 2.0.3");
+_LIT(KAppVersion, "SymbianOverclock 2.0.4");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -264,6 +264,7 @@ private:
     void ActivateTestProfile();
     void EnsureVisible(TInt aVisibleRows);
     TInt VisibleRows() const;
+    TInt RowLines(TInt aRow) const;
     // Значення CM_CLKSEL1_CORE, яке піде на апарат: або автопідбір, або ручне.
     TUint32 EffectiveCore() const;
     TUint32 BusKhz() const;
@@ -635,6 +636,27 @@ void COcView::SyncManualFromAuto()
         iCoreReg = iEngine->CompensatedCore(iMult);
     }
 
+static TInt WrapText(CWindowGc* aGc, const CFont* aFont, const TDesC& aText,
+                     TInt aX, TInt& aY, TInt aLh, TInt aYMax, TInt aWidth,
+                     TInt& aSkip);
+
+// Скільки екранних рядків займає підпис списку після переносу.
+TInt COcView::RowLines(TInt aRow) const
+    {
+    const CFont* font = CEikonEnv::Static()->AnnotationFont();
+    const TInt w = Rect().Width() - 4;
+    TBuf<96> label;
+    RowLabel(aRow, label);
+    TBuf<98> line;
+    line.Format(_L(" %S"), &label);
+    TInt y = 0;
+    TInt skip = 0;
+    return WrapText(NULL, font, line, 0, y, 1, 0, w, skip);
+    }
+
+// Скільки РЯДКІВ СПИСКУ вміщається, рахуючи від iTop. Після того, як підписи
+// стали переноситись, висота рядка вже не стала, тож ділення висоти екрана
+// на висоту рядка дало б завелике число, і курсор ішов би за край.
 TInt COcView::VisibleRows() const
     {
     const CFont* font = CEikonEnv::Static()->AnnotationFont();
@@ -643,15 +665,27 @@ TInt COcView::VisibleRows() const
     TInt avail = Rect().Height() / lh - 4 - KLogLines;
     if (avail < 4)
         avail = 4;
-    return avail;
+    TInt used = 0;
+    TInt rows = 0;
+    for (TInt r = iTop; r < ERowCount; ++r)
+        {
+        const TInt n = RowLines(r);
+        if (rows > 0 && used + n > avail)
+            break;
+        used += n;
+        ++rows;
+        }
+    return rows > 0 ? rows : 1;
     }
 
-void COcView::EnsureVisible(TInt aVisibleRows)
+// Аргумент лишився для сумісності виклику: скільки рядків видно, тепер
+// залежить від самого iTop, тож питаємо це заново на кожному кроці.
+void COcView::EnsureVisible(TInt /*aVisibleRows*/)
     {
     if (iRow < iTop)
         iTop = iRow;
-    if (iRow >= iTop + aVisibleRows)
-        iTop = iRow - aVisibleRows + 1;
+    while (iTop < iRow && iRow >= iTop + VisibleRows())
+        ++iTop;
     if (iTop < 0)
         iTop = 0;
     }
@@ -1644,11 +1678,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
         TBuf<96> label;
         RowLabel(row, label);
         line.Format(_L("%c%S"), (iRow == row) ? '>' : ' ', &label);
-        // Рядок списку НЕ переносимо: висота рядка тут фіксована, на ній
-        // тримається і прокрутка, і позиція курсора. Довгий підпис
-        // обрізається.
-        DrawClipped(gc, font, line, TPoint(x, y), w);
-        y += lh;
+        WrapText(&gc, font, line, x, y, lh, yMax, w, noSkip);
         }
     // Позначка, що список довший за екран.
     if (last < ERowCount && y < yMax)
