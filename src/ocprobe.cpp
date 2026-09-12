@@ -2345,6 +2345,252 @@ static void Benchmark()
     User::Free(buf);
     }
 
+// Перевірка сканера XIP на апараті, де правильна відповідь відома незалежно.
+// Нічого не патчить: лише читає ROM з користувацького режиму.
+static void RunRomFind()
+    {
+    Log(_L8("--- romfind: signature scan of the live XIP ---"));
+    COcEngine* e = NULL;
+    TRAPD(err, e = COcEngine::NewL());
+    if (err != KErrNone || !e)
+        {
+        LogF(_L8("engine alloc failed: %d"), err);
+        return;
+        }
+    TUint32 body = 0, sram = 0;
+    const TInt r = e->TryDiscoverRom(body, sram);
+    LogF(_L8("TryDiscoverRom -> %d"), r);
+    LogF(_L8("  usbc DoControl body : 0x%08x"), body);
+    LogF(_L8("  relock routine      : 0x%08x"), sram);
+    delete e;
+    }
+
+// --- ALU bench --------------------------------------------------------------
+//
+// Навіщо. Тест ALU у застосунку рахує ітерації LCG і показує Mitr/s, але
+// скільки тактів коштує одна ітерація, з цього числа не видно, тож порівняти
+// його ні з чим. Тут кожне ядро написане асемблером із .rept, тобто кількість
+// інструкцій на ітерацію відома ТОЧНО і не залежить від настрою компілятора, а
+// частота береться з незалежного NOP-заміру. На виході - такти на операцію.
+//
+// Ядра підібрані так, щоб розділити дві різні величини. Залежний ланцюг міряє
+// ЗАТРИМКУ інструкції: наступна не починається, доки не готова попередня.
+// Незалежний - ПРОПУСКНУ ЗДАТНІСТЬ: скільки таких інструкцій конвеєр видає за
+// такт. ARM1136 одноконвеєрний, тож для add обидва числа мусять зійтись на
+// одиниці; розбіжність означала б, що замір міряє не те, що ми думаємо.
+
+// 64 залежні додавання: очікувана затримка 1 такт.
+static void SpinAddDep(TUint32 aIter)
+    {
+    __asm__ __volatile__(
+        "1:                  \n"
+        ".rept 64            \n"
+        "   add r3, r3, #1   \n"
+        ".endr               \n"
+        "   subs %0, %0, #1  \n"
+        "   bne  1b          \n"
+        : "+r" (aIter) : : "r3", "cc");
+    }
+
+// 64 незалежні додавання по чотирьох регістрах: ланцюга залежностей немає.
+static void SpinAddIndep(TUint32 aIter)
+    {
+    __asm__ __volatile__(
+        "1:                  \n"
+        ".rept 16            \n"
+        "   add r3, r3, #1   \n"
+        "   add r4, r4, #1   \n"
+        "   add r5, r5, #1   \n"
+        "   add r6, r6, #1   \n"
+        ".endr               \n"
+        "   subs %0, %0, #1  \n"
+        "   bne  1b          \n"
+        : "+r" (aIter) : : "r3", "r4", "r5", "r6", "cc");
+    }
+
+// 64 залежні множення. Rd != Rm навмисно: залежність іде через Rs.
+static void SpinMulDep(TUint32 aIter)
+    {
+    __asm__ __volatile__(
+        "   mov r4, #3       \n"
+        "1:                  \n"
+        ".rept 64            \n"
+        "   mul r3, r4, r3   \n"
+        ".endr               \n"
+        "   subs %0, %0, #1  \n"
+        "   bne  1b          \n"
+        : "+r" (aIter) : : "r3", "r4", "cc");
+    }
+
+// Ядро LCG: множення й додавання в одному ланцюгу - рівно те, що крутить
+// тест ALU у застосунку. 32 пари на ітерацію, тобто теж 64 операції.
+static void SpinLcg(TUint32 aIter)
+    {
+    __asm__ __volatile__(
+        "   mov r4, #1       \n"
+        "   mov r5, #7       \n"
+        "1:                  \n"
+        ".rept 32            \n"
+        "   mul r3, r4, r3   \n"
+        "   add r3, r3, r5   \n"
+        ".endr               \n"
+        "   subs %0, %0, #1  \n"
+        "   bne  1b          \n"
+        : "+r" (aIter) : : "r3", "r4", "r5", "cc");
+    }
+
+// Зсув із виключним АБО в одному ланцюгу: друга половина ітерації LCG у GUI.
+static void SpinShiftDep(TUint32 aIter)
+    {
+    __asm__ __volatile__(
+        "1:                         \n"
+        ".rept 64                   \n"
+        "   eor r3, r3, r3, lsr #13 \n"
+        ".endr                      \n"
+        "   subs %0, %0, #1         \n"
+        "   bne  1b                 \n"
+        : "+r" (aIter) : : "r3", "cc");
+    }
+
+// Такти на операцію в сотих. aOps - скільки операцій у ядрі на одну ітерацію.
+static void ReportAlu(const TDesC8& aName, void (*aFn)(TUint32),
+                      TUint32 aIter, TUint32 aOps, TUint32 aMhz)
+    {
+    TUint32 t0 = User::FastCounter();
+    aFn(aIter);
+    TUint32 t1 = User::FastCounter();
+    const TUint32 us = ElapsedUs(t0, t1);
+    const TUint64 ops = (TUint64)aIter * aOps;
+    // пікосекунди на операцію, далі такти = пс * МГц / 1e6
+    const TUint32 psPer = ops ? (TUint32)(((TUint64)us * 1000000u) / ops) : 0;
+    const TUint32 cyc100 = (TUint32)(((TUint64)psPer * aMhz) / 10000u);
+    LogF(_L8("%S: %u us, %u.%03u ns/op, %u.%02u cycles/op"),
+         &aName, us, psPer / 1000, psPer % 1000, cyc100 / 100, cyc100 % 100);
+    }
+
+static void RunAluBench()
+    {
+    Log(_L8("--- ALU bench ---"));
+    SpinNop(200000);                        // розігрів: підняти OPP
+    const TUint32 mhz = MeasureMhz();
+    LogF(_L8("clock (NOP chain): %u MHz"), mhz);
+    if (!mhz)
+        return;
+    const TUint32 kIter = 200000;
+    ReportAlu(_L8("add dep    "), SpinAddDep,   kIter, 64, mhz);
+    ReportAlu(_L8("add indep  "), SpinAddIndep, kIter, 64, mhz);
+    ReportAlu(_L8("mul dep    "), SpinMulDep,   kIter, 64, mhz);
+    ReportAlu(_L8("eor+lsr dep"), SpinShiftDep, kIter, 64, mhz);
+    ReportAlu(_L8("lcg mul+add"), SpinLcg,      kIter, 64, mhz);
+    }
+
+// --- memory bench -----------------------------------------------------------
+//
+// Навіщо окремий інструмент. Смуга пам'яті в GUI рахувалась за припущенням, що
+// одне читання підтягує 64 байти. Довжина рядка кешу - величина апаратна, і
+// припускати її не можна: якщо рядок 32 байти, число завищене рівно вдвічі.
+// Тут вона МІРЯЄТЬСЯ: обхід із кроком, меншим за рядок, ділить один підкачаний
+// рядок між кількома читаннями, тож час на одне читання росте доти, доки крок
+// не дійде до довжини рядка, і далі виходить на полицю.
+static void RunMemBench()
+    {
+    Log(_L8("--- memory bench ---"));
+    const TInt kWords = 1024 * 1024;             // 4 МБ, гарантовано повз кеш
+    TUint32* buf = (TUint32*)User::Alloc(kWords * sizeof(TUint32));
+    if (!buf)
+        {
+        Log(_L8("alloc failed"));
+        return;
+        }
+    TInt i;
+    for (i = 0; i < kWords; ++i)
+        buf[i] = (TUint32)i + 1u;
+
+    // 1. Розгортка по кроку: наносекунди на одне читання.
+    static const TInt KStrides[] = { 1, 2, 4, 8, 16, 32, 64 };   // у словах
+    const TInt nStrides = sizeof(KStrides) / sizeof(KStrides[0]);
+    TInt s;
+    for (s = 0; s < nStrides; ++s)
+        {
+        const TInt step = KStrides[s];
+        volatile TUint32 sink = 0;
+        TUint32 acc = 0;
+        TUint32 t0 = User::FastCounter();
+        for (i = 0; i < kWords; i += step)
+            acc += buf[i];
+        TUint32 t1 = User::FastCounter();
+        sink = acc;
+        const TUint32 us = ElapsedUs(t0, t1);
+        const TUint32 reads = (TUint32)(kWords / step);
+        // пікосекунди на читання: на цілих інакше втратили б усю точність
+        const TUint32 psPer = reads ? (TUint32)(((TUint64)us * 1000000u) / reads) : 0;
+        LogF(_L8("stride %4d B: %u us, %u.%03u ns/read (sink=%u)"),
+             step * 4, us, psPer / 1000, psPer % 1000, (TUint32)sink);
+        }
+
+    // 2. Суцільне читання: КОЖНЕ слово, тож байти пораховані без припущень.
+    TInt p;
+    for (p = 0; p < 2; ++p)
+        {
+        volatile TUint32 sink = 0;
+        TUint32 acc = 0;
+        TUint32 t0 = User::FastCounter();
+        for (i = 0; i < kWords; i += 8)
+            {
+            acc += buf[i] + buf[i+1] + buf[i+2] + buf[i+3];
+            acc += buf[i+4] + buf[i+5] + buf[i+6] + buf[i+7];
+            }
+        TUint32 t1 = User::FastCounter();
+        sink = acc;
+        const TUint32 us = ElapsedUs(t0, t1);
+        const TUint32 mbs = us ? (TUint32)(((TUint64)kWords * 4u) / us) : 0;
+        LogF(_L8("seq read 4 MB: %u us, %u MB/s (sink=%u)"), us, mbs, (TUint32)sink);
+        }
+
+    // 3. Те саме в межах L1 (4 КБ): стеля ядра на читаннях з кешу.
+    {
+    const TInt cWords = 1024;                    // 4 КБ
+    const TInt rounds = 2048;
+    volatile TUint32 sink = 0;
+    TUint32 acc = 0;
+    for (i = 0; i < cWords; ++i)                 // розігрів: набити рядки
+        acc += buf[i];
+    TUint32 t0 = User::FastCounter();
+    TInt r;
+    for (r = 0; r < rounds; ++r)
+        for (i = 0; i < cWords; i += 8)
+            {
+            acc += buf[i] + buf[i+1] + buf[i+2] + buf[i+3];
+            acc += buf[i+4] + buf[i+5] + buf[i+6] + buf[i+7];
+            }
+    TUint32 t1 = User::FastCounter();
+    sink = acc;
+    const TUint32 us = ElapsedUs(t0, t1);
+    const TUint32 bytes = (TUint32)cWords * 4u * (TUint32)rounds;
+    const TUint32 mbs = us ? (TUint32)((TUint64)bytes / us) : 0;
+    LogF(_L8("cache read 4 KB x%d: %u us, %u MB/s (sink=%u)"),
+         rounds, us, mbs, (TUint32)sink);
+    }
+
+    // 4. Запис суцільно - друга половина картини.
+    {
+    TUint32 t0 = User::FastCounter();
+    for (i = 0; i < kWords; i += 8)
+        {
+        buf[i] = (TUint32)i;     buf[i+1] = (TUint32)i;
+        buf[i+2] = (TUint32)i;   buf[i+3] = (TUint32)i;
+        buf[i+4] = (TUint32)i;   buf[i+5] = (TUint32)i;
+        buf[i+6] = (TUint32)i;   buf[i+7] = (TUint32)i;
+        }
+    TUint32 t1 = User::FastCounter();
+    const TUint32 us = ElapsedUs(t0, t1);
+    const TUint32 mbs = us ? (TUint32)(((TUint64)kWords * 4u) / us) : 0;
+    LogF(_L8("seq write 4 MB: %u us, %u MB/s"), us, mbs);
+    }
+
+    User::Free(buf);
+    }
+
 // --- font probe -------------------------------------------------------------
 
 struct TProbeCharInfo
@@ -2560,7 +2806,10 @@ static void RunL()
     const TBool romscan = (cmd.Find(_L("romscan")) != KErrNotFound);
     const TBool romdump = (cmd.Find(_L("romdump")) != KErrNotFound);
     const TBool fontRun = (cmd.Find(_L("font")) != KErrNotFound);
-    const TBool quiet = patcherRun || e90scan || usbcboot || romread || romscan || romdump || fontRun;
+    const TBool membenchRun = (cmd.Find(_L("membench")) != KErrNotFound);
+    const TBool alubenchRun = (cmd.Find(_L("alubench")) != KErrNotFound);
+    const TBool romfindRun = (cmd.Find(_L("romfind")) != KErrNotFound);
+    const TBool quiet = patcherRun || e90scan || usbcboot || romread || romscan || romdump || fontRun || membenchRun || alubenchRun || romfindRun;
     // Профіль E90 для patcher-команд: "patcher ... e90" бере KProfileE90. Тоді
     // Prepare() (шлях EReadDvfs) свідомо відмовить (EOcStepUnsupported) замість
     // патчити RM-320-адреси в чуже ядро E90 (findings §27). Розгінний шлях E90
@@ -2690,7 +2939,7 @@ static void RunL()
         TInt n = -1;
         if (lex.Val(n) == KErrNone)
             {
-            // Другий необовʼязковий аргумент - секунди витримки.
+            // Другий необов'язковий аргумент - секунди витримки.
             lex.SkipSpace();
             TInt soak = 0;
             if (lex.Val(soak) != KErrNone || soak < 0 || soak > 900)
@@ -2717,6 +2966,12 @@ static void RunL()
             n = 12;
         ProbeDsp(n);
         }
+    else if (cmd.Find(_L("romfind")) != KErrNotFound)
+        RunRomFind();
+    else if (cmd.Find(_L("alubench")) != KErrNotFound)
+        RunAluBench();
+    else if (cmd.Find(_L("membench")) != KErrNotFound)
+        RunMemBench();
     else if (cmd.Find(_L("font")) != KErrNotFound)
         RunFontProbe();
     else if (cmd.Find(_L("patcher hold")) != KErrNotFound)

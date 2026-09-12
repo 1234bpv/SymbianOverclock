@@ -39,7 +39,7 @@
 #include "ocstr.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 2.0.5");
+_LIT(KAppVersion, "SymbianOverclock 2.1.0");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -84,6 +84,66 @@ static TUint32 ElapsedUs(TUint32 aStart, TUint32 aEnd)
     return (TUint32)(((TUint64)d * 1000000u) / gFcFreq);
     }
 
+// Ланцюг незалежних додавань: 256 інструкцій по одному такту плюс лічильник і
+// перехід. Кількість тактів на ітерацію відома точно, тож час ділиться на неї
+// й дає АБСОЛЮТНУ частоту ядра - незалежно від того, що повідомляє система.
+// Саме тому тут асемблер: у C компілятор має право переписати цикл як завгодно.
+const TUint32 KNopCyclesPerIter = 258;      // 256 add + subs + bne
+
+static void SpinNop(TUint32 aIter)
+    {
+    __asm__ __volatile__(
+        "1:                  \n"
+        ".rept 256           \n"
+        "   add r3, r3, #1   \n"
+        ".endr               \n"
+        "   subs %0, %0, #1  \n"
+        "   bne  1b          \n"
+        : "+r" (aIter) : : "r3", "cc");
+    }
+
+// Ядро LCG асемблером: 32 пари множення й додавання на ітерацію, тобто рівно
+// 64 операції. Потрібне, щоб показати ціну операції в тактах: у C-варіанті цю
+// цифру з'їдають лічильник циклу і перезавантаження констант.
+static void SpinLcgAsm(TUint32 aIter)
+    {
+    __asm__ __volatile__(
+        "   mov r4, #1       \n"
+        "   mov r5, #7       \n"
+        "1:                  \n"
+        ".rept 32            \n"
+        "   mul r3, r4, r3   \n"
+        "   add r3, r3, r5   \n"
+        ".endr               \n"
+        "   subs %0, %0, #1  \n"
+        "   bne  1b          \n"
+        : "+r" (aIter) : : "r3", "r4", "r5", "cc");
+    }
+
+// Абсолютна частота ядра в МГц.
+static TUint32 MeasureCoreMhz()
+    {
+    const TUint32 kIter = 400000;
+    TUint32 t0 = User::FastCounter();
+    SpinNop(kIter);
+    TUint32 t1 = User::FastCounter();
+    TUint32 us = ElapsedUs(t0, t1);
+    return us ? (TUint32)(((TUint64)kIter * KNopCyclesPerIter) / us) : 0;
+    }
+
+// Ціна однієї операції ядра LCG у сотих такту.
+static TUint32 MeasureLcgCycles100(TUint32 aMhz)
+    {
+    const TUint32 kIter = 100000;
+    TUint32 t0 = User::FastCounter();
+    SpinLcgAsm(kIter);
+    TUint32 t1 = User::FastCounter();
+    TUint32 us = ElapsedUs(t0, t1);
+    const TUint64 ops = (TUint64)kIter * 64u;
+    const TUint32 psPer = ops ? (TUint32)(((TUint64)us * 1000000u) / ops) : 0;
+    return (TUint32)(((TUint64)psPer * aMhz) / 10000u);
+    }
+
 // ALU: вперед і назад. Повертає Mitr/s у сотих і кількість помилок (0 або 1).
 static TTestResult TestAlu(TUint32 aIter)
     {
@@ -106,21 +166,34 @@ static TTestResult TestAlu(TUint32 aIter)
     return r;
     }
 
-// Смуга пам'яті: обхід буфера, більшого за кеш, кроком у рядок кешу.
-// Впирається в L3/SDRAM, тобто показує шину, а не ядро.
+// Смуга пам'яті: суцільне читання буфера, більшого за кеш.
+//
+// ВИПРАВЛЕНО 2026-09-12. Доти тут був обхід кроком у 64 байти, а прочитані
+// байти рахувались як "читань x 64", тобто за припущенням, що рядок кешу має
+// 64 байти. Розгортка по кроку на апараті (findings 46.1) показала полицю вже
+// з кроку 32 байти, тобто рядок удвічі коротший, і число виходило рівно
+// вдвічі завищеним.
+//
+// Тепер припущення немає взагалі: читається КОЖНЕ слово, і в байти йде розмір
+// буфера. Цикл розгорнутий на вісім, бо в згорнутому вигляді замір упирався
+// не в пам'ять, а у власні лічильник і перехід.
 static TTestResult TestMemBandwidth(TUint32* aBuf, TInt aWords, TInt aPasses)
     {
     TTestResult r;
+    const TInt n = aWords & ~7;
     TUint32 t0 = User::FastCounter();
     TUint32 acc = 0;
     for (TInt p = 0; p < aPasses; ++p)
-        for (TInt i = 0; i < aWords; i += 16)
-            acc += aBuf[i];
+        for (TInt i = 0; i < n; i += 8)
+            {
+            acc += aBuf[i]   + aBuf[i+1] + aBuf[i+2] + aBuf[i+3];
+            acc += aBuf[i+4] + aBuf[i+5] + aBuf[i+6] + aBuf[i+7];
+            }
     TUint32 t1 = User::FastCounter();
     TUint32 us = ElapsedUs(t0, t1);
-    TUint32 lines = (TUint32)(aWords / 16) * (TUint32)aPasses;
-    r.iValue = us ? (TUint32)(((TUint64)lines * 64u * 100u) / us) : 0;  // МБ/с*100
-    r.iErrors = (acc == 0) ? 1 : 0;     // нуль тут неможливий: візерунок ненульовий
+    const TUint64 bytes = (TUint64)n * 4u * (TUint64)aPasses;
+    r.iValue = us ? (TUint32)((bytes * 100u) / us) : 0;   // МБ/с у сотих
+    r.iErrors = (acc == 0) ? 1 : 0;     // нуль неможливий: візерунок ненульовий
     return r;
     }
 
@@ -153,37 +226,37 @@ static TTestResult TestMemIntegrity(TUint32* aBuf, TInt aWords)
     return r;
     }
 
-// Кеш: той самий візерунок, але робочий набір явно менший за L1 (16 КБ на
-// ARM1136). Відділяє помилки ядра й кеша від помилок зовнішньої шини.
+// Кеш: смуга читання з L1 при робочому наборі 4 КБ (L1 на ARM1136 - 16 КБ).
+//
+// ВИПРАВЛЕНО 2026-09-12. Доти тут крутився генератор LCG із записом і звіркою,
+// а результат подавався як МБ/с кеша. Насправді це міряло арифметику: на одне
+// слово припадало множення (5 тактів затримки), додавання і ще звірка, тож
+// число говорило про АЛУ, а не про кеш, і з тестом пам'яті не порівнювалось.
+//
+// Тепер тут рівно те саме, що в тесті пам'яті, з єдиною відмінністю - робочий
+// набір влазить у L1. Через це два числа стали порівнянними, і їхнє
+// відношення показує, у скільки разів кеш швидший за зовнішню пам'ять.
+// Правильність окремо не перевіряється: для цього є TEST sdram integrity.
 static TTestResult TestCache(TUint32* aBuf, TInt aRounds)
     {
     TTestResult r;
     const TInt kWords = 1024;                            // 4 КБ
+    TUint32 acc = 0;
+    TInt i;
+    for (i = 0; i < kWords; ++i)                         // розігрів: набити рядки
+        acc += aBuf[i];
     TUint32 t0 = User::FastCounter();
-    TInt bad = 0;
     for (TInt p = 0; p < aRounds; ++p)
-        {
-        TUint32 x = 0x9e3779b9u + (TUint32)p;
-        TInt i;
-        TUint32 s = x;
-        for (i = 0; i < kWords; ++i)
+        for (i = 0; i < kWords; i += 8)
             {
-            x = x * KLcgA + KLcgC;
-            aBuf[i] = x;
+            acc += aBuf[i]   + aBuf[i+1] + aBuf[i+2] + aBuf[i+3];
+            acc += aBuf[i+4] + aBuf[i+5] + aBuf[i+6] + aBuf[i+7];
             }
-        x = s;
-        for (i = 0; i < kWords; ++i)
-            {
-            x = x * KLcgA + KLcgC;
-            if (aBuf[i] != x)
-                ++bad;
-            }
-        }
     TUint32 t1 = User::FastCounter();
     TUint32 us = ElapsedUs(t0, t1);
-    TUint32 bytes = (TUint32)kWords * 4u * 2u * (TUint32)aRounds;
-    r.iValue = us ? (TUint32)(((TUint64)bytes * 100u) / us) : 0;
-    r.iErrors = bad;
+    const TUint64 bytes = (TUint64)kWords * 4u * (TUint64)aRounds;
+    r.iValue = us ? (TUint32)((bytes * 100u) / us) : 0;
+    r.iErrors = (acc == 0) ? 1 : 0;
     return r;
     }
 
@@ -922,6 +995,16 @@ void COcView::RunTest(TRowId aRow)
         {
         case ERowTestAlu:
             {
+            // Три різні числа, бо вони відповідають на різні питання:
+            // частота - на "скільки тактів за секунду", такти на операцію -
+            // на "скільки коштує робота", Mitr/s - на "чи збігся результат".
+            const TUint32 mhz = MeasureCoreMhz();
+            AddLogF(_L("CLOCK %u MHz"), mhz);
+            if (mhz)
+                {
+                const TUint32 c = MeasureLcgCycles100(mhz);
+                AddLogF(_L("MUL+ADD %u.%02u cycles/op"), c / 100, c % 100);
+                }
             TTestResult r = TestAlu(1500000);
             ReportResult(KNameAlu, r, KUnitMitr);
             break;
@@ -984,6 +1067,8 @@ void COcView::RunCombined()
         }
 
     iStatus.Zero();
+    const TUint32 mhz = MeasureCoreMhz();
+    AddLogF(_L("CLOCK %u MHz"), mhz);
     AddLogF(_L("ALU %u.%02u Mitr/s e=%d"), vAlu / 100, vAlu % 100, eAlu);
     AddLogF(_L("CACHE %u.%02u MB/s e=%d"), vCache / 100, vCache % 100, eCache);
     AddLogF(_L("MEM %u.%02u MB/s e=%d"), vMem / 100, vMem % 100, eMem);

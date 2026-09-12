@@ -144,6 +144,14 @@ struct TOcProfile
     // читання повертало б не наші дані), і доводить, що iRomSramRoutine
     // показує саме на relock-рутину САМЕ ЦІЄЇ збірки. NULL вимикає перевірку.
     const TUint32*  iSramSignature;
+    // Профіль БЕЗ адрес: їх шукає сам апарат за сигнатурами в живому XIP.
+    //
+    // Для апаратів, чий витягнутий образ прошивки є лише уламком повного XIP
+    // (E90, N93, N93i), офлайнові адреси недійсні в принципі: зсув у файлі не
+    // дорівнює адресі (findings 47.1). Доведений шлях для них один - скан
+    // живого ROM з користувацького режиму. Він лише читає, а без знайдених
+    // сигнатур двигун відмовляється й у ядро не пише нічого.
+    TBool           iDiscover;
     };
 
 // Вісім слів прологу relock-рутини power.dll. Однакові в усіх розібраних
@@ -324,6 +332,7 @@ enum TOcStep
     EOcStepUnsupported,       // профіль не підтримує шлях EReadDvfs (напр. E90)
     EOcStepVerifyBody,        // байти за адресою патча не ті, що ми чекали
     EOcStepFirmware,          // прошивка апарата не та, під яку виведено адреси
+    EOcStepDiscover,          // сканування живого XIP не знайшло сигнатур
     EOcStepReady
     };
 
@@ -480,14 +489,27 @@ public:
         { return (aI >= 0 && aI < iOrigCount) ? iOrigWords[aI] : 0; }
     TInt OrigCount() const { return iOrigCount; }
     TUint32 FoundGlobal() const { return iFoundGlobal; }
+    // Адреси, знайдені скануванням живого XIP. Нуль означає "беремо з
+    // профілю": так поводяться всі доведені апарати.
+    TUint32 HostBody() const
+        { return iFoundBody ? iFoundBody : iProfile->iDvfsBody; }
+    TUint32 SramRoutine() const
+        { return iFoundSram ? iFoundSram : iProfile->iRomSramRoutine; }
+    TUint32 FoundBody() const { return iFoundBody; }
+    TUint32 FoundSramRoutine() const { return iFoundSram; }
     // Перевірка механізму пошуку на апараті з відомою відповіддю.
     TInt TryDiscoverGlobal(TUint32& aGlobal, TUint32& aSram);
+    // Те саме для сканування XIP: запускає пошук і віддає знайдене, нічого
+    // не патчачи. Потрібне, щоб звірити метод на апараті, де правильна
+    // відповідь уже відома незалежно.
+    TInt TryDiscoverRom(TUint32& aBody, TUint32& aSram);
 
 private:
     COcEngine();
     void ConstructL();
     TInt CheckFirmware();
     TInt CaptureOriginal();
+    TInt DiscoverRomAddresses();
     TInt ChaseSram(TUint32 aGlobal, TUint32& aSram);
     TInt DiscoverPwrDownGlobal(TUint32& aGlobal, TUint32& aSram);
     TInt Poke(TUint32 aAddr, const TDesC8& aBytes);
@@ -532,6 +554,8 @@ private:
     TBool    iBusGuard;
     TBuf<64> iFirmware;
     TUint32  iFoundGlobal;     // що знайшов пошук; 0 = профіль знав адресу сам
+    TUint32  iFoundBody;       // тіло DoControl носія, знайдене скануванням XIP
+    TUint32  iFoundSram;       // relock-рутина, знайдена там само
     TUint32  iLastCoreWritten;
     TInt     iAppliedMult;
     TUint32  iSram;

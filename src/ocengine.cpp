@@ -59,7 +59,8 @@ const TOcProfile KProfileRM320 =
     "35.0.001;31.0.015",
     EFalse,                 // доведений на апараті
     0xc80030ecu,            // орієнтир: потрібен лише щоб ПЕРЕВІРИТИ пошук
-    KSramRoutineSignature
+    KSramRoutineSignature,
+    EFalse
     };
 
 // --- Nokia E90 (RA-6, 400.34.93) --------------------------------------------
@@ -122,7 +123,8 @@ const TOcProfile KProfileE90 =
     "400.34.93",
     EFalse,                 // доведений на апараті
     0xc80030ecu,            // орієнтир: те саме, для перевірки пошуку
-    KSramRoutineSignature
+    KSramRoutineSignature,
+    EFalse                  // адреси відомі, шукати нічого
     };
 
 // --- ТЕСТОВІ профілі --------------------------------------------------------
@@ -165,7 +167,8 @@ const TOcProfile KProfileN95Classic =
     "",                     // збірка невідома, гейт порожній
     ETrue,
     0xc80030ecu,            // орієнтир пошуку глобала
-    KSramRoutineSignature
+    KSramRoutineSignature,
+    EFalse
     };
 
 const TOcProfile KProfileN82 =
@@ -184,12 +187,64 @@ const TOcProfile KProfileN82 =
     "",
     ETrue,
     0xc80030ecu,
-    KSramRoutineSignature
+    KSramRoutineSignature,
+    EFalse
+    };
+
+// --- профілі, які шукають адреси САМІ ---------------------------------------
+//
+// N93 (RM-55) і N93i (RM-156) - той самий OMAP 2420, але офлайнових адрес для
+// них дати неможливо, і це не обережність, а вимірюваний факт. Витягнутий із
+// прошивки XIP у них, як і в E90, є уламком: 1.1 і 1.3 МБ проти майже 20 МБ
+// на апараті, і зсув у файлі не дорівнює адресі. Для E90 різниця виміряна
+// прямо: тіло DoControl лежить у файлі за 0x80094ac4, а на апараті за
+// 0x800bf874 (findings 47.1). Константа, виведена з такого образу, показувала
+// б у чужу сторінку.
+//
+// Драйвера dvfs у прошивках N93 і N93i немає жодної версії - як і на E90, -
+// тож носієм примітиву лишається Usbc.
+//
+// Звідси iDiscover: адреси шукає сам апарат сигнатурним скануванням живого
+// XIP, читанням із користувацького режиму. Не знайшлося або знайшлося двічі -
+// двигун відмовляє, і в ядро не пишеться нічого. Ці профілі НЕ перевірені на
+// залізі жодного разу; вони існують саме для того, щоб власник апарата міг
+// спробувати й повернути результат.
+const TOcProfile KProfileN93 =
+    {
+    "RM-55 N93 (TEST, auto)",
+    0,                      // машинний uid невідомий: авто-добору немає
+    EReadDvfs,
+    EHostUsbc,
+    0,                      // тіло DoControl: знайти на апараті
+    0,                      // relock-рутина: знайти на апараті
+    0,                      // сеттер DSP невідомий - ApplyDspDiv відмовить
+    0,                      // глобал power-down: пошук навколо орієнтира
+    0, 0, 0,                // штатна розкладка: зняти з апарата
+    "",                     // збірка невідома, гейт порожній
+    ETrue,
+    0xc80030ecu,            // орієнтир пошуку глобала (як у решти OMAP2420)
+    KSramRoutineSignature,
+    ETrue                   // адреси шукати скануванням
+    };
+
+const TOcProfile KProfileN93i =
+    {
+    "RM-156 N93i (TEST, auto)",
+    0,
+    EReadDvfs,
+    EHostUsbc,
+    0, 0, 0, 0,
+    0, 0, 0,
+    "",
+    ETrue,
+    0xc80030ecu,
+    KSramRoutineSignature,
+    ETrue
     };
 
 // Тестові профілі окремим списком - саме щоб їх не можна було взяти випадково.
 static const TOcProfile* const KTestProfiles[] =
-    { &KProfileN95Classic, &KProfileN82 };
+    { &KProfileN95Classic, &KProfileN82, &KProfileN93, &KProfileN93i };
 
 TInt TestProfileCount()
     {
@@ -809,7 +864,7 @@ COcEngine::COcEngine()
   : iProfile(&KProfileRM320),
     iOrigCount(0), iPatcherOpen(EFalse), iDvfsOpen(EFalse), iReady(EFalse), iExecMode(EFalse), iPatched(EFalse), iShadowed(EFalse),
     iApplied(EFalse), iKeep(EFalse), iRestoreNeedsReboot(EFalse),
-    iBusGuard(ETrue), iFoundGlobal(0), iLastCoreWritten(0), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
+    iBusGuard(ETrue), iFoundGlobal(0), iFoundBody(0), iFoundSram(0), iLastCoreWritten(0), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
     iBootCore(0), iBootMpu(0), iBootMult(0),
     iStockDspDiv(0), iDspDiv(0), iStep(EOcStepIdle)
     {
@@ -868,7 +923,7 @@ TInt COcEngine::RestoreKernelCode()
         return KErrNone;
     if (iOrigCount != 6)
         return KErrNotReady;
-    TInt r = PokeWords(iProfile->iDvfsBody, iOrigWords, 6);
+    TInt r = PokeWords(HostBody(), iOrigWords, 6);
     if (r == KErrNone)
         {
         iPatched = EFalse;
@@ -885,7 +940,7 @@ TInt COcEngine::UnshadowKernelPage()
     {
     if (!iPatcherOpen || !iShadowed)
         return KErrNone;
-    TUint32 addr = iProfile->iDvfsBody;
+    TUint32 addr = HostBody();
     TUint32 len = 16;
     TInt r = iPatcher.FreeShadow(addr, len);
     if (r == KErrNone)
@@ -913,7 +968,7 @@ TInt COcEngine::VerifyRestored()
         // апараті XIP читається з user mode (findings §34), тож просто звіряємо
         // шість слів тіла з еталоном. Це сильніший доказ за будь-який непрямий -
         // ми дивимось на самі байти, і жодного виклику в ядро не робимо.
-        const volatile TUint32* body = (const volatile TUint32*)iProfile->iDvfsBody;
+        const volatile TUint32* body = (const volatile TUint32*)HostBody();
         for (TInt i = 0; i < 6; ++i)
             if (body[i] != iOrigWords[i])
                 return 0;
@@ -934,6 +989,7 @@ _LIT(KStepReadRegs,    "reading PRCM registers");
 _LIT(KStepUnsupported, "profile has no read path for this host");
 _LIT(KStepFirmware,    "firmware does not match the profile");
 _LIT(KStepVerifyBody,  "code at the patch address is not what we expect");
+_LIT(KStepDiscover,    "scanning the ROM found no usable signature");
 _LIT(KStepReady,       "ready");
 
 const TDesC& COcEngine::StepName(TOcStep aStep)
@@ -951,6 +1007,7 @@ const TDesC& COcEngine::StepName(TOcStep aStep)
         case EOcStepUnsupported: return KStepUnsupported;
         case EOcStepFirmware:    return KStepFirmware;
         case EOcStepVerifyBody:  return KStepVerifyBody;
+        case EOcStepDiscover:    return KStepDiscover;
         case EOcStepReady:       return KStepReady;
         default:                 return KStepIdle;
         }
@@ -976,7 +1033,7 @@ TInt COcEngine::ChaseSram(TUint32 aGlobal, TUint32& aSram)
     for (TInt i = 0; i < 8; ++i)
         {
         const TUint32 copy = (TUint32)iDvfs.ReadOrCall(sram + i * 4);
-        const TUint32 rom  = (TUint32)iDvfs.ReadOrCall(iProfile->iRomSramRoutine + i * 4);
+        const TUint32 rom  = (TUint32)iDvfs.ReadOrCall(SramRoutine() + i * 4);
         if (copy != rom)
             return KErrCorrupt;
         }
@@ -1096,7 +1153,7 @@ TInt COcEngine::ApplyReadPatch()
     // патчення не міг обійти її повз.
     if (iOrigCount != 6)
         return KErrNotReady;
-    TInt r = PokeWords(iProfile->iDvfsBody, HostReadPatch(iProfile), 4);
+    TInt r = PokeWords(HostBody(), HostReadPatch(iProfile), 4);
     if (r != KErrNone)
         return r;
     iExecMode = EFalse;
@@ -1144,7 +1201,7 @@ TInt COcEngine::ApplyExecPatch()
     if (!found)
         return KErrNotFound;
 
-    TInt r = Poke(iProfile->iDvfsBody, patch);
+    TInt r = Poke(HostBody(), patch);
     if (r != KErrNone)
         return r;
     iExecMode = ETrue;
@@ -1304,7 +1361,7 @@ TBool COcEngine::BootedNonStock() const
 TInt COcEngine::CaptureOriginal()
     {
     iOrigCount = 0;
-    const TUint32 a = iProfile->iDvfsBody;
+    const TUint32 a = HostBody();
     if (a < KRomLo || a >= KRomHi || (a & 3))
         return KErrArgument;
     const volatile TUint32* body = (const volatile TUint32*)a;
@@ -1313,7 +1370,17 @@ TInt COcEngine::CaptureOriginal()
         w[i] = body[i];
 
     TBool ok = EFalse;
-    if (iProfile->iHost == EHostUsbc)
+    if (iProfile->iDiscover)
+        {
+        // Профіль без адрес: збірка невідома, тож звіряти шість слів із
+        // константою нема з чим. Натомість звіряємо ПРОЛОГ - рівно ту
+        // сигнатуру, за якою адресу й знайдено. Вона ж і відповідає на
+        // головне питання цієї функції: чи тіло ще ціле, чи в ньому вже
+        // лежить наш патч від попереднього прогону, який не відкотився.
+        ok = (w[0] == 0xe92d4ff0u) && (w[1] == 0xe24dd044u)
+          && (w[2] == 0xe1a04000u) && (w[3] == 0xe1a06002u);
+        }
+    else if (iProfile->iHost == EHostUsbc)
         {
         ok = ETrue;
         for (TInt i = 0; i < 6; ++i)
@@ -1352,6 +1419,87 @@ TInt COcEngine::CaptureOriginal()
         return KErrNone;
         }
     return KErrCorrupt;
+    }
+
+// Знаходить адреси на САМОМУ апараті, скануванням живого XIP.
+//
+// Навіщо це взагалі. Витягнутий із прошивки образ для частини апаратів є лише
+// уламком повного XIP, і зсув у файлі НЕ дорівнює адресі: на E90 те саме тіло
+// DoControl лежить у файлі за 0x80094ac4, а на апараті за 0x800bf874 - різниця
+// 0x2adb0 (findings 47.1). Виведені офлайн константи для таких апаратів
+// недійсні в принципі, і єдиний чесний шлях - шукати на місці.
+//
+// Чому це безпечно. Читається XIP із КОРИСТУВАЦЬКОГО режиму, звичайним
+// розіменуванням (findings 34): непримапана сторінка дала б виняток у нашому
+// процесі, а не перезавантаження апарата. Ядро тут не чіпається взагалі.
+//
+// Збіг мусить бути РІВНО ОДИН. Два збіги означають, що сигнатура не
+// розрізняє потрібну функцію, і вибирати з них навмання - найкоротший шлях
+// пропатчити чуже тіло.
+TInt COcEngine::DiscoverRomAddresses()
+    {
+    // Пролог DLddUsbcChannel::DoControl: чотири слова поспіль.
+    const TUint32 KUsbcProlog[4] =
+        { 0xe92d4ff0u, 0xe24dd044u, 0xe1a04000u, 0xe1a06002u };
+
+    TInt romSize = 0;
+    TUint32 span = 0x00200000u;
+    if (HAL::Get(HALData::EMemoryROM, romSize) == KErrNone && romSize > 0)
+        span = (romSize < 0x10000) ? (TUint32)romSize * 1024u : (TUint32)romSize;
+    if (span > 0x04000000u)
+        span = 0x04000000u;
+
+    const TUint32 base = KRomLo;
+    const TUint32 last = base + span - 32u;
+    TUint32 body = 0, sram = 0;
+    TInt bodyHits = 0, sramHits = 0;
+
+    for (TUint32 a = base; a < last; a += 4)
+        {
+        const TUint32 w = *(const volatile TUint32*)a;
+        if (w == KUsbcProlog[0]
+            && *(const volatile TUint32*)(a + 4)  == KUsbcProlog[1]
+            && *(const volatile TUint32*)(a + 8)  == KUsbcProlog[2]
+            && *(const volatile TUint32*)(a + 12) == KUsbcProlog[3])
+            {
+            ++bodyHits;
+            body = a;
+            }
+        // Relock-рутина power.dll. Два слова з восьми - ldr із PC-відносним
+        // зсувом, і зсув залежить від розташування, тож вони йдуть по масці.
+        if (w == KSramRoutineSignature[0]
+            && (*(const volatile TUint32*)(a + 4) & 0xfffff000u) == 0xe59f1000u
+            && (*(const volatile TUint32*)(a + 8) & 0xfffff000u) == 0xe59f5000u
+            && *(const volatile TUint32*)(a + 12) == KSramRoutineSignature[3]
+            && *(const volatile TUint32*)(a + 16) == KSramRoutineSignature[4]
+            && *(const volatile TUint32*)(a + 20) == KSramRoutineSignature[5]
+            && *(const volatile TUint32*)(a + 24) == KSramRoutineSignature[6]
+            && *(const volatile TUint32*)(a + 28) == KSramRoutineSignature[7])
+            {
+            ++sramHits;
+            sram = a;
+            }
+        }
+
+    if (bodyHits != 1 || sramHits != 1)
+        return KErrNotFound;
+    iFoundBody = body;
+    iFoundSram = sram;
+    return KErrNone;
+    }
+
+TInt COcEngine::TryDiscoverRom(TUint32& aBody, TUint32& aSram)
+    {
+    aBody = 0;
+    aSram = 0;
+    const TInt r = DiscoverRomAddresses();
+    aBody = iFoundBody;
+    aSram = iFoundSram;
+    // Пошук викликали заради перевірки, а не заради роботи: не лишаємо
+    // знайденого в полях, інакше наступний Prepare() узяв би його мовчки.
+    iFoundBody = 0;
+    iFoundSram = 0;
+    return r;
     }
 
 TInt COcEngine::CheckFirmware()
@@ -1404,8 +1552,17 @@ TInt COcEngine::Prepare()
     // Нулі в цих полях означають "ще не виміряно". Патчити за нульовою адресою
     // або звіряти SRAM проти нуля - гарантований спосіб покласти апарат, тож
     // відмовляємо ДО будь-якого дотику до ядра.
-    if (iProfile->iRead != EReadDvfs || iProfile->iDvfsBody == 0
-        || iProfile->iRomSramRoutine == 0
+    // Профіль без адрес шукає їх сам, і робить це ПЕРШИМ: доки адреси
+    // невідомі, перевіряти нижче нічого.
+    if (iProfile->iDiscover && (iFoundBody == 0 || iFoundSram == 0))
+        {
+        iStep = EOcStepDiscover;
+        if (DiscoverRomAddresses() != KErrNone)
+            return KErrNotFound;
+        }
+
+    if (iProfile->iRead != EReadDvfs || HostBody() == 0
+        || SramRoutine() == 0
         || (iProfile->iPwrDownGlobal == 0 && iProfile->iPwrDownHint == 0))
         {
         iStep = EOcStepUnsupported;
@@ -1462,7 +1619,7 @@ TInt COcEngine::Prepare()
     // Саме профільний варіант: на носії Usbc адреса приходить у r2, а в r1
     // лежить опкод. r1-стаб тут розіменував би 69 у режимі ядра - перевірено
     // на власній шкурі 2026-09-09, апарат ліг миттєво.
-    r = PokeWords(iProfile->iDvfsBody, HostReadPatch(iProfile), 4);
+    r = PokeWords(HostBody(), HostReadPatch(iProfile), 4);
     if (r == KErrNone)
         r = PrepareProbe();
 
@@ -1504,9 +1661,24 @@ TInt COcEngine::PrepareProbe()
         {
         iStep = EOcStepVerifySram;
         for (TInt i = 0; i < 8; ++i)
-            if ((TUint32)iDvfs.ReadOrCall(iProfile->iRomSramRoutine + i * 4)
-                != iProfile->iSramSignature[i])
+            {
+            const TUint32 got =
+                (TUint32)iDvfs.ReadOrCall(SramRoutine() + i * 4);
+            // Слова 1 і 2 - ldr із PC-відносним зсувом, і зсув залежить від
+            // розташування функції. Для доведеного профілю ми знаємо точні
+            // значення саме цієї збірки й вимагаємо їх. Для профілю, який
+            // шукав адресу сам, збірка невідома, тож ці два слова йдуть по
+            // масці - решта шість лишаються точними.
+            if (iProfile->iDiscover && (i == 1 || i == 2))
+                {
+                const TUint32 want = (i == 1) ? 0xe59f1000u : 0xe59f5000u;
+                if ((got & 0xfffff000u) != want)
+                    return KErrCorrupt;
+                continue;
+                }
+            if (got != iProfile->iSramSignature[i])
                 return KErrCorrupt;
+            }
         }
 
     iStep = EOcStepResolveSram;
