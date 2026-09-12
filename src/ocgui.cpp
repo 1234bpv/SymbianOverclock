@@ -39,7 +39,7 @@
 #include "ocstr.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 2.0.4");
+_LIT(KAppVersion, "SymbianOverclock 2.0.5");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -265,6 +265,7 @@ private:
     void EnsureVisible(TInt aVisibleRows);
     TInt VisibleRows() const;
     TInt RowLines(TInt aRow) const;
+    TInt LogLines() const;
     // Значення CM_CLKSEL1_CORE, яке піде на апарат: або автопідбір, або ручне.
     TUint32 EffectiveCore() const;
     TUint32 BusKhz() const;
@@ -654,6 +655,25 @@ TInt COcView::RowLines(TInt aRow) const
     return WrapText(NULL, font, line, 0, y, 1, 0, w, skip);
     }
 
+// Скільки екранних рядків займе журнал після переносу. Рядок журналу до
+// 64 символів, тобто на вузькому екрані він регулярно стає двома, і саме
+// через це результати тестів опинялись за нижнім краєм: місце під журнал
+// відкладалось по кількості записів, а не по кількості рядків.
+TInt COcView::LogLines() const
+    {
+    const CFont* font = CEikonEnv::Static()->AnnotationFont();
+    const TInt lh = font->HeightInPixels() + 1;
+    const TInt w = Rect().Width() - 4;
+    TInt y = 0;
+    TInt skip = 0;
+    TInt n = 0;
+    for (TInt i = 0; i < iLogCount; ++i)
+        n += WrapText(NULL, font, iLog[i], 0, y, 1, 0, w, skip);
+    // Журналу віддаємо щонайбільше половину екрана: решта потрібна списку.
+    const TInt cap = (Rect().Height() / lh) / 2;
+    return n > cap ? cap : n;
+    }
+
 // Скільки РЯДКІВ СПИСКУ вміщається, рахуючи від iTop. Після того, як підписи
 // стали переноситись, висота рядка вже не стала, тож ділення висоти екрана
 // на висоту рядка дало б завелике число, і курсор ішов би за край.
@@ -662,9 +682,9 @@ TInt COcView::VisibleRows() const
     const CFont* font = CEikonEnv::Static()->AnnotationFont();
     const TInt lh = font->HeightInPixels() + 1;
     // 3 рядки шапки + рядок статусу + лог
-    TInt avail = Rect().Height() / lh - 4 - KLogLines;
-    if (avail < 4)
-        avail = 4;
+    TInt avail = Rect().Height() / lh - 4 - LogLines();
+    if (avail < 3)
+        avail = 3;
     TInt used = 0;
     TInt rows = 0;
     for (TInt r = iTop; r < ERowCount; ++r)
@@ -1628,7 +1648,12 @@ void COcView::Draw(const TRect& /*aRect*/) const
     const TInt x = r.iTl.iX + 2;
     const TInt w = r.Width() - 4;
     TInt noSkip = 0;                        // WrapText не пропускає нічого
-    const TInt yMax = r.iBr.iY - lh;
+    // Журнал прибитий до нижнього краю: спершу рахуємо, скільки він займе,
+    // і лише решту віддаємо шапці зі списком. Інакше довгий список видавлює
+    // результати тестів за екран саме тоді, коли вони щойно з'явились.
+    const TInt logH = LogLines();
+    const TInt logY = r.iBr.iY - 2 - (logH > 0 ? (logH - 1) * lh : 0);
+    const TInt yMax = (logH > 0) ? logY - lh : r.iBr.iY - lh;
     TInt y = r.iTl.iY + lh;
     TBuf<96> line;
     gc.SetPenColor(KRgbBlack);
@@ -1691,9 +1716,15 @@ void COcView::Draw(const TRect& /*aRect*/) const
         {
         WrapText(&gc, font, iStatus, x, y, lh, yMax, w, noSkip);
         }
-    for (TInt i = 0; i < iLogCount && y < yMax; ++i)
+    // Згори журналу - НАЙНОВІШИЙ запис. Доти новий рядок ставав унизу, тобто
+    // найдалі від ока й першим за краєм екрана, і ставав видимим лише тоді,
+    // коли його підпирав ще новіший.
+    if (logH > 0)
         {
-        WrapText(&gc, font, iLog[i], x, y, lh, yMax, w, noSkip);
+        TInt ly = logY;
+        const TInt lyMax = r.iBr.iY - 2;
+        for (TInt i = iLogCount - 1; i >= 0 && ly <= lyMax; --i)
+            WrapText(&gc, font, iLog[i], x, ly, lh, lyMax, w, noSkip);
         }
 
     gc.DiscardFont();
