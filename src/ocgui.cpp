@@ -388,7 +388,10 @@ void COcView::ConstructL(const TRect& aRect)
     {
     TBuf<32> pid;
     pid.Copy(TPtrC8((const TUint8*)prof->iId));
-    AddLogF(_L("profile: %S  %S"), &pid, &KAppVersion);
+    // Двома рядками: разом назва з версією й ідентифікатор профілю не
+    // влазять у ширину екрана N95 (зауваження з апарата, 2026-09-12).
+    AddLog(KAppVersion);
+    AddLogF(_L("profile: %S"), &pid);
     }
 
     TInt r = iEngine->Prepare();
@@ -1442,6 +1445,26 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
     return EKeyWasConsumed;
     }
 
+// Малює рядок, обрізаний по ширині вікна.
+//
+// Без цього довгий рядок просто йшов за край екрана, і кінець тексту ставав
+// невидимим - саме так зникала назва з версією на N95 (зауваження з апарата,
+// 2026-09-12). Обрізаємо по символах, а не по пікселях: половина символу
+// виглядала б як дефект малювання.
+static void DrawClipped(CWindowGc& aGc, const CFont* aFont, const TDesC& aText,
+                        const TPoint& aPt, TInt aWidth)
+    {
+    if (aFont->TextWidthInPixels(aText) <= aWidth)
+        {
+        aGc.DrawText(aText, aPt);
+        return;
+        }
+    TInt n = aFont->TextCount(aText, aWidth);
+    if (n < 0)
+        n = 0;
+    aGc.DrawText(aText.Left(n), aPt);
+    }
+
 // Довідка на весь екран. Тим самим дрібним шрифтом, що й решта: рядки в
 // src/strings.json уже нарізані під цю ширину, тож переносу тут немає.
 void COcView::DrawHelp(CWindowGc& aGc, const TRect& aRect) const
@@ -1452,12 +1475,12 @@ void COcView::DrawHelp(CWindowGc& aGc, const TRect& aRect) const
     const TInt lh = font->HeightInPixels() + 1;
     const TInt x = aRect.iTl.iX + 2;
     TInt y = aRect.iTl.iY + lh;
-    aGc.DrawText(OcStr(EStrHelpTitle), TPoint(x, y));
+    DrawClipped(aGc, font, OcStr(EStrHelpTitle), TPoint(x, y), aRect.Width() - 4);
     y += lh * 2;
     const TInt total = OcHelpLineCount();
     for (TInt i = iHelpTop; i < total && y <= aRect.iBr.iY - 2; ++i)
         {
-        aGc.DrawText(OcHelpLine(i), TPoint(x, y));
+        DrawClipped(aGc, font, OcHelpLine(i), TPoint(x, y), aRect.Width() - 4);
         y += lh;
         }
     aGc.DiscardFont();
@@ -1484,6 +1507,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
     gc.UseFont(font);
     const TInt lh = font->HeightInPixels() + 1;
     const TInt x = r.iTl.iX + 2;
+    const TInt w = r.Width() - 4;
     const TInt yMax = r.iBr.iY - lh;
     TInt y = r.iTl.iY + lh;
     TBuf<96> line;
@@ -1497,7 +1521,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
         const TOcClocks& st = iEngine->StockClocks();
         line.Format(_L("stock m%d CPU %u BUS %u DSS %u"), st.iMult,
                     st.MpuKhz() / 1000, st.L3Khz() / 1000, st.Dss1Khz() / 1000);
-        gc.DrawText(line, TPoint(x, y));
+        DrawClipped(gc, font, line, TPoint(x, y), w);
         y += lh;
 
         TOcClocks c;
@@ -1510,19 +1534,19 @@ void COcView::Draw(const TRect& /*aRect*/) const
                     c.MpuKhz() / 1000,
                     l3 ? c.CoreKhz() / (TUint32)l3 / 1000 : 0,
                     ds ? c.CoreKhz() / (TUint32)ds / 1000 : 0);
-        gc.DrawText(line, TPoint(x, y));
+        DrawClipped(gc, font, line, TPoint(x, y), w);
         y += lh;
         line.Format(_L("CLKSEL1_CORE %08x"), core);
-        gc.DrawText(line, TPoint(x, y));
+        DrawClipped(gc, font, line, TPoint(x, y), w);
         y += lh;
         }
     else
         {
-        gc.DrawText(OcStr(EStrNotReady), TPoint(x, y));
+        DrawClipped(gc, font, OcStr(EStrNotReady), TPoint(x, y), w);
         y += lh;
         if (iStatus.Length())
             {
-            gc.DrawText(iStatus, TPoint(x, y));
+            DrawClipped(gc, font, iStatus, TPoint(x, y), w);
             y += lh;
             }
         y += lh;
@@ -1538,25 +1562,25 @@ void COcView::Draw(const TRect& /*aRect*/) const
         TBuf<96> label;
         RowLabel(row, label);
         line.Format(_L("%c%S"), (iRow == row) ? '>' : ' ', &label);
-        gc.DrawText(line, TPoint(x, y));
+        DrawClipped(gc, font, line, TPoint(x, y), w);
         y += lh;
         }
     // Позначка, що список довший за екран.
     if (last < ERowCount && y < yMax)
         {
         line.Format(OcStr(EStrMoreRows), ERowCount - last);
-        gc.DrawText(line, TPoint(x, y));
+        DrawClipped(gc, font, line, TPoint(x, y), w);
         y += lh;
         }
 
     if (ready && iStatus.Length() && y < yMax)
         {
-        gc.DrawText(iStatus, TPoint(x, y));
+        DrawClipped(gc, font, iStatus, TPoint(x, y), w);
         y += lh;
         }
     for (TInt i = 0; i < iLogCount && y < yMax; ++i)
         {
-        gc.DrawText(iLog[i], TPoint(x, y));
+        DrawClipped(gc, font, iLog[i], TPoint(x, y), w);
         y += lh;
         }
 
