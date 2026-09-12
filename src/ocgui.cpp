@@ -39,7 +39,7 @@
 #include "ocstr.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 2.0.2");
+_LIT(KAppVersion, "SymbianOverclock 2.0.3");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -252,6 +252,8 @@ public:
 
     void Draw(const TRect& aRect) const;
     void DrawHelp(CWindowGc& aGc, const TRect& aRect) const;
+    TInt HelpTotalLines() const;
+    TInt HelpVisibleLines() const;
     TKeyResponse OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aType);
     void ShutdownL();
 
@@ -1285,10 +1287,10 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
 
     if (iHelp)
         {
-        const TInt total = OcHelpLineCount();
+        const TInt maxTop = HelpTotalLines() - HelpVisibleLines();
         if (aKeyEvent.iCode == EKeyDownArrow)
             {
-            if (iHelpTop < total - 1)
+            if (iHelpTop < maxTop)
                 ++iHelpTop;
             }
         else if (aKeyEvent.iCode == EKeyUpArrow)
@@ -1465,6 +1467,65 @@ static void DrawClipped(CWindowGc& aGc, const CFont* aFont, const TDesC& aText,
     aGc.DrawText(aText.Left(n), aPt);
     }
 
+// Друкує текст, переносячи його по ширині вікна.
+//
+// Ручні переноси в джерелі не годяться: ширина екрана відома лише на апараті,
+// і те, що влізло на 240 точках N95, обрізається на вужчому апараті й лишає
+// порожнє поле на ширшому. Тому текст у src/strings.json лежить абзацами, а
+// ріже його ось ця функція - по пробілах, і лише коли слово не влазить цілком,
+// посередині слова.
+//
+// Одна функція робить дві роботи: з aGc == NULL вона нічого не малює, а тільки
+// рахує рядки. Це потрібно для прокрутки довідки, межі якої без переносу
+// невідомі. aSkip - скільки готових рядків пропустити (верх прокрутки).
+// Повертає, скільки рядків текст займає всього.
+static TInt WrapText(CWindowGc* aGc, const CFont* aFont, const TDesC& aText,
+                     TInt aX, TInt& aY, TInt aLh, TInt aYMax, TInt aWidth,
+                     TInt& aSkip)
+    {
+    const TInt len = aText.Length();
+    TInt lines = 0;
+    TInt pos = 0;
+    for (;;)
+        {
+        TPtrC seg;
+        if (pos >= len)
+            {
+            if (len != 0)
+                break;
+            seg.Set(KNullDesC);          // порожній абзац - порожній рядок
+            }
+        else
+            {
+            TPtrC rest = aText.Mid(pos);
+            TInt n = aFont->TextCount(rest, aWidth);
+            if (n <= 0)
+                n = 1;
+            if (n < rest.Length())
+                {
+                const TInt sp = rest.Left(n + 1).LocateReverse(' ');
+                if (sp > 0)
+                    n = sp;
+                }
+            seg.Set(rest.Left(n));
+            pos += n;
+            while (pos < len && aText[pos] == ' ')
+                ++pos;
+            }
+        ++lines;
+        if (aSkip > 0)
+            --aSkip;
+        else if (aGc && aY <= aYMax)
+            {
+            aGc->DrawText(seg, TPoint(aX, aY));
+            aY += aLh;
+            }
+        if (len == 0)
+            break;
+        }
+    return lines;
+    }
+
 // Довідка на весь екран. Тим самим дрібним шрифтом, що й решта: рядки в
 // src/strings.json уже нарізані під цю ширину, тож переносу тут немає.
 void COcView::DrawHelp(CWindowGc& aGc, const TRect& aRect) const
@@ -1474,16 +1535,40 @@ void COcView::DrawHelp(CWindowGc& aGc, const TRect& aRect) const
     aGc.SetPenColor(KRgbBlack);
     const TInt lh = font->HeightInPixels() + 1;
     const TInt x = aRect.iTl.iX + 2;
+    const TInt w = aRect.Width() - 4;
+    const TInt yMax = aRect.iBr.iY - 2;
     TInt y = aRect.iTl.iY + lh;
-    DrawClipped(aGc, font, OcStr(EStrHelpTitle), TPoint(x, y), aRect.Width() - 4);
-    y += lh * 2;
+    TInt none = 0;
+    WrapText(&aGc, font, OcStr(EStrHelpTitle), x, y, lh, yMax, w, none);
+    y += lh;
+    TInt skip = iHelpTop;
     const TInt total = OcHelpLineCount();
-    for (TInt i = iHelpTop; i < total && y <= aRect.iBr.iY - 2; ++i)
-        {
-        DrawClipped(aGc, font, OcHelpLine(i), TPoint(x, y), aRect.Width() - 4);
-        y += lh;
-        }
+    for (TInt i = 0; i < total && y <= yMax; ++i)
+        WrapText(&aGc, font, OcHelpLine(i), x, y, lh, yMax, w, skip);
     aGc.DiscardFont();
+    }
+
+// Скільки рядків довідка займає ПІСЛЯ переносу. Залежить від ширини вікна,
+// тож рахується щоразу, а не запам'ятовується.
+TInt COcView::HelpTotalLines() const
+    {
+    const CFont* font = CEikonEnv::Static()->AnnotationFont();
+    const TInt w = Rect().Width() - 4;
+    TInt y = 0;
+    TInt skip = 0;
+    TInt n = 0;
+    const TInt total = OcHelpLineCount();
+    for (TInt i = 0; i < total; ++i)
+        n += WrapText(NULL, font, OcHelpLine(i), 0, y, 1, 0, w, skip);
+    return n;
+    }
+
+TInt COcView::HelpVisibleLines() const
+    {
+    const CFont* font = CEikonEnv::Static()->AnnotationFont();
+    const TInt lh = font->HeightInPixels() + 1;
+    const TInt n = (Rect().Height() - lh * 2) / lh;
+    return n > 1 ? n : 1;
     }
 
 void COcView::Draw(const TRect& /*aRect*/) const
@@ -1508,6 +1593,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
     const TInt lh = font->HeightInPixels() + 1;
     const TInt x = r.iTl.iX + 2;
     const TInt w = r.Width() - 4;
+    TInt noSkip = 0;                        // WrapText не пропускає нічого
     const TInt yMax = r.iBr.iY - lh;
     TInt y = r.iTl.iY + lh;
     TBuf<96> line;
@@ -1521,8 +1607,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
         const TOcClocks& st = iEngine->StockClocks();
         line.Format(_L("stock m%d CPU %u BUS %u DSS %u"), st.iMult,
                     st.MpuKhz() / 1000, st.L3Khz() / 1000, st.Dss1Khz() / 1000);
-        DrawClipped(gc, font, line, TPoint(x, y), w);
-        y += lh;
+        WrapText(&gc, font, line, x, y, lh, yMax, w, noSkip);
 
         TOcClocks c;
         iEngine->ClocksFor(iMult, c);
@@ -1534,11 +1619,9 @@ void COcView::Draw(const TRect& /*aRect*/) const
                     c.MpuKhz() / 1000,
                     l3 ? c.CoreKhz() / (TUint32)l3 / 1000 : 0,
                     ds ? c.CoreKhz() / (TUint32)ds / 1000 : 0);
-        DrawClipped(gc, font, line, TPoint(x, y), w);
-        y += lh;
+        WrapText(&gc, font, line, x, y, lh, yMax, w, noSkip);
         line.Format(_L("CLKSEL1_CORE %08x"), core);
-        DrawClipped(gc, font, line, TPoint(x, y), w);
-        y += lh;
+        WrapText(&gc, font, line, x, y, lh, yMax, w, noSkip);
         }
     else
         {
@@ -1546,8 +1629,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
         y += lh;
         if (iStatus.Length())
             {
-            DrawClipped(gc, font, iStatus, TPoint(x, y), w);
-            y += lh;
+            WrapText(&gc, font, iStatus, x, y, lh, yMax, w, noSkip);
             }
         y += lh;
         }
@@ -1562,6 +1644,9 @@ void COcView::Draw(const TRect& /*aRect*/) const
         TBuf<96> label;
         RowLabel(row, label);
         line.Format(_L("%c%S"), (iRow == row) ? '>' : ' ', &label);
+        // Рядок списку НЕ переносимо: висота рядка тут фіксована, на ній
+        // тримається і прокрутка, і позиція курсора. Довгий підпис
+        // обрізається.
         DrawClipped(gc, font, line, TPoint(x, y), w);
         y += lh;
         }
@@ -1569,19 +1654,16 @@ void COcView::Draw(const TRect& /*aRect*/) const
     if (last < ERowCount && y < yMax)
         {
         line.Format(OcStr(EStrMoreRows), ERowCount - last);
-        DrawClipped(gc, font, line, TPoint(x, y), w);
-        y += lh;
+        WrapText(&gc, font, line, x, y, lh, yMax, w, noSkip);
         }
 
     if (ready && iStatus.Length() && y < yMax)
         {
-        DrawClipped(gc, font, iStatus, TPoint(x, y), w);
-        y += lh;
+        WrapText(&gc, font, iStatus, x, y, lh, yMax, w, noSkip);
         }
     for (TInt i = 0; i < iLogCount && y < yMax; ++i)
         {
-        DrawClipped(gc, font, iLog[i], TPoint(x, y), w);
-        y += lh;
+        WrapText(&gc, font, iLog[i], x, y, lh, yMax, w, noSkip);
         }
 
     gc.DiscardFont();

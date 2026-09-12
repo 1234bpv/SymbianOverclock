@@ -30,7 +30,7 @@
 
 &EN
 
-#{"SymbianOverclock"},(0xE0001011),2,0,2
+#{"SymbianOverclock"},(0xE0001011),2,0,3
 
 %{"SymbianOverclock"}
 :"SymbianOverclock"
