@@ -17,6 +17,10 @@
 #include <e32cmn.h>
 #include <f32file.h>
 #include <hal.h>
+#include <fbs.h>
+#include <bitdev.h>
+#include <bitstd.h>
+#include <gdi.h>
 
 #include "ocengine.h"
 
@@ -2341,6 +2345,159 @@ static void Benchmark()
     User::Free(buf);
     }
 
+// --- font probe -------------------------------------------------------------
+
+struct TProbeCharInfo
+    {
+    TUint16 iCode;
+    TInt iPx;
+    TUint32 iSum;
+    };
+
+static void DoFontProbeL()
+    {
+    static const TUint16 KProbeChars[] =
+        {
+        0x0041, // 'A'
+        0x0430, // 'а'
+        0x0456, // 'і'
+        0x0457, // 'ї'
+        0x0454, // 'є'
+        0x0491, // 'ґ'
+        0x02bc, // modifier apostrophe
+        0x4e00  // CJK control
+        };
+    const TInt KNumChars = sizeof(KProbeChars) / sizeof(KProbeChars[0]);
+    const TInt KCjkIndex = KNumChars - 1;
+
+    CFbsTypefaceStore* ts = CFbsTypefaceStore::NewL(NULL);
+    CleanupStack::PushL(ts);
+
+    CFbsBitmap* bmp = new (ELeave) CFbsBitmap();
+    CleanupStack::PushL(bmp);
+    User::LeaveIfError(bmp->Create(TSize(24, 24), EGray2));
+
+    CFbsBitmapDevice* dev = CFbsBitmapDevice::NewL(bmp);
+    CleanupStack::PushL(dev);
+
+    CFbsBitGc* gc = NULL;
+    User::LeaveIfError(dev->CreateContext(gc));
+    CleanupStack::PushL(gc);
+
+    const TInt numTypefaces = ts->NumTypefaces();
+    LogF(_L8("font: typefaces=%d"), numTypefaces);
+
+    TProbeCharInfo results[KNumChars];
+    TUint8 pixBuf[24 * 24];
+
+    for (TInt i = 0; i < numTypefaces; ++i)
+        {
+        TTypefaceSupport supp;
+        ts->TypefaceSupport(supp, i);
+
+        TFontSpec spec(supp.iTypeface.iName, 12);
+        CFont* font = NULL;
+        TInt fontErr = ts->GetNearestFontToDesignHeightInPixels(font, spec);
+        if (fontErr != KErrNone || !font)
+            {
+            TBuf8<64> name8;
+            name8.Copy(supp.iTypeface.iName);
+            LogF(_L8("%S: GetNearestFont failed (%d)"), &name8, fontErr);
+            continue;
+            }
+
+        gc->UseFont(font);
+
+        TInt baseline = font->AscentInPixels() + 4;
+        if (baseline < 4 || baseline > 20)
+            baseline = 16;
+
+        for (TInt c = 0; c < KNumChars; ++c)
+            {
+            gc->SetBrushColor(KRgbWhite);
+            gc->SetBrushStyle(CGraphicsContext::ESolidBrush);
+            gc->Clear();
+
+            gc->SetBrushStyle(CGraphicsContext::ENullBrush);
+            gc->SetPenColor(KRgbBlack);
+            gc->SetPenStyle(CGraphicsContext::ESolidPen);
+
+            TBuf<1> text;
+            text.Append(TChar(KProbeChars[c]));
+            gc->DrawText(text, TPoint(2, baseline));
+
+            TInt darkCount = 0;
+            TInt pIdx = 0;
+            for (TInt y = 0; y < 24; ++y)
+                {
+                for (TInt x = 0; x < 24; ++x)
+                    {
+                    TRgb col;
+                    bmp->GetPixel(col, TPoint(x, y));
+                    TUint8 dark = (col.Value() != KRgbWhite.Value()) ? 1 : 0;
+                    if (dark)
+                        ++darkCount;
+                    pixBuf[pIdx++] = dark;
+                    }
+                }
+
+            TUint32 sum = 0;
+            Mem::Crc32(sum, pixBuf, sizeof(pixBuf));
+
+            results[c].iCode = KProbeChars[c];
+            results[c].iPx = darkCount;
+            results[c].iSum = sum;
+            }
+
+        gc->DiscardFont();
+        ts->ReleaseFont(font);
+
+        const TUint32 cjkSum = results[KCjkIndex].iSum;
+
+        TBuf8<1024> line;
+        TBuf8<64> name8;
+        name8.Copy(supp.iTypeface.iName);
+        line.Append(name8);
+        line.Append(_L8(":"));
+
+        for (TInt c = 0; c < KNumChars; ++c)
+            {
+            line.AppendFormat(_L8(" U+%04X px=%d sum=%08x"),
+                results[c].iCode, results[c].iPx, results[c].iSum);
+            if (results[c].iSum == cjkSum)
+                {
+                line.Append(_L8(" MISSING"));
+                }
+            }
+
+        Log(line);
+        }
+
+    CleanupStack::PopAndDestroy(gc);
+    CleanupStack::PopAndDestroy(dev);
+    CleanupStack::PopAndDestroy(bmp);
+    CleanupStack::PopAndDestroy(ts);
+    }
+
+static void RunFontProbe()
+    {
+    Log(_L8("--- font probe ---"));
+    TInt err = RFbsSession::Connect();
+    if (err != KErrNone)
+        {
+        LogF(_L8("RFbsSession::Connect failed: %d"), err);
+        return;
+        }
+
+    TRAPD(probeErr, DoFontProbeL());
+    RFbsSession::Disconnect();
+
+    if (probeErr != KErrNone)
+        {
+        LogF(_L8("font probe leave: %d"), probeErr);
+        }
+    }
+
 static void RunL()
     {
     User::LeaveIfError(gFs.Connect());
@@ -2402,7 +2559,8 @@ static void RunL()
     const TBool romread = (cmd.Find(_L("romread")) != KErrNotFound);
     const TBool romscan = (cmd.Find(_L("romscan")) != KErrNotFound);
     const TBool romdump = (cmd.Find(_L("romdump")) != KErrNotFound);
-    const TBool quiet = patcherRun || e90scan || usbcboot || romread || romscan || romdump;
+    const TBool fontRun = (cmd.Find(_L("font")) != KErrNotFound);
+    const TBool quiet = patcherRun || e90scan || usbcboot || romread || romscan || romdump || fontRun;
     // Профіль E90 для patcher-команд: "patcher ... e90" бере KProfileE90. Тоді
     // Prepare() (шлях EReadDvfs) свідомо відмовить (EOcStepUnsupported) замість
     // патчити RM-320-адреси в чуже ядро E90 (findings §27). Розгінний шлях E90
@@ -2559,6 +2717,8 @@ static void RunL()
             n = 12;
         ProbeDsp(n);
         }
+    else if (cmd.Find(_L("font")) != KErrNotFound)
+        RunFontProbe();
     else if (cmd.Find(_L("patcher hold")) != KErrNotFound)
         {
         TInt at = cmd.Find(_L("patcher hold"));

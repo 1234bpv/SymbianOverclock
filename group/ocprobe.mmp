@@ -36,3 +36,6 @@ LIBRARY         euser.lib
 LIBRARY         efsrv.lib
 LIBRARY         hal.lib
 LIBRARY         sysutil.lib
+LIBRARY         fbscli.lib
+LIBRARY         bitgdi.lib
+LIBRARY         gdi.lib

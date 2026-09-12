@@ -39,7 +39,7 @@
 #include "ocstr.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 2.0.1");
+_LIT(KAppVersion, "SymbianOverclock 2.0.2");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -318,10 +318,10 @@ private:
 
 COcView::COcView()
   : iEngine(NULL), iRow(ERowSlider), iTop(0), iMult(0), iManual(EFalse),
-    iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iBusGuard(ETrue), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
+    iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iKeep(ETrue), iBusGuard(ETrue), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
     iArmed(EFalse), iArmedMult(0), iArmedCore(0),
     iArmedMpu(0),
-    iLogCount(0), iBuf(NULL), iBufWords(0), iKeep(ETrue), iKnownDevice(EFalse), iTestProfile(0), iHelp(EFalse), iHelpTop(0)
+    iLogCount(0), iBuf(NULL), iBufWords(0), iKnownDevice(EFalse), iTestProfile(0), iHelp(EFalse), iHelpTop(0)
     {
     }
 
