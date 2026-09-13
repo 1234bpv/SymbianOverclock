@@ -1,61 +1,61 @@
-# Завдання: дільник MPU і повна розкладка клоків без інтерфейсу
+# Task: MPU divider and full clock layout without UI
 
-> **СТАН 2026-08-15: §5 закрито трьома прогонами, §6 виправлено, головне
-> питання лишається за замовником.**
+> **STATUS 2026-08-15: §5 closed with three runs, §6 fixed, the main
+> question remains for the client.**
 >
-> Розкладка **тримається** — і `CM_CLKSEL_MPU`, і `CM_CLKSEL1_CORE`, без
-> резидентного патча, під навантаженням, через переходи OPP. Утримувати нічого
-> не треба.
+> The layout **holds** — both `CM_CLKSEL_MPU` and `CM_CLKSEL1_CORE`, without
+> a resident patch, under load, across OPP transitions. Nothing needs to be
+> held.
 >
-> §2 описує механізм неправильно двічі. Патч є транспортом, а не засувкою, тож
-> його резидентність не має стосунку до вмісту `CM_CLKSEL1_CORE`. А компенсація
-> дільників не «жила секунди» — вона **не записувалась узагалі**: валідатор L3
-> у `power.dll` @`0x800AC424` відкидає 0, 3, 5, 9, 18, а `CompensatedCore()`
-> підбирав саме `l3div=5`, і апарат такий запис ігнорує цілком.
+> §2 describes the mechanism incorrectly twice. The patch is a transport, not a latch, so
+> its residency has nothing to do with the contents of `CM_CLKSEL1_CORE`. And divider
+> compensation did not "live for seconds" — it was **not written at all**: the L3 validator
+> in `power.dll` @`0x800AC424` rejects 0, 3, 5, 9, 18, while `CompensatedCore()`
+> selected specifically `l3div=5`, and the device ignores such a write completely.
 >
-> Команда `patcher clocks mult= mpu= l3= dss= sec= [child=ps1] [args:...]` є й
-> перевірена на конфігурації D. Лишилось запустити в її вікні `ps1stage1.exe`.
+> The command `patcher clocks mult= mpu= l3= dss= sec= [child=ps1] [args:...]` exists and
+> is verified on configuration D. All that remains is to run `ps1stage1.exe` in its window.
 >
-> Повний розбір — `findings.md` §26, відповідь замовникові —
+> Full analysis — `findings.md` §26, response to the client —
 > `../PS1Emulator/plans/reports/answer-mpu-divider-2026-08-15.md`.
 
-Замовник — сусідній проєкт `../PS1Emulator` (порт PCSX-ReARMed під S60v3). Йому
-потрібно розділити бюджет кадру на процесорну й пам'яттєву частини, а зробити це
-можна лише звідси: потрібен ядерний доступ до PRCM, який є тільки в цьому
-проєкті.
+Client — neighboring project `../PS1Emulator` (port of PCSX-ReARMed for S60v3). It
+needs to separate the frame budget into CPU and memory parts, and doing this
+is only possible from here: kernel access to PRCM is required, which exists only in this
+project.
 
-Апарат той самий — Nokia N95 8GB (RM-320), Symbian 9.2, OMAP 2420.
+Device is the same — Nokia N95 8GB (RM-320), Symbian 9.2, OMAP 2420.
 
-Обґрунтування з боку замовника — `../PS1Emulator/plans/reports/pipeline-soc-2026-08-15.md`,
-розділи 8.1 і 12.2. Логи, на які я посилаюсь нижче, лежать у
+Rationale from the client's side — `../PS1Emulator/plans/reports/pipeline-soc-2026-08-15.md`,
+sections 8.1 and 12.2. The logs I reference below reside in
 `../PS1Emulator/plans/runs/oc*.log`.
 
 ---
 
-## 1. Питання, на яке треба відповісти
+## 1. The question to be answered
 
-Емулятор витрачає на кадр 27,2 мс при штатних 330 МГц. Невідомо, яка частка
-цього часу — це робота ARM1136, а яка — очікування пам'яті. Від відповіді прямо
-залежить, куди вкладати наступний місяць: у кодоген динареку й растеризатор, чи
-у формати даних, вирівнювання й обсяг трафіку до SDRAM.
+The emulator spends 27.2 ms per frame at stock 330 MHz. It is unknown what fraction
+of this time is ARM1136 execution and what is waiting on memory. Where to invest
+the next month directly depends on the answer: into dynarec codegen and rasterizer, or
+into data formats, alignment, and traffic volume to SDRAM.
 
-Заміри 2026-08-08 і 2026-08-15 на це питання не відповіли, бо в обох випадках
-частота ядра й частота шини рухались разом. Коли обидва домени змінюються на
-одні й ті самі +24,4 %, гіпотези «все впирається в ЦП» і «все впирається в
-пам'ять» передбачають однаковий результат, тож замір їх не розрізняє. Це не
-дефект приладу, це властивість експерименту.
+Measurements on 2026-08-08 and 2026-08-15 did not answer this question because in both cases
+the core frequency and bus frequency moved together. When both domains change by
+the exact same +24.4%, the hypotheses "everything is bottlenecked by CPU" and "everything is bottlenecked by
+memory" predict an identical result, so a measurement does not distinguish between them. This is not
+a defect of the instrument, this is a property of the experiment.
 
-Розрізнити їх можна лише конфігурацією, у якій **один домен змінився, а другий
-ні**. Дільник MPU таку конфігурацію дає, і ця частина PRCM у проєкті вже
-розібрана — `findings.md` §6 і §21, `state.md` про рядок `MPUDIV` у v1.2.
+Distinguishing between them is possible only with a configuration in which **one domain changed while the other
+did not**. The MPU divider provides such a configuration, and this part of PRCM in the project has already
+been figured out — `findings.md` §6 and §21, `state.md` regarding the `MPUDIV` line in v1.2.
 
-## 2. Чому наявний `patcher hold` цього не дає
+## 2. Why the existing `patcher hold` does not provide this
 
-Ідея була в тому, що `hold` уже пише компенсовані дільники, тож досить
-скористатися ним. Він справді їх пише, але **вони не тримаються**.
+The idea was that `hold` already writes compensated dividers, so using it
+would be sufficient. It indeed writes them, but **they do not hold**.
 
-Прогін `patcher hold 107` (`oc107_apply.log:15-20`) прочитав штатний стан
-правильно і записав компенсацію:
+The run `patcher hold 107` (`oc107_apply.log:15-20`) read the stock state
+correctly and wrote the compensation:
 
 ```
 engine ready: SRAM @cb202000, stock mult 86
@@ -64,129 +64,129 @@ engine ready: SRAM @cb202000, stock mult 86
   compensated: m=107 CORE=821760 BUS=164352 DSS1=117394 (l3div=5 dssdiv=7)
 ```
 
-Наступне читання того самого регістра, за десяток секунд
-(`oc_engine_after_apply.log:22`), дає `04360644` — початкове штатне слово.
-Компенсацію знято.
+The next read of the same register, roughly ten seconds later
+(`oc_engine_after_apply.log:22`), yields `04360644` — the initial stock word.
+Compensation is removed.
 
-Причина, найімовірніше, у самому механізмі виходу. `HoldOverclock` викликає
-`KeepOnExit(ETrue)` і в лозі пише «Kernel patch removed; frequency stays»
-(`ocprobe.cpp:801-806`). Множник DPLL справді лишається — прогін емулятора на
-133 секунди йшов при 411 МГц від початку до кінця. Але дільники в
-`CM_CLKSEL1_CORE` тримає саме релок-блоб, і щойно патч знято, штатний сеттер при
-першому ж переході DVFS переписує регістр зі своїх таблиць. Тобто множник
-переживає зняття патча, а дільники — ні.
+The cause is most likely in the exit mechanism itself. `HoldOverclock` calls
+`KeepOnExit(ETrue)` and writes "Kernel patch removed; frequency stays" in the log
+(`ocprobe.cpp:801-806`). The DPLL multiplier indeed stays — the emulator run of
+133 seconds ran at 411 MHz from start to finish. But the dividers in
+`CM_CLKSEL1_CORE` are held specifically by the relock blob, and as soon as the patch is removed, the stock setter
+rewrites the register from its tables at the very first DVFS transition. That is, the multiplier
+survives patch removal, while the dividers do not.
 
-Практичний наслідок для будь-якого замовника: **конфігурація дільників живе рівно
-стільки, скільки резидентний патч**. Отже вимірюваний процес має працювати
-всередині вікна, поки `ocprobe` тримає патч, а не після його виходу.
+Practical consequence for any client: **the divider configuration lives exactly
+as long as the resident patch**. Hence the measured process must run
+inside the window while `ocprobe` holds the patch, rather than after its exit.
 
-## 3. Що саме просимо
+## 3. What specifically is requested
 
-Безголову команду, яка виставляє **повну розкладку клоків**, тримає патч, запускає
-дочірній процес і повертає штатний стан на виході. Механізм для цього в проєкті
-вже є: `ProbeDspSet` у режимі `ESoakRun` робить рівно це для дільника DSP
-(`ocprobe.cpp:668-681`), включно з обмеженням часу на дитину, щоб зависла дитина
-не тримала нештатний стан (`RunChild`, `ocprobe.cpp:552-555`). Просимо
-узагальнити цей режим з одного дільника DSP на чотири поля: множник DPLL, дільник
-MPU, дільник L3 і дільник DSS1.
+A headless command that sets the **full clock layout**, holds the patch, launches
+a child process, and restores stock state on exit. The mechanism for this in the project
+already exists: `ProbeDspSet` in mode `ESoakRun` does exactly this for the DSP divider
+(`ocprobe.cpp:668-681`), including a time ceiling for the child so that a hung child
+does not hold the non-stock state (`RunChild`, `ocprobe.cpp:552-555`). We ask to
+generalize this mode from a single DSP divider to four fields: DPLL multiplier, MPU
+divider, L3 divider, and DSS1 divider.
 
-Приблизно так, форма на ваш розсуд:
+Approximately like this, form at your discretion:
 
 ```
 ocprobe.exe patcher clocks mult=86 mpu=4 l3=4 dss=6 sec=200 child
 ```
 
-Чотири конфігурації, які замовникові потрібні, наведено в §4. Усі вони —
-**зниження** частот відносно штатної, тож питання стабільності тут не виникає
-взагалі: жодна з них не виводить апарат за режим, у якому він працює щодня.
+The four configurations needed by the client are given in §4. All of them are
+**reductions** in frequency relative to stock, so the stability question does not arise
+here at all: none of them pushes the device outside the regime in which it operates daily.
 
-Три деталі реалізації, які видно з боку замовника.
+Three implementation details visible from the client's side.
 
-Дочірній процес наразі захардкоджений: `E:\sys\bin\dsptest.exe` з аргументами
-`baseonlydcdopnobench` (`ocprobe.cpp:671-672`). Потрібен інший — наш
-`E:\sys\bin\ps1stage1.exe`. Достатньо другого захардкодженого варіанта, вибір
-можна робити ключовим словом; повна параметризація не обов'язкова.
+The child process is currently hardcoded: `E:\sys\bin\dsptest.exe` with arguments
+`baseonlydcdopnobench` (`ocprobe.cpp:671-672`). Another is needed — our
+`E:\sys\bin\ps1stage1.exe`. A second hardcoded option is sufficient, selection
+can be made via a keyword; full parameterization is not required.
 
-Аргументи дитини довгі. Прогін замовника виглядає так:
+The child's arguments are long. The client's run looks like this:
 
 ```
 gui play nosnd frames6100 dsa light blend imggt.pbp
 ```
 
-Це 50 символів, і разом із власними ключами команди воно не вміщується в
-`TBuf<64> cmd`, у який `ocprobe` читає командний рядок (`ocprobe.cpp:1189` і
-`:1201`). Буфер треба збільшити, або читати аргументи дитини з файла на картці.
+This is 50 characters, and together with the command's own flags it does not fit into
+`TBuf<64> cmd`, into which `ocprobe` reads the command line (`ocprobe.cpp:1189` and
+`:1201`). The buffer must be enlarged, or child arguments must be read from a file on the card.
 
-Стеля часу на дитину має дотягувати до 200 секунд: прогін еталонної траси — 6099
-кадрів, це від 120 до 170 секунд залежно від конфігурації. Поточний діапазон
-`soak` (0..900) це вже дозволяє, але перевірте, що `RunChild` не має власного
-нижчого обмеження.
+The child time ceiling must reach up to 200 seconds: the benchmark run of the reference track is 6099
+frames, which is from 120 to 170 seconds depending on configuration. The current range of
+`soak` (0..900) already allows this, but verify that `RunChild` does not have its own
+lower limit.
 
-## 4. Конфігурації, які потрібні
+## 4. Configurations needed
 
-Штатний стан — множник 86, `mpu_div` 2, `l3div` 4, `dssdiv` 6, що дає ядро
-330,24 МГц, шину 165,12 і піксельний клок 110,08.
+Stock state — multiplier 86, `mpu_div` 2, `l3div` 4, `dssdiv` 6, yielding core
+330.24 MHz, bus 165.12, and pixel clock 110.08.
 
-Головна пара — це A і D. У них однакова шина й удвічі різне ядро, тож відношення
-часу кадру між ними прямо дає процесорну частку бюджету. Якщо кадр подовжиться
-вдвічі, робота цілком процесорна; якщо в півтора раза, третина бюджету — це
-очікування пам'яті.
+The primary pair is A and D. They have the same bus and 2x different core, so the ratio
+of frame time between them directly gives the CPU portion of the budget. If the frame doubles in
+duration, the work is entirely CPU-bound; if it increases by 1.5x, one third of the budget is
+waiting on memory.
 
-| # | mult | mpu | l3 | dss | MPU, МГц | шина, МГц | DSS1, МГц | що ізолює |
+| # | mult | mpu | l3 | dss | MPU, MHz | bus, MHz | DSS1, MHz | what it isolates |
 |---|---|---|---|---|---|---|---|---|
-| A | 86 | 2 | 4 | 6 | 330,24 | 165,12 | 110,08 | опорна, штатна |
-| D | 86 | **4** | 4 | 6 | **165,12** | 165,12 | 110,08 | удвічі повільніше ядро при незмінній шині |
-| C | **43** | **1** | 4 | **3** | 330,24 | **82,56** | 110,08 | те саме ядро при удвічі повільнішій шині |
-| B | **43** | **1** | **2** | **3** | 330,24 | 165,12 | 110,08 | те саме ядро й шина, удвічі нижча CORE |
+| A | 86 | 2 | 4 | 6 | 330.24 | 165.12 | 110.08 | baseline, stock |
+| D | 86 | **4** | 4 | 6 | **165.12** | 165.12 | 110.08 | 2x slower core with unchanged bus |
+| C | **43** | **1** | 4 | **3** | 330.24 | **82.56** | 110.08 | same core with 2x slower bus |
+| B | **43** | **1** | **2** | **3** | 330.24 | 165.12 | 110.08 | same core and bus, 2x lower CORE |
 
-Конфігурації C і B варті окремої уваги, бо вони спираються на спостереження, яке
-вже є в `state.md`: при `mpu_div=1` та сама частота ядра досягається вдвічі
-нижчою CORE. Множник 43 дає DPLL 165,12 і CORE 330,24, з якої дільник 1 повертає
-ядру рівно штатні 330,24 МГц. Далі дільник DSS1, зменшений з 6 до 3, повертає
-дисплею рівно штатні 110,08 МГц — компенсація тут точна, без залишку, на відміну
-від випадку з множником 107. А дільник L3 лишається вільним параметром: 4 дає
-шину 82,56 (це C), 2 дає штатні 165,12 (це B).
+Configurations C and B deserve special attention because they rely on an observation
+already in `state.md`: with `mpu_div=1` the same core frequency is achieved with 2x
+lower CORE. Multiplier 43 yields DPLL 165.12 and CORE 330.24, from which divider 1 restores
+the core to exactly stock 330.24 MHz. Next, the DSS1 divider, reduced from 6 to 3, restores
+the display to exactly stock 110.08 MHz — compensation here is exact, without remainder, unlike
+the case with multiplier 107. And the L3 divider remains a free parameter: 4 yields
+bus 82.56 (this is C), 2 yields stock 165.12 (this is B).
 
-Пара C проти A міряє те саме, що й D проти A, але з протилежного боку, тож вона
-є перехресною перевіркою. Пара B проти A відповідає на власне питання цього
-проєкту, яке в `state.md` уже сформульовано: чи є межею сам ARM1136, чи CORE як
-найвища внутрішня частота.
+The pair C versus A measures the same thing as D versus A, but from the opposite side, so it
+serves as a cross-check. The pair B versus A answers this project's own question,
+already formulated in `state.md`: whether the limit is ARM1136 itself, or CORE as
+the highest internal frequency.
 
-Якщо робити не все, то мінімум — це A і D.
+If not doing everything, the minimum is A and D.
 
-## 5. Крок нульової вартості, який варто зробити першим
+## 5. Zero-cost step worth doing first
 
-Перед будь-яким кодом варто перевірити, чи губернатор не переписує
-`CM_CLKSEL_MPU` так само, як переписує `CM_CLKSEL1_CORE`. Наявні логи цього не
-кажуть: у них `CM_CLKSEL_MPU = 00000002` і до, і після
-(`oc_engine_after_apply.log:19`, `oc_engine_final.log:19`), але ми в цей регістр
-жодного разу не писали, тож збіг нічого не доводить.
+Before writing any code, it is worth checking whether the governor rewrites
+`CM_CLKSEL_MPU` just as it rewrites `CM_CLKSEL1_CORE`. The existing logs do not
+say: in them `CM_CLKSEL_MPU = 00000002` both before and after
+(`oc_engine_after_apply.log:19`, `oc_engine_final.log:19`), but we have never
+written to this register, so the match proves nothing.
 
-Перевірка коштує один прогін: записати дільник 4, зачекати тридцять секунд під
-навантаженням, прочитати назад. Якщо значення тримається без резидентного патча,
-уся конструкція з дочірнім процесом зайва й завдання зводиться до однієї команди
-запису. Якщо не тримається — потрібен `child`, як описано вище.
+The check costs one run: write divider 4, wait thirty seconds under
+load, read back. If the value holds without a resident patch,
+the entire construct with a child process is unnecessary and the task reduces to a single write
+command. If it does not hold — `child` is needed, as described above.
 
-## 6. Побічна знахідка: `CompensatedCore()` ратчетить дільник дисплея
+## 6. Side finding: `CompensatedCore()` ratchets display divider
 
-Це вже не завдання, а дефект, і він відтворюється в логах повністю.
+This is no longer a task, but a bug, and it reproduces in the logs completely.
 
-`COcEngine::Prepare()` знімає опорний стан із живих регістрів
-(`ocengine.cpp:816-825`), тобто `iStockCore` і `iStockClocks` — це те, що було в
-апараті на момент запуску процесу, а не те, що є штатним для цього SoC. Поки
-апарат штатний, різниці немає. Щойно апарат уже розігнаний — опорна точка
-з'їжджає.
+`COcEngine::Prepare()` captures the baseline state from live registers
+(`ocengine.cpp:816-825`), meaning `iStockCore` and `iStockClocks` are whatever was in
+the device at the moment of process launch, rather than what is stock for this SoC. As long as
+the device is stock, there is no difference. As soon as the device is already overclocked — the baseline point
+drifts.
 
-Далі `CompensatedCore()` підбирає дільник DSS1 так, щоб влучити в
-`iStockClocks.Dss1Khz()` (`ocengine.cpp:907`), тобто в частоту, яку щойно
-прочитано як «штатну». Ось повний цикл із логів.
+Then `CompensatedCore()` selects the DSS1 divider so as to hit
+`iStockClocks.Dss1Khz()` (`ocengine.cpp:907`), that is, the frequency that was just
+read as "stock". Here is the full cycle from the logs.
 
-Спершу `hold 107` виставив множник 107, а компенсацію дільників система зняла,
-як описано в §2. Апарат лишився з `dssdiv=6` при CORE 821,76, тобто з піксельним
-клоком 136,96 МГц замість 110,08.
+First `hold 107` set multiplier 107, and the system removed the divider compensation,
+as described in §2. The device was left with `dssdiv=6` at CORE 821.76, that is with a pixel
+clock of 136.96 MHz instead of 110.08.
 
-Потім `hold 86` (`oc86_restore.log:15-20`) прочитав цей стан і взяв його за
-опорний:
+Then `hold 86` (`oc86_restore.log:15-20`) read this state and took it as
+the baseline:
 
 ```
 engine ready: stock mult 107
@@ -196,28 +196,28 @@ engine ready: stock mult 107
   vs stock: DSS1 -3.5%  BUS -19.6%  (0 = display untouched)
 ```
 
-Тобто він сумлінно зберіг дисплею ту частоту, яку побачив, — 136,96 МГц — і для
-цього зменшив дільник з 6 до 5. Рядок «vs stock: DSS1 -3.5 %» при цьому
-повідомляє, що дисплей майже не зачеплено, хоча насправді його щойно зафіксували
-на 132,1 МГц замість штатних 110,08, тобто на 20 % вище.
+That is, it dutifully preserved for the display the frequency it saw — 136.96 MHz — and for
+this it reduced the divider from 6 to 5. The line "vs stock: DSS1 -3.5%" at the same time
+reports that the display is almost untouched, whereas in reality it was just pinned
+at 132.1 MHz instead of stock 110.08, which is 20% higher.
 
-Кінцевий стан апарата це підтверджує (`oc_engine_final.log:15-16,22`): множник
-знову 86, штатний, а `CLKSEL1_CORE = 04360544`, тобто `dssdiv=5`. І наступний
-запуск візьме вже цю частоту за опорну — звідси «ратчет»: кожен цикл
-«підняти — опустити» зсуває дільник ще на крок і ніколи не повертає.
+The final state of the device confirms this (`oc_engine_final.log:15-16,22`): multiplier
+is 86 again, stock, while `CLKSEL1_CORE = 04360544`, meaning `dssdiv=5`. And the next
+launch will take this frequency as the baseline — hence the "ratchet": each
+"raise — lower" cycle shifts the divider by another step and never returns it.
 
-Проміжний прогін `oc107_apply2.log:16` показує цей самий зсув на пів дорозі:
-опорним там прочитано `DSS1=132096 (dssdiv=5)`.
+The intermediate run `oc107_apply2.log:16` shows this exact shift halfway:
+the baseline read there was `DSS1=132096 (dssdiv=5)`.
 
-Наскільки це шкідливо — окреме питання. Апарат із `dssdiv=5` працює нормально й
-відрисовку не ламає, тож для однієї сесії це радше косметика. Але воно тихо
-псує саме те, заради чого компенсація існує, і робить це в напрямку, який
-неможливо помітити з логів, бо логи звітують «дисплей не зачеплено».
+How harmful this is is a separate question. The device with `dssdiv=5` works normally and
+does not break rendering, so for a single session this is rather cosmetic. But it quietly
+spoils the very thing for which compensation exists, and does so in a direction that is
+impossible to notice from the logs, because the logs report "display untouched".
 
-Найменша правка, яка це закриває: тримати опорну точку **сталою**, а не читати її
-щоразу з живих регістрів. Оскільки проєкт однопристроєвий, досить винести штатне
-слово й штатний множник у константи поруч з іншими константами регістрів у
-`ocengine.h`, з коментарем, що це вимкнені за замовчуванням значення з ROM:
+The smallest fix that addresses this: keep the baseline point **constant**, rather than reading it
+each time from live registers. Since the project is single-device, it is sufficient to put the stock
+word and stock multiplier into constants next to other register constants in
+`ocengine.h`, with a comment that these are default values from ROM:
 
 ```
 CM_CLKSEL1_CORE = 0x04360644   l3div=4 dssdiv=6  ->  BUS 165.12, DSS1 110.08
@@ -225,45 +225,44 @@ CM_CLKSEL_MPU   = 0x00000002   mpu_div=2         ->  MPU 330.24
 CM_CLKSEL1_PLL  mult=86
 ```
 
-Тоді `CompensatedCore()` цілитиметься в 110,08 МГц завжди, незалежно від того, у
-якому стані застав апарат. Альтернатива — запам'ятовувати перший побачений стан у
-файл на картці, але для одного апарата це складніше без виграшу.
+Then `CompensatedCore()` will target 110.08 MHz always, regardless of the state in
+which it found the device. An alternative is remembering the first observed state in
+a file on the card, but for a single device this is more complicated without benefit.
 
-Окремо варто голосно логувати випадок «живий множник не дорівнює штатному на
-старті»: зараз він мовчки стає новою нормою.
+Separately, it is worth loudly logging the case where "live multiplier does not equal stock at
+start": currently it silently becomes the new normal.
 
-## 7. Чого робити не треба
+## 7. What does not need to be done
 
-Не потрібен інтерфейс — рядок `MPUDIV` у GUI вже є (v1.2), і для людини цього
-досить. Просимо саме безголовий шлях, бо замір робиться по WiFi через демон
-розгортання, без дотику до апарата.
+No UI is needed — the `MPUDIV` line in the GUI already exists (v1.2), and for a human this is
+enough. We specifically ask for a headless route because measurement is performed over WiFi via the deployment
+daemon, without touching the device.
 
-Не потрібне підвищення частот. Усі чотири конфігурації — зниження, і саме тому
-вони безпечні. Дільник MPU 1 при штатному множнику дав би 660 МГц, що вдвічі вище
-за встановлену межу 426 МГц; такої конфігурації в §4 немає й вона не потрібна.
+No frequency increase is needed. All four configurations are reductions, and that is why
+they are safe. An MPU divider of 1 at stock multiplier would give 660 MHz, which is twice as high
+as the established limit of 426 MHz; no such configuration is in §4 and it is not needed.
 
-Не потрібно чіпати SDRC-тайминги. У конфігураціях C і D шина або незмінна, або
-нижча за штатну, тож тайминги лишаються з запасом.
+No need to touch SDRC timings. In configurations C and D the bus is either unchanged or
+lower than stock, so the timings remain with headroom.
 
-## 8. Критерій приймання
+## 8. Acceptance criterion
 
-Замовник вважає завдання виконаним, коли одна команда з боку ПК запускає прогін
-емулятора в заданій розкладці клоків і повертає апарат у штатний стан, а в лозі
-є читання всіх чотирьох регістрів **після** завершення дитини — щоб було видно,
-що розкладка трималася весь час, а не перші секунди.
+The client considers the task complete when a single command from the PC side launches an emulator
+run in the specified clock layout and restores the device to stock state, and the log
+contains reads of all four registers **after** the child finishes — to show
+that the layout held the entire time, rather than just the first few seconds.
 
-Мінімальний корисний результат — дві конфігурації, A і D. Решта — за наявності
-бажання.
+Minimum useful result — two configurations, A and D. The rest — if desired.
 
-## 9. Варіант, який не потребує коду взагалі
+## 9. Option requiring no code at all
 
-Якщо правити код не хочеться, той самий замір можна зробити руками. Рядок
-`MPUDIV` у GUI виставляє дільник, а патч лишається резидентним, поки застосунок
-запущено. Тож достатньо виставити на апараті потрібний дільник, лишити застосунок
-у фоні й запустити емулятор по WiFi звичайною командою розгортання. Це дає
-конфігурацію D за одну сесію біля апарата.
+If modifying code is undesirable, the same measurement can be done manually. The
+`MPUDIV` line in the GUI sets the divider, and the patch remains resident while the application
+is running. Thus it is sufficient to set the required divider on the device, leave the application
+in the background, and launch the emulator over WiFi with the usual deploy command. This yields
+configuration D in a single session near the device.
 
-Два застереження. Треба перевірити, що GUI у фоні справді тримає патч, а не знімає
-його при втраті фокуса. І цей шлях дає лише D — конфігурації B і C потребують
-одночасної зміни множника й трьох дільників, що з екрана робити довго й легко
-помилитись.
+Two caveats. One needs to verify that the GUI in the background actually holds the patch rather than removing
+it upon losing focus. And this route yields only D — configurations B and C require
+simultaneously changing the multiplier and three dividers, which from the screen takes long and is easy
+to get wrong.

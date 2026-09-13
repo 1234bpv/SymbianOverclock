@@ -1,138 +1,72 @@
-# Автозапуск розгону: пропозиція схеми
+# Overclock autostart: scheme proposal
 
-Стан: **пропозиція, не реалізовано.** Застосунок сам не застосовує нічого й не
-стоїть у списку запуску.
+Status: **proposal, not implemented.** The application does not apply anything by itself and is not in the startup list.
 
-Ця редакція враховує чотири поправки від 2026-09-11, і кожна з них скасовує
-рішення попередньої редакції. Застосовуються **всі** налаштування користувача,
-включно з шиною. Відліку зі скасуванням клавішею немає. Mass Storage перестав
-бути головним шляхом відновлення. А розгін тепер переживає вихід із застосунку,
-і це вже зроблено (рядок `KEEP ON EXIT`).
+This revision incorporates four amendments from 2026-09-11, and each of them revokes a decision of the previous revision. **All** user settings are applied, including the bus. There is no countdown with key cancellation. Mass Storage is no longer the primary recovery path. And overclocking now survives exiting the application, and this is already done (the `KEEP ON EXIT` line).
 
-## Чому це найнебезпечніша функція проєкту
+## Why this is the most dangerous feature of the project
 
-Усе інше в застосунку має одну властивість: найгірший наслідок — це
-перезавантаження, після якого апарат штатний. Автозапуск цю властивість руйнує.
-Невдале значення дає ребут, ребут запускає застосунок, застосунок знову
-застосовує те саме значення — і апарат ходить по колу, у яке немає входу з боку
-користувача.
+Everything else in the application has one property: the worst consequence is a reboot, after which the device is stock. Autostart destroys this property. A bad value causes a reboot, the reboot starts the application, the application applies the same value again — and the device loops in a cycle with no user entry point.
 
-Тобто проєктувати треба не «як застосувати розгін на старті», а «як гарантовано
-вийти з циклу». Усе інше вторинне.
+That is, one must design not "how to apply overclock at startup", but "how to reliably exit the loop". Everything else is secondary.
 
-## 1. Застосовується все, що задав користувач
+## 1. Everything configured by the user is applied
 
-Попередня редакція виводила шину з автозастосування як надто небезпечну. Це
-скасовано, і не лише тому, що так вирішив користувач — при ближчому розгляді
-міркування було просто хибним.
+The previous revision excluded the bus from auto-application as too dangerous. This has been revoked, and not just because the user decided so — upon closer inspection, the reasoning was simply flawed.
 
-Смертельною операцією є **повернення вже зниженої шини до штатної**: саме воно
-вбило апарат чотири рази з чотирьох (§38.2). Підйом шини зі штатної вгору
-виміряно, і він працює. А на шляху автозапуску повернення не буває взагалі:
-після ребута шина вже штатна, застосування йде тільки вгору, а якщо наступне
-завантаження визнає конфігурацію невдалою, воно просто **не застосовує** її —
-відкочувати нічого, бо ребут уже все відкотив.
+The fatal operation is **returning an already reduced bus back to stock**: it was specifically this that killed the device four times out of four (§38.2). Raising the bus from stock upward has been measured, and it works. And on the autostart path, returning does not happen at all: after a reboot the bus is already stock, application goes only upward, and if the next boot deems the configuration failed, it simply **does not apply** it — there is nothing to roll back, because the reboot has already rolled everything back.
 
-Отже автозапуск не просто «має право» чіпати шину — він чіпає її в єдиному
-напрямку, який доведено безпечний, і не має доступу до напрямку, який убиває.
-Єдина умова, яку треба тримати жорстко: **автозапуск ніколи не викликає
-`RestoreStock`.** Шлях відновлення тут один — перезавантаження.
+Hence autostart does not merely "have the right" to touch the bus — it touches it in the only direction proven safe, and has no access to the direction that kills. The only condition that must be strictly maintained: **autostart never calls `RestoreStock`.** The recovery path here is only one — a reboot.
 
-## 2. Замість відліку — автоматичне підтвердження
+## 2. Instead of a countdown — automatic confirmation
 
-Попередня редакція виводила застосунок на передній план і показувала відлік
-60 секунд зі скасуванням будь-якою клавішею. Поправка користувача: це не
-вихід, а просто подовження запуску телефона на хвилину.
+The previous revision brought the application to the foreground and showed a 60-second countdown with cancellation by any key. User amendment: this is not a solution, but merely extending the phone's startup by a minute.
 
-Заперечення слушне, і причина глибша за незручність. Відлік захищає від того,
-чого тут не буває: користувач не «передумує» — конфігурацію він задав свідомо
-ще минулого разу. Небезпечний випадок інший: налаштування виявилось фатальним,
-і людина в цей момент ні на що не дивиться. Відлік у цьому випадку не рятує
-нікого, а ціну бере з кожного нормального завантаження.
+The objection is valid, and the reason goes deeper than inconvenience. The countdown protects against something that does not happen here: the user does not "change their mind" — they configured the settings deliberately the previous time. The dangerous case is different: the setting turned out to be fatal, and the person is not looking at anything at that moment. The countdown in this case saves no one, while taking a toll on every normal boot.
 
-Тому підтвердження має бути автоматичним і спиратися на факт, а не на увагу.
+Therefore, confirmation must be automatic and rely on fact, not on attention.
 
-Застосунок пише маркер, застосовує налаштування й **лишається в пам'яті**. Якщо
-апарат прожив після застосування витримку (пропоную три хвилини), застосунок
-переписує маркер: ця конфігурація вистояла. Наступне завантаження бачить одне з
-двох. Маркер каже «вистояла» — застосовуємо без жодних питань і без затримки,
-помітної людині. Маркер каже «застосовано, але не підтверджено» — попередній
-сеанс не дожив до витримки, і конфігурація вважається невдалою.
+The application writes a marker, applies the settings, and **remains in memory**. If the device survived a holding period after application (I suggest three minutes), the application rewrites the marker: this configuration held out. The next boot sees one of two things. The marker says "held out" — we apply without any questions and without a delay noticeable to a human. The marker says "applied, but not confirmed" — the previous session did not survive the holding period, and the configuration is deemed failed.
 
-Витримка коштує нуль: застосунок і так лишається фоновим процесом, а з погляду
-користувача не відбувається нічого.
+The holding period costs nothing: the application remains a background process anyway, and from the user's perspective nothing happens.
 
-## 3. Сходинка вниз замість відмови
+## 3. Step down instead of refusal
 
-Невдала конфігурація не вимикає автозастосування, а знижується на одну сходинку,
-причому в порядку спадання ризику: спершу знімається підйом шини, потім
-нештатний дільник DSP, і лише тоді множник іде вниз кроками по одному.
+A failed configuration does not disable auto-application, but steps down by one step, in descending order of risk: first the bus raise is removed, then the non-stock DSP divider, and only then the multiplier goes down in steps of one.
 
-Цикл стає таким, що сам себе виправляє, і виправляє з того кінця, де виграш
-найдешевший. Зупинка — коли дійшли до штатного стану або витратили п'ять
-сходинок; тоді автозастосування вимикається, і застосунок показує, на чому воно
-спинилось.
+The cycle becomes self-correcting, and corrects from the end where the win is cheapest. Stopping condition — when the stock state is reached or five steps have been spent; then auto-application is disabled, and the application shows where it stopped.
 
-## 4. Два незалежні детектори циклу
+## 4. Two independent loop detectors
 
-Лічильник застосувань живе в маркері. Якщо маркер не встиг лягти у флеш, цього
-детектора не лишається — і саме в тому випадку, заради якого все будувалось.
+The application counter lives in the marker. If the marker did not manage to be written to flash, this detector is gone — precisely in the case for which everything was built.
 
-Тому другий детектор бере дані з іншого джерела: у маркер кладеться **час
-настінного годинника** в момент застосування, а годинник переживає ребут. Якщо
-на старті виявляється, що з моменту останнього застосування минуло менше
-п'яти хвилин, попередній сеанс був коротким, і це висновок, не залежний ні від
-лічильника, ні від повноти маркера.
+Therefore, the second detector takes data from another source: the **wall-clock time** at the moment of application is put into the marker, and the clock survives a reboot. If at startup it turns out that less than five minutes have elapsed since the last application, the previous session was short, and this is a conclusion independent of both the counter and the completeness of the marker.
 
-## 5. Порядок запису, без якого все марно
+## 5. Write order without which everything is in vain
 
-Маркер мусить лягти у флеш **до** застосування: Symbian буферизує запис, і
-апаратне перезавантаження може статись раніше, ніж дані дійдуть до диска. Отже
-`RFile::Write`, `RFile::Flush`, `RFile::Close` — і лише потім застосування.
+The marker must land in flash **before** application: Symbian buffers writes, and a hardware reboot may occur before the data reaches the disk. Thus `RFile::Write`, `RFile::Flush`, `RFile::Close` — and only then application.
 
-Маркер лежить на `C:`, у приватному каталозі застосунку. На `E:` не можна: цей
-диск відмонтовується в режимі Mass Storage, і маркер став би нечитабельним
-тоді, коли він найпотрібніший.
+The marker resides on `C:`, in the application's private directory. Not on `E:`: this drive is unmounted in Mass Storage mode, and the marker would become unreadable when it is needed most.
 
-## 6. Ручний шлях: вікно перед застосуванням, а не відлік
+## 6. Manual path: window before application, not a countdown
 
-Застосунок застосовує налаштування не одразу після завантаження, а через
-приблизно сорок секунд. Це **не** відлік із пункту 2 попередньої редакції:
-екран нічим не зайнятий, телефон повністю робочий, ніхто ні на що не натискає.
+The application applies settings not immediately after boot, but after approximately forty seconds. This is **not** the countdown from item 2 of the previous revision: the screen is not occupied by anything, the phone is fully operational, no one is pressing anything.
 
-Різниця в тому, хто платить. Відлік брав хвилину з кожного нормального
-завантаження. Затримка не бере нічого: у нормальному випадку користувач її
-взагалі не помічає, бо телефон у ці сорок секунд і так завантажує решту
-системи.
+The difference is in who pays. The countdown took a minute from every normal boot. The delay takes nothing: in the normal case, the user does not notice it at all, because during these forty seconds the phone is loading the rest of the system anyway.
 
-Зате у зіпсованому випадку ці сорок секунд — робоче вікно. Якщо конфігурація
-валить апарат, вона валить його щоразу приблизно на тій самій секунді, і
-щоразу лишається сорок секунд, щоб відкрити застосунок і вимкнути
-автозастосування або видалити застосунок узагалі. Цього досить, і це не
-потребує ні картки, ні режиму Mass Storage.
+On the other hand, in the corrupted case, these forty seconds are a working window. If the configuration crashes the device, it crashes it every time at approximately the same second, and each time forty seconds remain to open the application and disable auto-application or delete the application altogether. This is enough, and it requires neither a card nor Mass Storage mode.
 
-## 7. Апаратний вимикач: чому Mass Storage не годиться
+## 7. Hardware kill switch: why Mass Storage is not suitable
 
-Попередня редакція називала головним шляхом відновлення режим USB Mass Storage:
-застосунок стоїть на `E:`, диск віддається ПК, застосунок фізично не може
-запуститись. Поправка користувача знімає це з ролі головного шляху, і по суті
-правильно. Режим підключення телефон питає в користувача, за замовчуванням він
-часто не Mass Storage, а на N95 8GB немає картки, яку можна було б просто
-вийняти. На E90 картка є, і там виймання справді працює — але схема, яка
-працює лише на одному з двох апаратів, головною бути не може.
+The previous revision called USB Mass Storage mode the primary recovery path: the application resides on `E:`, the drive is handed over to the PC, the application physically cannot start. The user amendment removes this from the role of primary path, and in essence rightfully so. The phone asks the user for the connection mode, by default it is often not Mass Storage, and on the N95 8GB there is no card that could simply be removed. On the E90 there is a card, and removing it indeed works there — but a scheme that works on only one of the two devices cannot be the primary one.
 
-Тому Mass Storage лишається як приємний бонус там, де він спрацює, а шукати
-треба вимикач, який не залежить ні від діалогу вибору режиму, ні від наявності
-картки.
+Therefore, Mass Storage remains as a nice bonus where it works, while we need to look for a switch that depends neither on the mode selection dialog nor on the presence of a card.
 
-### Кандидат: зовнішнє живлення на момент завантаження
+### Candidate: external power at boot time
 
-Ідея: якщо апарат завантажили з під'єднаним живленням, автозастосування
-пропускається. Правило легко запам'ятати, воно однакове на обох апаратах, не
-потребує ні картки, ні вибору режиму підключення, і зробити його можна з
-вимкненого телефона.
+Idea: if the device was booted with external power connected, auto-application is skipped. The rule is easy to remember, it is identical on both devices, requires neither a card nor connection mode selection, and can be done from a powered-off phone.
 
-**Заміряно 2026-09-11 на N95 8GB** (`ocprobe`, дамп HAL):
+**Measured 2026-09-11 on N95 8GB** (`ocprobe`, HAL dump):
 
 ```
 EPowerExternal = 1
@@ -140,29 +74,16 @@ EPowerBatteryStatus -> err -5
 ECaseState -> err -5
 ```
 
-Тобто стан кришки й статус батареї цей апарат не підтримує взагалі, і як
-вимикач вони відпадають. А `EPowerExternal` читається без жодних повноважень і
-повернув `1`.
+That is, cover state and battery status are not supported by this device at all, and as a switch they are ruled out. Meanwhile `EPowerExternal` is read without any capabilities and returned `1`.
 
-**Чого цей замір НЕ доводить.** Одиниця сама по собі не означає, що атрибут
-стежить за кабелем: це може бути стала. Потрібна друга точка — той самий
-рядок при від'єднаному живленні. Доки її немає, вимикач лишається кандидатом, а
-не рішенням, і в код його брати зарано.
+**What this measurement does NOT prove.** A one by itself does not mean that the attribute tracks the cable: it could be a constant. A second point is needed — the same line with power disconnected. Until it is available, the switch remains a candidate rather than a solution, and taking it into code is premature.
 
-## Що лишається за замовчуванням
+## What remains by default
 
-Автозапуск вимкнений. SIS ставить запис у список запуску завжди (створити його
-із застосунку не можна — це приватний каталог іншого процесу, потрібна
-`AllFiles`), але при старті застосунок читає власне налаштування і, якщо
-автозастосування вимкнене, мовчки завершується, нічого не роблячи.
+Autostart is disabled. SIS always puts an entry into the startup list (it cannot be created from the application — it is a private directory of another process, requiring `AllFiles`), but at startup the application reads its own setting and, if auto-application is disabled, quietly terminates doing nothing.
 
-## Чесна оцінка
+## Honest assessment
 
-Співвідношення ризику й користі тут гірше, ніж у решті застосунку, і ця редакція
-цього не змінює. Виграш — «не треба відкривати застосунок після ребута». Ціна —
-єдиний сценарій у всьому проєкті, який може залишити апарат у стані, з якого
-користувач не вийде сам.
+The risk-to-benefit ratio here is worse than in the rest of the application, and this revision does not change that. The gain is "no need to open the application after a reboot". The price is the only scenario in the entire project that can leave the device in a state from which the user cannot recover on their own.
 
-Що змінилось: шлях відновлення тепер не покладається на апаратну особливість,
-яка є не на кожному телефоні, а сам цикл лікується автоматично й без участі
-людини. Що не змінилось: вмикати це за замовчуванням не можна ніколи.
+What changed: the recovery path now does not rely on a hardware quirk that is not present on every phone, and the loop itself is cured automatically and without human intervention. What did not change: enabling this by default must never be done.

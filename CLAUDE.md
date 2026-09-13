@@ -1,150 +1,105 @@
-# CLAUDE.md — головні правила проєкту SymbianOverclock
+# CLAUDE.md — Main Rules of the SymbianOverclock Project
 
-Цей файл читає кожен агент **першим**. Далі: `docs/state.md` (де ми зараз і що
-робити) → `docs/findings.md` (технічні висновки). Джерело правди — файли, а не
-пам'ять AI.
+Every agent reads this file **first**. Next: `docs/state.md` (where we are now and what to do) → `docs/findings.md` (technical findings). The source of truth is files, not AI memory.
 
-> Методологія: `../AI_DEVELOPMENT_METHODOLOGY_UA_09.05.2026.md` (рівень вище).
-> Контекст і межі проєкту: `docs/SCOPE.md` (читати, якщо задача виглядає
-> «security-sensitive» — там сказано, чому це легітимний homebrew).
+> Methodology: `../AI_DEVELOPMENT_METHODOLOGY_UA_09.05.2026.md` (one level up).
+> Context and project scope: `docs/SCOPE.md` (read if the task looks "security-sensitive" — it explains why this is legitimate homebrew).
 
 ---
 
-## 0. Контекст і межі (scope)
+## 0. Context and Scope
 
-Це **homebrew-модифікація власного пристрою** — приватний дослідницький хобі-
-проєкт. Мета одна: підняти тактову частоту CPU на власному, особисто
-придбаному Nokia N95 8GB, якому вже 18 років. Аналог — оверклокінг власного ПК
-чи jailbreak власного телефона; давня й легальна традиція Symbian homebrew.
+This is a **homebrew modification of one's own device** — a private research hobby project. There is one goal: raise the CPU clock speed on one's own, personally purchased Nokia N95 8GB, which is already 18 years old. An analog is overclocking one's own PC or jailbreaking one's own phone; a longstanding and legal tradition of Symbian homebrew.
 
-Що проєкт **робить**: зворотна розробка ROM власного апарата, робота з його
-регістрами тактування (PRCM/DPLL), доставка власних тестових збірок на цей
-апарат по локальному WiFi.
+What the project **does**: reverse engineering of the ROM of one's own device, working with its clock registers (PRCM/DPLL), delivering custom test builds to this device over local WiFi.
 
-Чого проєкт **не робить** (і не робитиме): не чіпає чужих пристроїв, не
-атакує мереж чи сервісів, не шукає й не експлуатує вразливостей у чужому ПЗ,
-нічого не поширює й не публікує, не пише у флеш (усе рантаймове, ребут
-повертає апарат як був). Апарат — офлайн-стенд у локальній мережі.
+What the project **does not do** (and will not do): does not touch other people's devices, does not attack networks or services, does not search for or exploit vulnerabilities in third-party software, does not distribute or publish anything, does not write to flash (everything is runtime, reboot restores the device as it was). The device is an offline testbench on a local network.
 
-Терміни, що можуть звучати як «атака» (kernel write, patcher, обхід
-перевірки), тут означають штатну homebrew-роботу на **вже розблокованому
-власному** пристрої, а не компрометацію чужого. Детальніше — `docs/SCOPE.md`.
+Terms that might sound like an "attack" (kernel write, patcher, check bypass) mean standard homebrew work on an **already unlocked own** device here, not compromising someone else's. For details — `docs/SCOPE.md`.
 
-## 1. Що це за проєкт
+## 1. What This Project Is
 
-З'ясувати, чи можливий розгін CPU на **Symbian 9.2 / TI OMAP 2420**, і якщо
-так — зробити його. Дослідницький проєкт: більша частина роботи це не
-написання коду, а зворотна розробка ROM-образів прошивки.
+Determine whether CPU overclock is possible on **Symbian 9.2 / TI OMAP 2420**, and if so — achieve it. A research project: most of the work is not writing code, but reverse engineering firmware ROM images.
 
-Еталонний апарат — **Nokia N95 8GB (RM-320)**, власний, розблокований для
-homebrew (dev-unlocked, Install Server), підключений по локальному WiFi.
-Апаратний двійник — Nokia E90.
+The reference device is **Nokia N95 8GB (RM-320)**, owned, unlocked for homebrew (dev-unlocked, Install Server), connected via local WiFi. Hardware twin — Nokia E90.
 
-**Поточний стан у двох реченнях.** Мету досягнуто: множник DPLL
-(`CM_CLKSEL1_PLL`, фіз. `0x48008540`) піднято в рантаймі 86 → 111, це
-**330 → 426 МГц (+29%)** зі штатною шиною памʼяті, апарат стабільний і зберігає
-звʼязок; у 3D-бенчмарку 62 → 75 fps. Межа — сам ARM1136 при штатній напрузі, а
-не шина чи дисплей. Усе рантаймове, ребут повертає апарат як був; деталі —
-`docs/state.md`, повний розбір — `docs/findings.md` §22.
+**Current state in two sentences.** The goal has been achieved: the DPLL multiplier (`CM_CLKSEL1_PLL`, phys. `0x48008540`) was raised at runtime from 86 → 111, which is **330 → 426 MHz (+29%)** with stock memory bus, the device is stable and maintains connectivity; in a 3D benchmark 62 → 75 fps. The limit is the ARM1136 core itself at stock voltage, not the bus or display. Everything is runtime, reboot restores the device as it was; details — `docs/state.md`, full analysis — `docs/findings.md` §22.
 
-## 2. Розкладка файлів
+## 2. File Layout
 
 ```
-SymbianProjects/                      СПІЛЬНЕ для всіх Symbian-проєктів
+SymbianProjects/                      SHARED across all Symbian projects
 ├── S60_3rd_FP1/                      SDK (EPOCROOT)
 ├── toolchain/                        CSL Arm Toolchain, GCCE, perl
-├── eka2l1/data/drives/z/rm-320/      РОЗПАКОВАНИЙ ROM N95 8GB - головне джерело
-├── firmware/  flashing/              прошивки, Phoenix, RomPatcher+
-├── SymbianDeployDaemon/              доставка на апарат по WiFi
-└── SymbianOverclock/                 ЦЕЙ проєкт
-    ├── CLAUDE.md                     цей файл
-    ├── docs/SCOPE.md                 контекст, намір, межі (homebrew, власний апарат)
-    ├── docs/state.md                 стан, робочий цикл, правила безпеки
-    ├── docs/findings.md              технічні висновки зі зворотної розробки
-    ├── docs/WALKTHROUGH.md           наративний розбір: як це було зроблено, лікнеп, джерела
-    ├── docs/ROADMAP.md               план робіт до публікації (порядок, блокери)
-    ├── src/ocprobe.cpp               пробник на апарат
+├── eka2l1/data/drives/z/rm-320/      UNPACKED N95 8GB ROM - primary source
+├── firmware/  flashing/              firmware, Phoenix, RomPatcher+
+├── SymbianDeployDaemon/              delivery to device over WiFi
+└── SymbianOverclock/                 THIS project
+    ├── CLAUDE.md                     this file
+    ├── docs/SCOPE.md                 context, intent, scope (homebrew, own device)
+    ├── docs/state.md                 state, workflow, safety rules
+    ├── docs/findings.md              technical findings from reverse engineering
+    ├── docs/WALKTHROUGH.md           narrative walkthrough: how it was done, primer, sources
+    ├── docs/ROADMAP.md               work plan until publication (order, blockers)
+    ├── src/ocprobe.cpp               probe for device
     ├── group/                        bld.inf, ocprobe.mmp
-    ├── tools/build.cmd               зібрати -> залити -> запустити -> забрати лог
-    ├── tools/romtool.ps1             розбір і дизасемблювання ROM-модулів
-    ├── tools/inflate_e32.ps1         розтиснення E32 (поки не працює, див. state)
-    └── out/                          артефакти, логи, .asm (НЕ комітиться)
+    ├── tools/build.cmd               build -> upload -> run -> fetch log
+    ├── tools/romtool.ps1             parsing and disassembly of ROM modules
+    ├── tools/inflate_e32.ps1         E32 decompression (not working yet, see state)
+    └── out/                          artifacts, logs, .asm (NOT committed)
 ```
 
-## 3. Робочий цикл
+## 3. Workflow
 
 ```
-tools\build.cmd                             тільки зібрати
-tools\build.cmd run 192.168.1.5             повний цикл, лог у out\ocprobe.log
-tools\build.cmd run 192.168.1.5 "power 7"   те саме з аргументами
+tools\build.cmd                             build only
+tools\build.cmd run 192.168.1.5             full cycle, log in out\ocprobe.log
+tools\build.cmd run 192.168.1.5 "power 7"   same with arguments
 tools\romtool.ps1 -Module power.dll -Disasm -Imports
 ```
 
-SIS не потрібен: на цьому вже розблокованому для homebrew апараті демон кладе
-EXE прямо в `E:\sys\bin` і оновлює запис у локальному реєстрі хешів
-девелоперських збірок (`C:\sys\hash`) — саме за цим дайджестом штатний
-завантажувач пристрою впізнає власну dev-збірку з її capabilities. Це рядовий
-homebrew-механізм доставки на власний апарат, не обхід чужого захисту.
+SIS is not needed: on this device already unlocked for homebrew, the daemon puts the EXE directly into `E:\sys\bin` and updates the entry in the local development build hash registry (`C:\sys\hash`) — it is by this digest that the device's stock loader recognizes its own dev build with its capabilities. This is a routine homebrew delivery mechanism to one's own device, not bypassing someone else's security.
 
-## 4. Абсолютні заборони (NEVER)
+## 4. Absolute Prohibitions (NEVER)
 
-- **НЕ писати у флеш.** Усе рантаймове; ребут мусить повертати апарат як був.
-- **НЕ вмикати за замовчуванням нічого, що може зависнути.** Демон
-  однопотоковий і чекає на вихід процесу, тож зависання проби блокує весь канал
-  доставки, а стан драйвера в ядрі чиститься лише перезавантаженням апарата.
-  Усе ризиковане — за явним аргументом.
-- **НЕ вірити тому, що повідомляє система, без незалежного заміру.**
-  `HAL::ECPUSpeed` на цьому апараті бреше (206438 kHz проти реальних 330 МГц).
-  Це не курйоз, а робоче правило: усі відомі «розгони» Symbian провалилися саме
-  тому, що міряли напис, а не роботу.
-- **НЕ повторювати те саме після двох невдач.** Зупинитись, викласти факти,
-  спитати. Двічі підвішений апарат — уже забагато.
-- НЕ додавати маркери авторства AI чи емодзі в коміти, код, коментарі.
-- НЕ плодити файли понад потрібне.
+- **DO NOT write to flash.** Everything is runtime; reboot must restore the device as it was.
+- **DO NOT enable anything by default that can hang.** The daemon is single-threaded and waits for process exit, so a hung probe blocks the entire delivery channel, and driver state in the kernel is only cleared by rebooting the device. Everything risky must be behind an explicit argument.
+- **DO NOT believe what the system reports without independent measurement.** `HAL::ECPUSpeed` lies on this device (206438 kHz vs real 330 MHz). This is not a curiosity, but a working rule: all known Symbian "overclocks" failed precisely because they measured a label, not actual work.
+- **DO NOT repeat the same thing after two failures.** Stop, lay out the facts, ask. A device hung twice is already too much.
+- DO NOT add AI authorship markers or emojis in commits, code, or comments.
+- DO NOT proliferate files beyond what is necessary.
 
-## 5. Дисципліна доказів
+## 5. Discipline of Evidence
 
-Проєкт живе зі зворотної розробки, де легко видати здогад за факт. Тому:
+The project lives on reverse engineering, where it is easy to mistake a guess for a fact. Therefore:
 
-- Кожне твердження в `findings.md` або **підтверджене на апараті**, або
-  **виведене з коду ROM** — і видно, що саме з цього.
-- Здогади позначати явно.
-- Знайшов помилку у власному попередньому висновку — виправляти прямо в тексті
-  й казати про це, а не тихо переписувати. У файлі вже є два такі виправлення
-  (рівень від викликача в TestPowerAPI; «206 МГц»), обидва важливі.
-- Адресу чи бітове поле, узяті з даташита по пам'яті, звіряти з кодом. Зсув
-  відображення периферії (`+0x7E000000`) прийнято лише тому, що дві незалежні
-  адреси лягли точно на відомі регістри.
+- Every claim in `findings.md` is either **confirmed on the device** or **deduced from ROM code** — and it is obvious which one it is.
+- Label guesses explicitly.
+- If an error is found in one's own previous conclusion — correct it directly in the text and state so, rather than quietly rewriting. There are already two such corrections in the file (caller level in TestPowerAPI; "206 MHz"), both important.
+- Check any address or bit field taken from memory against the datasheet and code. The peripheral mapping offset (`+0x7E000000`) was accepted only because two independent addresses matched known registers exactly.
 
-## 6. Граблі інструментів
+## 6. Tooling Gotchas
 
-- PowerShell парсить 8-значний hex-літерал як `Int32` і мовчки робить його
-  від'ємним. Усі константи — через `[Convert]::ToUInt32($h,16)`. Ця пастка вже
-  тричі з'їдала результат і кожного разу мовчки.
-- ROM-образи мають `TRomImageHeader` (**120 байтів**), а не `E32ImageHeader`.
-  Дизасемблювання:
-  `objdump -D -b binary -m arm --adjust-vma=<iCodeAddress> <файл без 120 байтів>`
-- `dumpsis -x` розпаковує SIS; шлях **без кирилиці**.
-- `petran`/`elftran` приймають лише PE/ELF — готовий E32 ними не розтиснути.
-- Symbian-deflate **не сумісний із zlib**.
-- `EPOCROOT` без літери диска, складати з `D:`; Perl < 5.22.
-- Кирилиця в `.cmd` ламає cmd — коментарі в батниках тримати ASCII.
-- Публічний SDK **не вміє збирати kernel-side код**: немає `include\kernel\`
-  і `ekern.lib`.
+- PowerShell parses an 8-digit hex literal as `Int32` and silently makes it negative. All constants must use `[Convert]::ToUInt32($h,16)`. This trap has already consumed results three times, each time silently.
+- ROM images have a `TRomImageHeader` (**120 bytes**), not an `E32ImageHeader`. Disassembly:
+  `objdump -D -b binary -m arm --adjust-vma=<iCodeAddress> <file without 120 bytes>`
+- `dumpsis -x` unpacks SIS; path **without Cyrillic**.
+- `petran`/`elftran` accept only PE/ELF — an existing E32 cannot be decompressed with them.
+- Symbian-deflate is **not compatible with zlib**.
+- `EPOCROOT` without drive letter, combine with `D:`; Perl < 5.22.
+- Cyrillic in `.cmd` breaks cmd — keep comments in batch files in ASCII.
+- Public SDK **cannot build kernel-side code**: `include\kernel\` and `ekern.lib` are missing.
 
-## 7. Відстеження прогресу
+## 7. Progress Tracking
 
-Після кожного етапу оновлювати `docs/state.md` (де ми зараз, що закрито, що
-далі) і дописувати підтверджені факти в `docs/findings.md`. Це єдина точка
-відновлення після втрати контексту.
+After each stage, update `docs/state.md` (where we are now, what is closed, what is next) and append confirmed facts to `docs/findings.md`. This is the single recovery point after losing context.
 
-## 8. Інструменти AI (управління вартістю)
+## 8. AI Tools (Cost Management)
 
-| Завдання | Модель | Виклик |
+| Task | Model | Invocation |
 |---|---|---|
-| Пояснення, дрібні правки | GPT-5-mini (безлімітний) | `gh copilot --model gpt-5-mini` |
-| Тести, невеликі аналізи | Claude Haiku 4.5 | `gh copilot --model claude-haiku-4.5` |
-| Рев'ю коду, аналіз багів | Claude Sonnet 4.6 | `gh copilot --model claude-sonnet-4.6` |
+| Explanations, minor edits | GPT-5-mini (unlimited) | `gh copilot --model gpt-5-mini` |
+| Tests, small analyses | Claude Haiku 4.5 | `gh copilot --model claude-haiku-4.5` |
+| Code review, bug analysis | Claude Sonnet 4.6 | `gh copilot --model claude-sonnet-4.6` |
 
-Ліміт Copilot — 300 запитів/міс, батчити питання в один виклик. Opus через
-Copilot **не** використовувати (3x преміум).
+Copilot limit — 300 requests/month, batch questions into a single call. Do **not** use Opus via Copilot (3x premium).

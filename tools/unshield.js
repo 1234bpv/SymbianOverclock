@@ -1,36 +1,36 @@
 'use strict';
 
 /**
- * Розпакувальник архівів InstallShield Cabinet (ISc) та Nokia DPC для Node.js.
+ * Unpacker for InstallShield Cabinet (ISc) and Nokia DPC archives, for Node.js.
  * 
- * Підтримує читання data1.hdr / data1.cab / data2.cab, розрізані файли між томами (SPLIT),
- * маскування (obfuscation), zlib deflate стиснення, а також вкладені архіви Nokia Data Package (DPC/LZMA).
+ * Reads data1.hdr / data1.cab / data2.cab, files split across volumes (SPLIT),
+ * obfuscation, zlib deflate compression, and nested Nokia Data Package (DPC/LZMA) archives.
  * 
- * Не має зовнішніх залежностей (тільки стандартні модулі Node.js: fs, path, zlib).
+ * No external dependencies (only the standard Node.js modules: fs, path, zlib).
  */
 
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-// Сигнатури форматів
+// Format signatures
 const CAB_SIGNATURE = 0x28635349;  // 'ISc('
 const MSCF_SIGNATURE = 0x4643534d; // 'MSCF' (Microsoft Cabinet)
 
-// Прапорці файлів InstallShield (з cabfile.h)
+// InstallShield file flags (from cabfile.h)
 const FILE_SPLIT = 0x01;
 const FILE_OBFUSCATED = 0x02;
 const FILE_COMPRESSED = 0x04;
 const FILE_INVALID = 0x08;
 
-// Прапорці зв'язків
+// Link flags
 const LINK_NONE = 0;
 const LINK_PREV = 1;
 const LINK_NEXT = 2;
 const LINK_BOTH = 3;
 
 /**
- * Отримання головної версії формату InstallShield.
+ * Returns the major version of the InstallShield format.
  */
 function getMajorVersion(version) {
   const topByte = (version >>> 24) & 0xff;
@@ -46,7 +46,7 @@ function getMajorVersion(version) {
 }
 
 /**
- * Читання рядка з буфера за зміщенням.
+ * Reads a string from a buffer at the given offset.
  */
 function readNullTerminatedString(buffer, offset, isUtf16 = false) {
   if (offset >= buffer.length) return '';
@@ -66,7 +66,7 @@ function readNullTerminatedString(buffer, offset, isUtf16 = false) {
 }
 
 /**
- * Пошук файлу в теці без урахування регістру символів.
+ * Finds a file in a directory, ignoring case.
  */
 function findFileCaseInsensitive(dir, targetName) {
   if (!fs.existsSync(dir)) return null;
@@ -81,13 +81,13 @@ function findFileCaseInsensitive(dir, targetName) {
 }
 
 /**
- * Демаскування даних (InstallShield deobfuscation).
+ * Data deobfuscation (InstallShield).
  */
 function deobfuscateBuffer(buffer, seedObj) {
   let s = seedObj.val;
   for (let i = 0; i < buffer.length; i++) {
     let b = buffer[i] ^ 0xd5;
-    // циклічний зсув праворуч на 2 біти (ror8)
+    // rotate right by 2 bits (ror8)
     b = ((b >>> 2) | ((b << 6) & 0xff)) & 0xff;
     b = (b - (s % 0x47)) & 0xff;
     buffer[i] = b;
@@ -97,7 +97,7 @@ function deobfuscateBuffer(buffer, seedObj) {
 }
 
 /**
- * Перевірка відповідності імені файлу масці (wildcard: * та ?).
+ * Tests a file name against a mask (wildcards: * and ?).
  */
 function matchMask(filename, mask) {
   if (!mask || mask === '*' || mask === '*.*') return true;
@@ -111,7 +111,7 @@ function matchMask(filename, mask) {
 }
 
 /**
- * Потоковий декодер LZMA-1 для розпакування solid-архівів Nokia DPC.
+ * Streaming LZMA-1 decoder for unpacking solid Nokia DPC archives.
  */
 class StreamingLzmaDecoder {
   constructor(propsByte, dictSize) {
@@ -120,7 +120,7 @@ class StreamingLzmaDecoder {
     this.lp = Math.floor(rem / 9);
     this.lc = rem % 9;
     this.dictSize = Math.max(dictSize, 4096);
-    this.ringSize = Math.max(this.dictSize, 0x1000000); // 16 МБ кільцевий буфер
+    this.ringSize = Math.max(this.dictSize, 0x1000000); // 16 MB ring buffer
     this.ring = Buffer.alloc(this.ringSize);
     this.ringPos = 0;
     this.totalOut = 0;
@@ -165,7 +165,7 @@ class StreamingLzmaDecoder {
     let inPos = inOffset;
     const inEnd = inBuf.length;
 
-    inPos++; // Перший байт у LZMA завжди 0
+    inPos++; // The first LZMA byte is always 0
     let code = 0 >>> 0;
     for (let i = 0; i < 4; i++) {
       code = ((code << 8) | (inPos < inEnd ? inBuf[inPos++] : 0)) >>> 0;
@@ -404,7 +404,7 @@ class StreamingLzmaDecoder {
 }
 
 /**
- * Читач томів архіву InstallShield Cabinet.
+ * Reader for InstallShield Cabinet archive volumes.
  */
 class CabinetReader {
   constructor(archiveDir, majorVersion) {
@@ -428,17 +428,17 @@ class CabinetReader {
     const cabName = `data${volume}.cab`;
     const cabPath = findFileCaseInsensitive(this.archiveDir, cabName);
     if (!cabPath) {
-      throw new Error(`Том архіву ${cabName} не знайдено в теці ${this.archiveDir}`);
+      throw new Error(`Archive volume ${cabName} not found in directory ${this.archiveDir}`);
     }
     const fd = fs.openSync(cabPath, 'r');
     this.openFds.set(volume, fd);
 
-    // Зчитуємо заголовок тому
+    // Read the volume header
     const commonBuf = Buffer.alloc(20);
     fs.readSync(fd, commonBuf, 0, 20, 0);
     const sig = commonBuf.readUInt32LE(0);
     if (sig !== CAB_SIGNATURE) {
-      throw new Error(`Некоректний підпис тома ${cabName}: 0x${sig.toString(16)}`);
+      throw new Error(`Invalid signature of volume ${cabName}: 0x${sig.toString(16)}`);
     }
 
     let volHeader;
@@ -476,7 +476,7 @@ class CabinetReader {
   }
 
   /**
-   * Створення потокового читача для конкретного дескриптора файлу.
+   * Creates a streaming reader for a particular file descriptor.
    */
   createStreamReader(fileDesc) {
     let curVolume = fileDesc.volume;
@@ -513,7 +513,7 @@ class CabinetReader {
         while (bytesRemaining > 0) {
           const bytesToRead = Math.min(bytesRemaining, volumeBytesLeft);
           if (bytesToRead <= 0) {
-            throw new Error(`Неможливо прочитати дані для файлу ${fileDesc.name}: bytesToRead <= 0`);
+            throw new Error(`Cannot read the data of file ${fileDesc.name}: bytesToRead <= 0`);
           }
 
           fs.readSync(curFd, destBuf, destPos, bytesToRead, curOffset);
@@ -523,7 +523,7 @@ class CabinetReader {
           bytesRemaining -= bytesToRead;
 
           if (bytesRemaining > 0) {
-            // Переходимо до наступного тому
+            // Move on to the next volume
             curVolume++;
             curFd = self.getVolumeFd(curVolume);
             volHeader = self.volHeaders.get(curVolume);
@@ -541,7 +541,7 @@ class CabinetReader {
 }
 
 /**
- * Парсер заголовка InstallShield (data1.hdr).
+ * Parser for the InstallShield header (data1.hdr).
  */
 class InstallShieldCabinet {
   constructor(disk1Path) {
@@ -560,7 +560,7 @@ class InstallShieldCabinet {
     }
 
     if (!hdrFile || !fs.existsSync(hdrFile)) {
-      throw new Error(`Файл заголовка data1.hdr не знайдено в ${this.disk1Path}`);
+      throw new Error(`Header file data1.hdr not found in ${this.disk1Path}`);
     }
 
     this.hdrPath = hdrFile;
@@ -571,15 +571,15 @@ class InstallShieldCabinet {
   parseHeader() {
     const hdr = this.hdrData;
     if (hdr.length < 20) {
-      throw new Error('Файл заголовка занадто малий');
+      throw new Error('The header file is too small');
     }
 
     const sig = hdr.readUInt32LE(0);
     if (sig === MSCF_SIGNATURE) {
-      throw new Error('Виявлено заголовок Microsoft Cabinet (MSCF). Використовуйте cabextract.');
+      throw new Error('Microsoft Cabinet (MSCF) header detected. Use cabextract.');
     }
     if (sig !== CAB_SIGNATURE) {
-      throw new Error(`Невідома сигнатура архіву: 0x${sig.toString(16)} (очікувалося ISc/0x28635349)`);
+      throw new Error(`Unknown archive signature: 0x${sig.toString(16)} (expected ISc/0x28635349)`);
     }
 
     this.versionRaw = hdr.readUInt32LE(4);
@@ -588,10 +588,10 @@ class InstallShieldCabinet {
     this.cabDescriptorSize = hdr.readUInt32LE(16);
 
     if (this.cabDescriptorSize === 0) {
-      throw new Error('Описовий блок CAB descriptor відсутній у заголовку');
+      throw new Error('The CAB descriptor block is missing from the header');
     }
 
-    // Читання CabDescriptor
+    // Read the CabDescriptor
     const descOff = this.cabDescriptorOffset;
     let p = descOff + 0x0c;
     this.fileTableOffset = hdr.readUInt32LE(p); p += 4;
@@ -607,14 +607,14 @@ class InstallShieldCabinet {
     this.baseStringOffset = baseStringOffset;
     const isUtf16 = this.majorVersion >= 17;
 
-    // Таблиця директорій
+    // Directory table
     this.directories = [];
     for (let i = 0; i < this.directoryCount; i++) {
       const dirStrOff = hdr.readUInt32LE(baseStringOffset + i * 4);
       this.directories.push(readNullTerminatedString(hdr, baseStringOffset + dirStrOff, isUtf16));
     }
 
-    // Читання дескрипторів файлів
+    // Read the file descriptors
     this.files = [];
     if (this.majorVersion <= 5) {
       const fileTablePtr = baseStringOffset + this.directoryCount * 4;
@@ -648,7 +648,7 @@ class InstallShieldCabinet {
         });
       }
     } else {
-      // v6..v13+ (кожен дескриптор 0x57 = 87 байтів)
+      // v6..v13+ (each descriptor is 0x57 = 87 bytes)
       for (let i = 0; i < this.fileCount; i++) {
         const ep = baseStringOffset + this.fileTableOffset2 + i * 0x57;
         const flags = hdr.readUInt16LE(ep);
@@ -684,14 +684,14 @@ class InstallShieldCabinet {
   }
 
   /**
-   * Отримання дійсних файлів (відфільтровані невалідні та нульові заглушки).
+   * Returns the valid files, with invalid entries and zero-sized stubs filtered out.
    */
   getValidFiles() {
     return this.files.filter(f => !(f.flags & FILE_INVALID) && f.dataOffset !== 0 && f.expandedSize > 0);
   }
 
   /**
-   * Розпакування одного файлу InstallShield у буфер або запис у файл.
+   * Unpacks one InstallShield file into a buffer, or writes it to a file.
    */
   extractFileToBuffer(fileDesc, reader) {
     const streamReader = reader.createStreamReader(fileDesc);
@@ -706,7 +706,7 @@ class InstallShieldCabinet {
         streamReader.read(hBuf, 2);
         const chunkSize = hBuf.readUInt16LE(0);
         if (chunkSize === 0) {
-          throw new Error(`Розмір стисненого чанка 0 для файлу ${fileDesc.name}`);
+          throw new Error(`Compressed chunk size is 0 for file ${fileDesc.name}`);
         }
 
         const compBuf = Buffer.alloc(chunkSize);
@@ -726,7 +726,7 @@ class InstallShieldCabinet {
   }
 
   /**
-   * Повний список усіх файлів (включаючи вміст контейнерів Nokia DPC).
+   * Full list of all files, including the contents of Nokia DPC containers.
    */
   getAllEntries(reader) {
     const validFiles = this.getValidFiles();
@@ -734,7 +734,7 @@ class InstallShieldCabinet {
 
     for (const f of validFiles) {
       if (f.name.toLowerCase().endsWith('.dpc') || f.name.toLowerCase() === 'compressed_files.dpc') {
-        // Читаємо DPC заголовок
+        // Read the DPC header
         const dpcData = this.extractFileToBuffer(f, reader);
         const dpcEntries = parseDpcHeader(dpcData);
         for (const de of dpcEntries.files) {
@@ -766,7 +766,7 @@ class InstallShieldCabinet {
 }
 
 /**
- * Читання списку файлів із заголовка Nokia DPC.
+ * Reads the file list from a Nokia DPC header.
  */
 function parseDpcHeader(dpcBuf) {
   let p = 0;
@@ -796,7 +796,7 @@ function parseDpcHeader(dpcBuf) {
 }
 
 /**
- * Команда: node tools/unshield.js list <шлях до теки Disk1>
+ * Command: node tools/unshield.js list <path to the Disk1 directory>
  */
 function cmdList(disk1Path) {
   const cab = new InstallShieldCabinet(disk1Path);
@@ -805,18 +805,18 @@ function cmdList(disk1Path) {
   try {
     const entries = cab.getAllEntries(reader);
 
-    console.log(`Архів InstallShield Cabinet (версія ISc ${cab.majorVersion}, заголовок 0x${cab.versionRaw.toString(16)})`);
-    console.log(`Знайдено ${entries.length} файлів:\n`);
+    console.log(`InstallShield Cabinet archive (ISc version ${cab.majorVersion}, header 0x${cab.versionRaw.toString(16)})`);
+    console.log(`Found ${entries.length} files:\n`);
 
     const colNameW = 45;
     const colExpW = 16;
     const colCompW = 16;
     const colVolW = 8;
 
-    const headerLine = 'Ім\'я'.padEnd(colNameW) +
-      'Розпакований'.padStart(colExpW) +
-      'Стиснений'.padStart(colCompW) +
-      '  Том'.padEnd(colVolW);
+    const headerLine = 'Name'.padEnd(colNameW) +
+      'Expanded'.padStart(colExpW) +
+      'Compressed'.padStart(colCompW) +
+      '  Volume'.padEnd(colVolW);
     console.log(headerLine);
     console.log('-'.repeat(headerLine.length));
 
@@ -833,14 +833,14 @@ function cmdList(disk1Path) {
     }
 
     console.log('-'.repeat(headerLine.length));
-    console.log(`Всього файлів: ${entries.length}`);
+    console.log(`Total files: ${entries.length}`);
   } finally {
     reader.close();
   }
 }
 
 /**
- * Команда: node tools/unshield.js extract <шлях до теки Disk1> <тека призначення> [маска]
+ * Command: node tools/unshield.js extract <path to the Disk1 directory> <destination directory> [mask]
  */
 function cmdExtract(disk1Path, destDir, mask) {
   const cab = new InstallShieldCabinet(disk1Path);
@@ -858,7 +858,7 @@ function cmdExtract(disk1Path, destDir, mask) {
 
     for (const f of validFiles) {
       if (f.name.toLowerCase().endsWith('.dpc') || f.name.toLowerCase() === 'compressed_files.dpc') {
-        // Перевіряємо, чи є всередині DPC файли під нашу маску
+        // Check whether the DPC holds files matching our mask
         let dpcInfo = dpcCache.get(f.name);
         if (!dpcInfo) {
           const dpcData = cab.extractFileToBuffer(f, reader);
@@ -880,7 +880,7 @@ function cmdExtract(disk1Path, destDir, mask) {
             let outFd = openOutFds.get(curFile.name);
             if (!outFd) {
               const outPath = path.join(destDir, curFile.name);
-              console.log(`Розпакування: ${curFile.name} (${curFile.size.toLocaleString('uk-UA')} байтів)...`);
+              console.log(`Extracting: ${curFile.name} (${curFile.size.toLocaleString('en-US')} bytes)...`);
               outFd = fs.openSync(outPath, 'w');
               openOutFds.set(curFile.name, outFd);
             }
@@ -893,9 +893,9 @@ function cmdExtract(disk1Path, destDir, mask) {
           }
         }
       } else {
-        // Звичайний файл ISc
+        // An ordinary ISc file
         if (matchMask(f.name, mask)) {
-          console.log(`Розпакування: ${f.name} (${f.expandedSize.toLocaleString('uk-UA')} байтів)...`);
+          console.log(`Extracting: ${f.name} (${f.expandedSize.toLocaleString('en-US')} bytes)...`);
           const outBuf = cab.extractFileToBuffer(f, reader);
           const outSubdir = f.dir ? path.join(destDir, f.dir) : destDir;
           if (!fs.existsSync(outSubdir)) {
@@ -908,21 +908,21 @@ function cmdExtract(disk1Path, destDir, mask) {
       }
     }
 
-    console.log(`\nГотово! Успішно розпаковано ${extractedCount} файл(ів) у ${destDir}`);
+    console.log(`\nDone. Extracted ${extractedCount} file(s) into ${destDir}`);
   } finally {
     reader.close();
   }
 }
 
 /**
- * Головна точка входу CLI.
+ * CLI entry point.
  */
 function main() {
   const args = process.argv.slice(2);
   if (args.length < 2) {
-    console.log('Використання:');
-    console.log('  node tools/unshield.js list <шлях до теки Disk1>');
-    console.log('  node tools/unshield.js extract <шлях до теки Disk1> <тека призначення> [маска]');
+    console.log('Usage:');
+    console.log('  node tools/unshield.js list <path to the Disk1 directory>');
+    console.log('  node tools/unshield.js extract <path to the Disk1 directory> <destination directory> [mask]');
     process.exit(1);
   }
 
@@ -934,19 +934,19 @@ function main() {
       cmdList(disk1Path);
     } else if (action === 'extract' || action === 'x') {
       if (args.length < 3) {
-        console.error('Помилка: не вказано теку призначення для розпакування.');
+        console.error('Error: no destination directory given for extraction.');
         process.exit(1);
       }
       const destDir = args[2];
       const mask = args[3] || null;
       cmdExtract(disk1Path, destDir, mask);
     } else {
-      console.error(`Невідома дія: ${action}`);
-      console.error('Дозволені дії: list, extract');
+      console.error(`Unknown action: ${action}`);
+      console.error('Allowed actions: list, extract');
       process.exit(1);
     }
   } catch (err) {
-    console.error(`Помилка: ${err.message}`);
+    console.error(`Error: ${err.message}`);
     process.exit(1);
   }
 }

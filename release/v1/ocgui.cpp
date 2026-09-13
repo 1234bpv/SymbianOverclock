@@ -1,19 +1,19 @@
-// SymbianOverclock: розгін і стрес-тести прямо на апараті.
+// SymbianOverclock: overclocking and stress tests directly on the device.
 //
-// Керування (джойстик):
-//   вгору/вниз    - вибір рядка
-//   вліво/вправо  - на рядку MULT рухає повзунок (крок 1; з утриманням - швидше)
-//   OK/select     - активує вибраний рядок
-//   права софт-клавіша або Esc - вихід (перед виходом штатна частота
-//                   ПОВЕРТАЄТЬСЯ автоматично)
+// Controls (joystick):
+//   up/down       - select a row
+//   left/right    - on the MULT row moves the slider (step 1; faster when held)
+//   OK/select     - activates the selected row
+//   right soft key or Esc - exit (the stock frequency is RESTORED
+//                   automatically before exiting)
 //
-// Захист від випадкового розгону навмисний і дворівневий: повзунок лише
-// ГОТУЄ значення, "APPLY SETTING" його озброює, і тільки окрема кнопка
-// "CONFIRM OVERCLOCK" виконує relock. Після перезавантаження нічого не
-// застосовується само - застосунок не ставить жодного startup-запису.
+// The guard against an accidental overclock is deliberate and has two levels:
+// the slider only PREPARES a value, "APPLY SETTING" arms it, and only the
+// separate "CONFIRM OVERCLOCK" button performs the relock. After a restart
+// nothing is applied by itself - the application installs no startup entry.
 //
-// Рядки логу навмисно ASCII: GCCE 3.4.3 і 8-бітні дескриптори не варті ризику
-// з кирилицею в літералах.
+// The log lines are deliberately ASCII: GCCE 3.4.3 and 8-bit descriptors are
+// not worth the risk of non-ASCII literals.
 
 #include <e32base.h>
 #include <e32std.h>
@@ -36,29 +36,29 @@
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
-// --- прилади: кожен водночас і стрес-тест, і бенчмарк -----------------------
+// --- instruments: each is both a stress test and a benchmark ----------------
 //
-// Головна вимога до всіх: САМОПЕРЕВІРКА. На розгоні цікава не швидкість, а
-// момент, коли підсистема починає тихо помилятися, і побачити це можна лише
-// тестом із відомою відповіддю. Тому:
-//   * ALU крутить LCG вперед, а потім рівно стільки ж кроків назад через
-//     модульно обернений множник - будь-яка одинична помилка ламає повернення
-//     до початкового значення;
-//   * пам'ять і кеш пишуть псевдовипадковий візерунок і звіряють його назад.
-// Ані перший, ані другі не потребують еталона, знятого на іншій частоті.
+// The main requirement for all of them: SELF-CHECKING. When overclocking, what
+// matters is not speed but the moment a subsystem starts to fail silently, and
+// that is only visible in a test with a known answer. Hence:
+//   * the ALU runs an LCG forward, then exactly as many steps back through the
+//     modular inverse of the multiplier - any single error breaks the return
+//     to the initial value;
+//   * memory and cache write a pseudo-random pattern and verify it on read-back.
+// Neither needs a reference figure taken at a different frequency.
 
 const TUint32 KLcgA = 1664525u;
 const TUint32 KLcgC = 1013904223u;
 
 struct TTestResult
     {
-    TUint32 iValue;        // пропускна здатність, у сотих одиниці
-    TInt    iErrors;       // -1 = тест не виконувався
+    TUint32 iValue;        // throughput, in hundredths of a unit
+    TInt    iErrors;       // -1 = the test was not run
     };
 
-// Модульно обернений KLcgA за модулем 2^32 (ітерація Ньютона; для непарного
-// множника завжди існує). Рахуємо, а не зашиваємо: константа, вписана руками,
-// перетворила б тест правильності на тест моєї арифметики.
+// The modular inverse of KLcgA modulo 2^32 (Newton iteration; it always exists
+// for an odd multiplier). Computed rather than hard-coded: a constant typed in
+// by hand would turn a correctness test into a test of my own arithmetic.
 static TUint32 LcgInverse()
     {
     TUint32 inv = 1;
@@ -77,7 +77,7 @@ static TUint32 ElapsedUs(TUint32 aStart, TUint32 aEnd)
     return (TUint32)(((TUint64)d * 1000000u) / gFcFreq);
     }
 
-// ALU: вперед і назад. Повертає Mitr/s у сотих і кількість помилок (0 або 1).
+// ALU: forward and back. Returns Mitr/s in hundredths and the error count (0 or 1).
 static TTestResult TestAlu(TUint32 aIter)
     {
     TTestResult r;
@@ -99,8 +99,8 @@ static TTestResult TestAlu(TUint32 aIter)
     return r;
     }
 
-// Смуга пам'яті: обхід буфера, більшого за кеш, кроком у рядок кешу.
-// Впирається в L3/SDRAM, тобто показує шину, а не ядро.
+// Memory bandwidth: walk a buffer larger than the cache with a cache-line stride.
+// It is limited by L3/SDRAM, so it shows the bus rather than the core.
 static TTestResult TestMemBandwidth(TUint32* aBuf, TInt aWords, TInt aPasses)
     {
     TTestResult r;
@@ -112,13 +112,13 @@ static TTestResult TestMemBandwidth(TUint32* aBuf, TInt aWords, TInt aPasses)
     TUint32 t1 = User::FastCounter();
     TUint32 us = ElapsedUs(t0, t1);
     TUint32 lines = (TUint32)(aWords / 16) * (TUint32)aPasses;
-    r.iValue = us ? (TUint32)(((TUint64)lines * 64u * 100u) / us) : 0;  // МБ/с*100
-    r.iErrors = (acc == 0) ? 1 : 0;     // нуль тут неможливий: візерунок ненульовий
+    r.iValue = us ? (TUint32)(((TUint64)lines * 64u * 100u) / us) : 0;  // MB/s*100
+    r.iErrors = (acc == 0) ? 1 : 0;     // zero is impossible here: the pattern is non-zero
     return r;
     }
 
-// Цілісність SDRAM: пишемо візерунок, читаємо назад, рахуємо розбіжні слова.
-// Саме цей тест ловить головний ризик розгону шини - тихе псування даних.
+// SDRAM integrity: write a pattern, read it back, count the differing words.
+// This test catches the main risk of bus overclocking - silent data corruption.
 static TTestResult TestMemIntegrity(TUint32* aBuf, TInt aWords)
     {
     TTestResult r;
@@ -140,18 +140,18 @@ static TTestResult TestMemIntegrity(TUint32* aBuf, TInt aWords)
         }
     TUint32 t1 = User::FastCounter();
     TUint32 us = ElapsedUs(t0, t1);
-    TUint32 bytes = (TUint32)aWords * 4u * 2u;          // запис + читання
+    TUint32 bytes = (TUint32)aWords * 4u * 2u;          // write + read
     r.iValue = us ? (TUint32)(((TUint64)bytes * 100u) / us) : 0;
     r.iErrors = bad;
     return r;
     }
 
-// Кеш: той самий візерунок, але робочий набір явно менший за L1 (16 КБ на
-// ARM1136). Відділяє помилки ядра й кеша від помилок зовнішньої шини.
+// Cache: the same pattern, but a working set clearly smaller than L1 (16 KB on
+// ARM1136). It separates core and cache errors from external bus errors.
 static TTestResult TestCache(TUint32* aBuf, TInt aRounds)
     {
     TTestResult r;
-    const TInt kWords = 1024;                            // 4 КБ
+    const TInt kWords = 1024;                            // 4 KB
     TUint32 t0 = User::FastCounter();
     TInt bad = 0;
     for (TInt p = 0; p < aRounds; ++p)
@@ -180,7 +180,7 @@ static TTestResult TestCache(TUint32* aBuf, TInt aRounds)
     return r;
     }
 
-// --- контрол ----------------------------------------------------------------
+// --- control ----------------------------------------------------------------
 
 enum TRowId
     {
@@ -224,8 +224,8 @@ private:
 private:
     COcEngine* iEngine;
     TInt   iRow;
-    TInt   iMult;            // значення повзунка
-    TBool  iArmed;           // "APPLY SETTING" натиснуто, чекаємо підтвердження
+    TInt   iMult;            // slider value
+    TBool  iArmed;           // "APPLY SETTING" pressed, awaiting confirmation
     TInt   iArmedMult;
     TBuf<64> iLog[KLogLines];
     TInt   iLogCount;
@@ -284,10 +284,10 @@ COcView::~COcView()
     delete iEngine;
     }
 
-// Обидві зміни переживають наш процес, тож знімати їх треба явно й у порядку:
-// спершу частота, потім підмінене тіло функції ядра. Лишити друге - означає
-// поставити міну: будь-який інший клієнт dvfs_interface, що викличе DoControl(1)
-// з ненульовим a1, розіменує довільну адресу в режимі ядра.
+// Both changes outlive our process, so they must be undone explicitly and in
+// order: the frequency first, then the patched body of the kernel function.
+// Leaving the second in place plants a mine: any other dvfs_interface client
+// calling DoControl(1) with a non-zero a1 dereferences an arbitrary address
 void COcView::ShutdownL()
     {
     if (!iEngine)
@@ -304,11 +304,11 @@ TUint32* COcView::Buffer()
     {
     if (!iBuf)
         {
-        iBufWords = 512 * 1024;                 // 2 МБ - явно повз кеш
+        iBufWords = 512 * 1024;                 // 2 MB - clearly past the cache
         iBuf = (TUint32*)User::Alloc(iBufWords * sizeof(TUint32));
         if (!iBuf)
             {
-            iBufWords = 64 * 1024;              // 256 КБ - запасний варіант
+            iBufWords = 64 * 1024;              // 256 KB - fallback
             iBuf = (TUint32*)User::Alloc(iBufWords * sizeof(TUint32));
             }
         if (iBuf)
@@ -340,8 +340,8 @@ void COcView::AddLogF(TRefByValue<const TDesC> aFmt, ...)
     AddLog(buf);
     }
 
-// Тести блокують цикл подій, тож перемальовуємо явно й проштовхуємо чергу
-// вікон - інакше екран завмирає на весь прогін.
+// The tests block the event loop, so we redraw explicitly and push the window
+// queue - otherwise the screen freezes for the whole run.
 void COcView::Repaint()
     {
     DrawNow();
@@ -364,8 +364,8 @@ _LIT(KNameCache, "CACHE");
 
 void COcView::RunTest(TRowId aRow)
     {
-    // Тести блокують цикл подій на секунди. Без цього рядка екран просто
-    // завмирає, і виглядає це так, ніби кнопка не спрацювала.
+    // The tests block the event loop for seconds. Without this line the screen
+    // simply freezes, and it looks as if the button did nothing.
     iStatus.Copy(_L("running..."));
     Repaint();
     TUint32* buf = Buffer();
@@ -406,9 +406,9 @@ void COcView::RunTest(TRowId aRow)
     iStatus.Zero();
     }
 
-// Комбінований прогін: усі підсистеми поспіль, кілька кіл, із підсумком по
-// кожній. Саме він відповідає на питання "де слабка ланка": під розгоном
-// першою почне давати err>0 та підсистема, яка не витримує.
+// Combined run: every subsystem in turn, several rounds, with a summary for
+// each. This is what answers the question "where is the weak link": under
+// overclocking, the subsystem that cannot cope is the first to report err>0.
 void COcView::RunCombined()
     {
     TUint32* buf = Buffer();
@@ -460,7 +460,7 @@ void COcView::Activate(TRowId aRow)
     if (!iEngine || !iEngine->IsReady())
         {
         if (aRow >= ERowTestAlu)
-            {                                   // тести працюють і без патчера
+            {                                   // the tests work without the patcher too
             RunTest(aRow);
             return;
             }
@@ -471,8 +471,8 @@ void COcView::Activate(TRowId aRow)
     switch (aRow)
         {
         case ERowApply:
-            // Лише озброює. Частоту НЕ чіпає: це та сама "окрема опція
-            // застосування", після якої ще потрібне окреме підтвердження.
+            // Only arms it. It does NOT touch the frequency: this is the
+            // "separate apply option" that still needs its own confirmation.
             iArmedMult = iMult;
             iArmed = ETrue;
             {
@@ -494,9 +494,9 @@ void COcView::Activate(TRowId aRow)
             TUint32 st = 0;
             iStatus.Format(_L("applying mult %d (stepwise)..."), iArmedMult);
             Repaint();
-            // Дати вікну намалюватись і на мить затихнути: контролер дисплея
-            // безперервно читає кадровий буфер із SDRAM, а саме її ми на час
-            // переходу і забираємо. Менше трафіку в цю мить - менше артефактів.
+            // Let the window draw and fall quiet for a moment: the display
+            // controller reads the frame buffer from SDRAM continuously, and
+            // SDRAM is what we take away. Less traffic here, fewer artefacts.
             User::After(150000);
             TInt r = iEngine->ApplyMultRamp(iArmedMult, st);
             iStatus.Zero();
@@ -510,9 +510,9 @@ void COcView::Activate(TRowId aRow)
                 iEngine->LiveMult(live);
                 AddLogF(_L("applied: mult %d (live %d) st=%u"), iArmedMult,
                         live, st);
-                // Таймаут у relock означає, що DPLL лишився в невизначеному
-                // стані. Тягнути з цим до наступного натискання не можна -
-                // повертаємось на штатний множник самі.
+                // A relock timeout means the DPLL was left in an undefined
+                // state. This must not wait until the next key press - we go
+                // back to the stock multiplier ourselves.
                 if (st != 0)
                     {
                     AddLog(_L("relock FAILED - blob rolled back"));
@@ -564,19 +564,19 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
             if (iRow == ERowSlider && iMult < KOcMultMax)
                 { ++iMult; iArmed = EFalse; }
             break;
-        // EKeyDevice3 (натискання джойстика на S60) тут дорівнює EKeyOK -
-        // окремої гілки не треба, компілятор ловить це як дубль.
+        // EKeyDevice3 (a joystick press on S60) equals EKeyOK here - no
+        // separate branch is needed; the compiler flags it as a duplicate.
         case EKeyOK:
         case EKeyEnter:
             Activate((TRowId)iRow);
             break;
         case EKeyEscape:
         case EKeyDevice1:
-            // CCoeAppUi не має Exit(); вихід іде штатною командою оболонки.
+            // CCoeAppUi has no Exit(); the exit goes through the shell command.
             CEikonEnv::Static()->EikAppUi()->HandleCommandL(EEikCmdExit);
             return EKeyWasConsumed;
         default:
-            // Цифри 1..9 - швидкий стрибок повзунка на кратні кроки від штатного.
+            // Digits 1..9 - a quick slider jump in multiples of the stock step.
             if (iRow == ERowSlider && aKeyEvent.iCode >= '0' && aKeyEvent.iCode <= '9')
                 {
                 TInt stock = iEngine ? iEngine->StockMult() : 86;
@@ -602,10 +602,10 @@ void COcView::Draw(const TRect& /*aRect*/) const
     gc.SetBrushColor(KRgbWhite);
     gc.Clear(r);
 
-    // ДРІБНИЙ шрифт навмисно. З NormalFont повний вміст (заголовок, повзунок,
-    // 8 рядків-кнопок, статус і лог) виходив приблизно на 360 px при доступних
-    // ~268 - рядки логу малювались за нижньою межею екрана, і виглядало це так,
-    // ніби тести нічого не роблять. Тепер ще й явно обрізаємо все, що не влазить.
+    // The SMALL font is deliberate. With NormalFont the full content (title,
+    // slider, 8 button rows, status and log) came to about 360 px against the
+    // ~268 available - the log lines were drawn past the bottom edge, and it
+    // looked as if the tests did nothing. We now also clip whatever does not fit.
     const CFont* font = CEikonEnv::Static()->AnnotationFont();
     gc.UseFont(font);
     const TInt lh = font->HeightInPixels() + 1;
@@ -631,7 +631,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
     gc.DrawText(line, TPoint(x, y));
     y += lh;
 
-    // --- повзунок ---
+    // --- slider ---
     TBool sel = (iRow == ERowSlider);
     TOcClocks t;
     if (ready)
@@ -647,7 +647,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
     gc.DrawText(line, TPoint(x, y));
     y += lh;
 
-    // Смуга: ліворуч мінімум, праворуч максимум, сіра позначка - штатний множник.
+    // The bar: minimum left, maximum right, grey mark = the stock multiplier.
     TInt barW = r.Width() - 6;
     TInt barY = y - font->AscentInPixels() + 2;
     TInt span = KOcMultMax - KOcMultMin;
@@ -663,7 +663,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
     gc.SetBrushStyle(CGraphicsContext::ENullBrush);
     y += lh;
 
-    // --- рядки-кнопки ---
+    // --- button rows ---
     const TInt kRows[] = { ERowApply, ERowConfirm, ERowRestore, ERowTestAlu,
                            ERowTestMem, ERowTestIntegrity, ERowTestCache,
                            ERowTestCombined };
@@ -704,7 +704,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
     gc.DiscardFont();
     }
 
-// --- каркас застосунку ------------------------------------------------------
+// --- application framework --------------------------------------------------
 
 class COcAppUi : public CAknAppUi
     {
@@ -719,19 +719,19 @@ private:
 
 void COcAppUi::ConstructL()
     {
-    // ENoScreenFurniture прибирає і статусну стрічку, і панель софт-клавіш, тож
-    // застосунок займає весь екран в обох орієнтаціях. Разом із ним rect треба
-    // брати з ApplicationRect(), а не ClientRect(): останній повертає область
-    // ПІД furniture, якого тепер немає.
+    // ENoScreenFurniture removes both the status pane and the soft key pane, so
+    // the application fills the whole screen in both orientations. With it, the
+    // rect must come from ApplicationRect(), not ClientRect(): the latter returns
+    // the area UNDER the furniture, which is now gone.
     BaseConstructL(CAknAppUi::ENoAppResourceFile | CAknAppUi::EAknEnableSkin |
                    CAknAppUi::ENoScreenFurniture);
     iView = COcView::NewL(ApplicationRect());
     AddToStackL(iView);
     }
 
-// Поворот екрана міняє геометрію, і без цього застосунок лишався б із
-// вертикальним прямокутником у ландшафтному режимі - саме тому результати
-// читались нормально лише в одній орієнтації.
+// Screen rotation changes the geometry, and without this the application would
+// keep a portrait rectangle in landscape mode - which is exactly why the
+// results were readable in only one orientation.
 void COcAppUi::HandleResourceChangeL(TInt aType)
     {
     CAknAppUi::HandleResourceChangeL(aType);
@@ -746,7 +746,7 @@ COcAppUi::~COcAppUi()
     {
     if (iView)
         {
-        // Порядок важливий: спершу знімаємо розгін, потім руйнуємо контрол.
+        // Order matters: undo the overclock first, then destroy the control.
         TRAP_IGNORE(iView->ShutdownL());
         RemoveFromStack(iView);
         delete iView;

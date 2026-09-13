@@ -1,402 +1,402 @@
-# Розгін Nokia N95 8GB під Symbian: повний технічний звіт
+# Overclocking Nokia N95 8GB on Symbian: Full Technical Report
 
-Документ описує, **як** було досягнуто рантаймового розгону CPU з 330 до 426 МГц
-(+29%) на Nokia N95 8GB під Symbian 9.2, від першого дизасемблера до працюючого
-застосунку. Це не переказ `findings.md` (там — атомарні технічні факти), а
-наскрізна розповідь про хід роботи: рішення, хибні гіпотези, і чому кожен крок
-був саме таким.
+This document describes **how** runtime CPU overclocking from 330 to 426 MHz
+(+29%) was achieved on Nokia N95 8GB running Symbian 9.2, from the first disassembly to a working
+application. This is not a retelling of `findings.md` (which contains atomic technical facts), but an
+end-to-end narrative of the work process: decisions, false hypotheses, and why each step
+was taken in that exact way.
 
-Орієнтир читача: інженер, який знає ARM-ассемблер і залізо, але не писав під
-Symbian. Тому Symbian-специфіку пояснюю, а базову архітектуру — ні.
+Target reader: an engineer who knows ARM assembly and hardware, but has not written for
+Symbian. Therefore, Symbian-specific details are explained, while the basic architecture is not.
 
 ---
 
-## 0. Залізо і термінологія за 5 хвилин
+## 0. Hardware and Terminology in 5 Minutes
 
-**SoC:** TI OMAP 2420. Всередині:
-- **ARM1136JF-S** — ядро застосунків (ARMv6, одинарний скалярний конвеєр,
-  L1 16+16 КБ, L2 немає). Це той процесор, який ми розганяємо.
-- **TMS320C55x DSP** — окремий сигнальний процесор (аудіо/відео).
-- **PowerVR MBX** — 3D-прискорювач.
-- Купа периферії на двох внутрішніх шинах (див. нижче).
+**SoC:** TI OMAP 2420. Inside:
+- **ARM1136JF-S** — application core (ARMv6, single scalar pipeline,
+  L1 16+16 KB, no L2). This is the processor that we are overclocking.
+- **TMS320C55x DSP** — separate signal processor (audio/video).
+- **PowerVR MBX** — 3D accelerator.
+- A bunch of peripherals on two internal buses (see below).
 
-**Дерево тактування — ключ до всього.** Один PLL, далі лише цілочисельні дільники:
+**Clock tree — the key to everything.** A single PLL, followed only by integer dividers:
 
 ```
-       кварц 19.2 МГц
+       19.2 MHz crystal
             │  DPLL: ×mult ÷(div+1)
             ▼
-    ┌─── CORE_CLK ────────────────────────────┐   найвища внутрішня частота
+    ┌─── CORE_CLK ────────────────────────────┐   highest internal frequency
     │  = 19.2 × mult/(div+1) × core_sel        │
     │                                          │
-    ├─ ÷ mpu_div  → MPU (ARM1136)   ← ядро     │
-    ├─ ÷ l3_div   → L3 → SDRC → SDRAM ← пам'ять│
-    │              L3 ÷ l4_div → L4  ← периферія│
-    ├─ ÷ dss1_div → DSS1  ← піксельний клок    │
-    ├─ ÷ ssi_div  → SSI   ← ~канал до модема   │
-    └─ ÷ vlynq/ssi/usb...                      │
+    ├─ ÷ mpu_div  → MPU (ARM1136)   ← core     │
+    ├─ ÷ l3_div   → L3 → SDRC → SDRAM ← memory │
+    │              L3 ÷ l4_div → L4  ← periph  │
+    ├─ ÷ dss1_div → DSS1  ← pixel clock        │
+    ├─ ÷ ssi_div  → SSI   ← ~modem channel     │
+    ├─ ÷ vlynq/ssi/usb...                      │
     └──────────────────────────────────────────┘
 ```
 
-Штатно (mult=86, div=4, core_sel=2, всі виміряно на апараті):
+Stock (mult=86, div=4, core_sel=2, all measured on the device):
 
-| Домен | Дільник | Частота |
+| Domain | Divider | Frequency |
 |---|---|---|
-| DPLL | — | 330.24 МГц |
-| CORE | ×2 | 660.48 МГц |
-| MPU (ядро) | ÷2 | 330.24 МГц |
-| L3 (шина+SDRAM) | ÷4 | 165.12 МГц |
-| L4 (периферія) | ÷2 від L3 | 82.56 МГц |
-| DSS1 (дисплей) | ÷6 | 110.08 МГц |
+| DPLL | — | 330.24 MHz |
+| CORE | ×2 | 660.48 MHz |
+| MPU (core) | ÷2 | 330.24 MHz |
+| L3 (bus+SDRAM) | ÷4 | 165.12 MHz |
+| L4 (peripherals) | ÷2 from L3 | 82.56 MHz |
+| DSS1 (display) | ÷6 | 110.08 MHz |
 
-**Головний наслідок цієї топології:** підняти множник DPLL — означає підняти
-CORE, а з ним **одночасно все**: ядро, пам'ять, дисплей, DSP. Це і сила
-(пам'ять не відстає від ядра), і головна складність (не можна розігнати лише
-процесор, не зачепивши дисплей). Половина роботи нижче — про боротьбу саме з
-цим.
+**Main consequence of this topology:** raising the DPLL multiplier means raising
+CORE, and along with it **everything simultaneously**: core, memory, display, DSP. This is both a strength
+(memory does not lag behind the core) and the main difficulty (one cannot overclock just the
+processor without affecting the display). Half of the work below is about dealing with specifically
+this.
 
-**Symbian-специфіка, яка знадобиться:**
-- `LDD` (Logical Device Driver) — драйвер у kernel-space, `.ldd`-файл.
-  Користувацький бік відкриває канал через `RBusLogicalChannel::DoCreate`,
-  спілкується через `DoControl(func, a1, a2)` (синхронно) і `DoRequest`
-  (асинхронно).
-- `capabilities` — Symbian має capability-based безпеку. Kernel-драйвер вимагає
-  певних capabilities від того, хто його відкриває.
-- ROM — це `TRomImageHeader` формат (120-байтовий заголовок), не `E32Image`.
-  Виконується **прямо з ROM** (XIP), не копіюється в RAM. Це стане важливим.
-
----
-
-## 1. Вихідна точка: чому всі попередні «розгони» Symbian — фейк
-
-Перше, що я зробив — перевірив наявні у мережі «розгони». Усі виявились
-підробкою одного з трьох типів (`findings.md §1`):
-
-1. Правка `20001079.txt` зі значенням 332 — це конфіг **N-Gage**, до частоти
-   стосунку не має.
-2. «OC-патчі» для RomPatcher міняли текстовий рядок «МГц» у DLL — тобто **напис**.
-3. Утиліти типу Todo Speed давали ~1% на бенчмарку — ефект вивільненої RAM.
-
-Звідси перше робоче правило, яке лишилось до кінця: **міряти роботу, а не
-напис.** `HAL::Get(ECPUSpeed)` на цьому апараті стабільно бреше (206438 kHz
-незалежно від реального стану). Тому я збудував два незалежні прилади:
-
-- **NOP-ланцюг**: 256 підряд `add r3,r3,#1`. ARM1136 одноконвеєрний, кожна
-  коштує рівно 1 такт, залежностей немає, промахів I-cache немає (1 КБ коду при
-  16 КБ кеші). Такт ділиться на час напряму → абсолютна частота.
-- **ALU-цикл із залежністю по даних**: LCG, кожна ітерація чекає попередньої —
-  час масштабується з частотою ядра, не з шириною конвеєра.
-
-Обидва мусять давати однаковий відсоток зміни. Розбіжність = не вірити жодному.
+**Symbian specifics that will be needed:**
+- `LDD` (Logical Device Driver) — a kernel-space driver, a `.ldd` file.
+  The user side opens a channel via `RBusLogicalChannel::DoCreate`,
+  communicates via `DoControl(func, a1, a2)` (synchronously) and `DoRequest`
+  (asynchronously).
+- `capabilities` — Symbian has capability-based security. A kernel driver requires
+  certain capabilities from whichever process opens it.
+- ROM — this is `TRomImageHeader` format (120-byte header), not `E32Image`.
+  It executes **directly from ROM** (XIP), not copied into RAM. This will become important.
 
 ---
 
-## 2. Зворотна розробка: що і куди писати
+## 1. Starting Point: Why All Previous Symbian "Overclocks" Are Fake
 
-Мета звузилась до одного регістра. Розбираючи `power.dll` з дампа ROM
-(objdump по відрізаному 120-байтовому заголовку), я знайшов формулу прямо в
-коді геттера `@0x800B1544`:
+The first thing I did was check the "overclocks" available on the net. All turned out to be
+fakes of one of three types (`findings.md §1`):
+
+1. Editing `20001079.txt` with the value 332 — this is an **N-Gage** config, it has
+   nothing to do with frequency.
+2. "OC patches" for RomPatcher changed the text string "MHz" in a DLL — that is, a **label**.
+3. Utilities like Todo Speed gave ~1% in benchmarks — the effect of freed RAM.
+
+Hence the first working rule that remained until the end: **measure work, not the
+label.** `HAL::Get(ECPUSpeed)` on this device consistently lies (206438 kHz
+regardless of actual state). Therefore, I built two independent instruments:
+
+- **NOP chain**: 256 consecutive `add r3,r3,#1`. The ARM1136 is single-issue, each
+  costs exactly 1 cycle, no dependencies, no I-cache misses (1 KB of code with
+  a 16 KB cache). Cycle count is divided directly by time → absolute frequency.
+- **ALU loop with data dependency**: LCG, each iteration waits for the previous one —
+  time scales with core frequency, not with pipeline width.
+
+Both must yield the same percentage of change. Divergence = trust neither.
+
+---
+
+## 2. Reverse Engineering: What and Where to Write
+
+The goal narrowed down to a single register. While analyzing `power.dll` from the ROM dump
+(objdump on the stripped 120-byte header), I found the formula directly in
+the getter code `@0x800B1544`:
 
 ```
-DPLL = sys_clk × mult / (div + 1)          [CM_CLKSEL1_PLL, фіз. 0x48008540]
-mult = біти [21:12],  div = [11:8],  sys_clk_sel = [25:23]
+DPLL = sys_clk × mult / (div + 1)          [CM_CLKSEL1_PLL, phys 0x48008540]
+mult = bits [21:12],  div = [11:8],  sys_clk_sel = [25:23]
 ```
 
-**Мапінг периферії** вивів із двох незалежних влучань: віртуальна = фізична +
-`0x7E000000` (для вікна `0x48xxxxxx`). Тобто `CM_CLKSEL1_PLL` доступний ядру за
-`0xC6008540`. Пізніше виявилось, що для SDRC зсув інший — але про це в §7.
+**Peripheral mapping** was derived from two independent hits: virtual = physical +
+`0x7E000000` (for the `0x48xxxxxx` window). That is, `CM_CLKSEL1_PLL` is accessible to the kernel at
+`0xC6008540`. Later it turned out that for SDRC the offset is different — but more on that in §7.
 
-На цьому етапі я знав **що** писати. Далі два роки Symbian-homebrew-фольклору
-кажуть, що це неможливо, і треба було зрозуміти, чому.
+At this stage, I knew **what** to write. Next, two years of Symbian homebrew folklore
+claimed that this was impossible, and it was necessary to understand why.
 
 ---
 
-## 3. Чотири глухі кути (і чому кожен закрито)
+## 3. Four Dead Ends (and Why Each Was Closed)
 
-Щоб отримати запис у регістр ядра з user-боку, я перебрав усі очевидні шляхи.
-Кожен закрито з **доказом**, а не з припущення (`findings §3, §7, §8, §11`):
+To obtain a write to a kernel register from the user side, I went through all the obvious paths.
+Each was closed with **proof**, not an assumption (`findings §3, §7, §8, §11`):
 
-| Шлях | Чому не працює |
+| Path | Why it does not work |
 |---|---|
-| **DVFS API** (`dvfs_interface`) | Це бінарна засувка: `SetPerformance` дивиться лише на `a2 cmp #50`, рівень зашитий константою `#66`. Розгону не дає в принципі. |
-| **Власний kernel LDD** | Публічний S60 SDK не має `include\kernel\` і `ekern.lib`. Зібрати kernel-код нічим. |
-| **`TestPowerAPI`** (`d_powerapi.ldd`) | Дає доступ до ширшого набору ресурсів, але примітиву запису довільної адреси немає, а промацування намертво вішає драйвер (ресурс 65 не завершує запит, `Cancel` немає). |
-| **Сирий MMIO по всьому ROM** | Просканував **2712** модулів на імпорт `kaomap` Read32/Write32/Modify32. Імпортують 24; у кожному адреса — зашита база драйвера, жоден не бере адресу від клієнта. |
+| **DVFS API** (`dvfs_interface`) | It is a binary toggle: `SetPerformance` checks only `a2 cmp #50`, the level is hardcoded by constant `#66`. It does not provide overclocking in principle. |
+| **Custom kernel LDD** | The public S60 SDK lacks `include\kernel\` and `ekern.lib`. There is nothing to build kernel code with. |
+| **`TestPowerAPI`** (`d_powerapi.ldd`) | Gives access to a broader set of resources, but lacks an arbitrary address write primitive, and probing freezes the driver hard (resource 65 does not complete the request, there is no `Cancel`). |
+| **Raw MMIO across the entire ROM** | Scanned **2712** modules for `kaomap` Read32/Write32/Modify32 imports. 24 import them; in each, the address is a hardcoded driver base, none takes an address from the client. |
 
-Висновок був сформульований точно: бракує не знання «що писати» (відоме), а
-**робочого каналу в ядро з правильною розрядністю доступу і читанням**.
+The conclusion was formulated precisely: what was missing was not knowledge of "what to write" (known), but
+**a working channel into the kernel with the correct access width and reading capability**.
 
 ---
 
-## 4. Прорив: RomPatcher+ як примітив запису
+## 4. Breakthrough: RomPatcher+ as a Write Primitive
 
-`RomPatcher+` — homebrew-утиліта, що патчить ROM-код у рантаймі. Її драйвер
-`patcher.ldd` стиснений Symbian-специфічним deflate (**не** zlib-сумісним —
-власна реалізація Хаффмана). Довелось написати декомпресор — дослівний порт
-`TInflater`/`Huffman` із відкритих джерел elf2e32, на Node.js
-(`tools/syminflate.js`). Порт саме на Node, а не PowerShell, бо беззнакові
-32-бітні зсуви на PS впали б у пастку Int32 (див. §9 про граблі).
+`RomPatcher+` is a homebrew utility that patches ROM code at runtime. Its driver
+`patcher.ldd` is compressed with Symbian-specific deflate (**not** zlib-compatible —
+a proprietary Huffman implementation). I had to write a decompressor — a literal port of
+`TInflater`/`Huffman` from open-source elf2e32, in Node.js
+(`tools/syminflate.js`). Ported specifically to Node rather than PowerShell, because unsigned
+32-bit shifts in PS would fall into the Int32 trap (see §9 about pitfalls).
 
-Розібравши розтиснений драйвер, я знайшов диспетчер каналу
-(`DoControl func 100..105`) і **функцію 105** — одиничний запис:
+Having analyzed the decompressed driver, I found the channel dispatcher
+(`DoControl func 100..105`) and **function 105** — a single write:
 
 ```cpp
 DoControl(105, &addr, &desc)
   → memmove(dest = addr, src = desc.Ptr(), len = desc.Length())
 ```
 
-`memmove` резольвлено проти export-таблиці **реального** `ekern.exe` з дампа
-(не з `.def`-файлу, бо той виявився від пізнішого ядра) — ординал 725,
+`memmove` was resolved against the export table of the **real** `ekern.exe` from the dump
+(not from the `.def` file, as that turned out to be from a later kernel) — ordinal 725,
 `@0x8006F800`.
 
-**Але** тут же виявились два обмеження для нашої задачі (`findings §10`):
-1. Канал **не дає читання** довільної адреси.
-2. Для `len=4` memmove іде побайтовою гілкою (4×`strb`) — хибна розрядність для
-   32-бітних регістрів PRCM.
+**However**, two limitations for our task immediately surfaced (`findings §10`):
+1. The channel **does not provide reading** of an arbitrary address.
+2. For `len=4`, memmove takes a byte-by-byte branch (4×`strb`) — the wrong access width for
+   32-bit PRCM registers.
 
-Тобто patcher непридатний для **прямого** запису в PRCM. Це змусило змінити
-всю стратегію.
+Thus patcher is unsuitable for **direct** writing to PRCM. This forced a change of
+the entire strategy.
 
 ---
 
-## 5. Зміна стратегії: патчити КОД, а не регістри
+## 5. Strategy Change: Patch CODE, Not Registers
 
-Ключова ідея. Замість писати в MMIO самотужки (де і розрядність, і читання —
-проблема), я вирішив **патчити код ядра, який уже вміє це робити правильно**.
+The key idea. Instead of writing to MMIO ourselves (where both access width and reading are
+problems), I decided to **patch kernel code that already knows how to do this correctly**.
 
-Обрана ціль: тіло `dvfs_interface.ldd::DoControl(1)` @`0x80148410`. Це рівно 6
-слів; далі, з `0x80148428`, диспетчер, який чіпати не можна. Три послідовні
-патчі того самого місця дали три примітиви:
+Chosen target: the body of `dvfs_interface.ldd::DoControl(1)` @`0x80148410`. This is exactly 6
+words; beyond that, from `0x80148428`, is the dispatcher, which must not be touched. Three sequential
+patches of the exact same location yielded three primitives:
 
-**READ-патч** (16 байтів):
+**READ patch** (16 bytes):
 ```asm
 cmp   r1, #0       ; a1 == 0 ?
-ldrne r0, [r1]     ; так: прочитати 32 біти за адресою a1
-moveq r0, #0       ; ні: безпечно повернути 0
+ldrne r0, [r1]     ; yes: read 32 bits at address a1
+moveq r0, #0       ; no: safely return 0
 bx    lr
 ```
-Тепер `DoControl(1, addr)` читає будь-яку адресу ядра. **Це і закрило брак
-читання.** Перший READ на апараті дав `CM_CLKSEL1_PLL = 0x00056400` → mult=86,
-підтвердивши всю модель.
+Now `DoControl(1, addr)` reads any kernel address. **This resolved the lack of
+reading.** The first READ on the device yielded `CM_CLKSEL1_PLL = 0x00056400` → mult=86,
+confirming the entire model.
 
-**EXEC-патч** (пізніша, безпечна версія — див. §8):
+**EXEC patch** (later, secure version — see §8):
 ```asm
-ldr  r0, [pc, #12] ; дозволена адреса
+ldr  r0, [pc, #12] ; allowed address
 cmp  r1, r0
-bxeq r1            ; стрибок ЛИШЕ на неї
+bxeq r1            ; branch ONLY to it
 mov  r0, #0
 bx   lr
 ```
-Тепер `DoControl(1, addr)` виконує код за адресою в режимі ядра.
+Now `DoControl(1, addr)` executes code at that address in kernel mode.
 
-Наскільки це «злам»? Ні — це homebrew на **власному розблокованому** апараті:
-демон доставки реєструє нашу dev-збірку в локальному реєстрі хешів
-(`C:\sys\hash`), за яким штатний завантажувач і впізнає її capabilities. Рядовий
-механізм Symbian-homebrew.
+To what extent is this a "hack"? No — this is homebrew on **one's own unlocked** device:
+the delivery daemon registers our dev build in the local hash registry
+(`C:\sys\hash`), by which the stock loader recognizes its capabilities. A routine
+Symbian homebrew mechanism.
 
 ---
 
-## 6. Плацдарм у SRAM і як прошивка сама міняє частоту
+## 6. Beachhead in SRAM and How Firmware Itself Changes Frequency
 
-Тут сталася найповчальніша частина. Спершу я записав у `findings` висновок, що
-**валідованого рантайм-шляху relock у прошивці немає**. Він виявився **хибним**,
-і хибним у наш бік — я його виправив прямо в тексті (§12/§16/§17, дисципліна
-доказів вимагає не переписувати тихо).
+Here the most instructive part happened. Initially I recorded in `findings` the conclusion that
+**there is no validated runtime relock path in the firmware**. That turned out to be **false**,
+and false in our favor — I corrected it right in the text (§12/§16/§17, the discipline
+of proof requires not rewriting silently).
 
-Причина помилки методична: я сканував лише виклики `kaomap Write32` і лише
-**повні** 32-бітні літерали адрес. А `power.dll` частину PRCM і **весь** SDRC
-адресує **прямою парою `ldr`/`str` за базою+зсувом**. Скан це проґавив.
+The cause of the error was methodological: I only scanned `kaomap Write32` calls and only
+**full** 32-bit address literals. But `power.dll` addresses part of PRCM and the **entire** SDRC
+via a **direct `ldr`/`str` pair by base+offset**. The scan missed this.
 
-Насправді в прошивці є повна SRAM-резидентна процедура relock (`findings §17`):
-на буті `power.dll` мапить 4 КБ фізичної SRAM (`0x4029E000`, у нас лінійна
-`0xCB202000`) і копіює туди процедуру, яка на глибокому idle робить:
+In fact, the firmware contains a complete SRAM-resident relock routine (`findings §17`):
+at boot, `power.dll` maps 4 KB of physical SRAM (`0x4029E000`, in our case linear
+`0xCB202000`) and copies a routine there which, on deep idle, does:
 
 ```
-self-refresh SDRAM → bypass DPLL → чекати CM_IDLEST_PLL → WFI →
-relock → чекати → relock DLL SDRC
+self-refresh SDRAM → bypass DPLL → wait for CM_IDLEST_PLL → WFI →
+relock → wait → relock DLL SDRC
 ```
 
-Це та сама структура, що в еталонному Linux `arch/arm/mach-omap2/sram242x.S`.
-Але — і це був новий блокер — копіювання робиться **раз на буті**, тож рантаймовий
-патч ROM б'є не по тій копії, що виконується.
+This is the same structure as in reference Linux `arch/arm/mach-omap2/sram242x.S`.
+However — and this was a new blocker — the copy is done **once at boot**, so a runtime
+ROM patch does not hit the copy that actually executes.
 
-**Рішення:** використати цей SRAM-чанк як власний плацдарм. Через EXEC-патч я
-пишу свій блоб relock у незайняту частину чанка (зсув +0x800) і виконую його
-звідти. SRAM критична тому, що:
-- під час bypass CORE = sys_clk, SDRAM голодує без refresh — код не може бути
-  в SDRAM;
-- блоб мусить бути **повністю самодостатнім**: жодного зовнішнього `bl`
-  (після копіювання відносні переходи вели б у нікуди), усі константи — у
-  власному літеральному пулі (`.ltorg`).
+**Solution:** use this SRAM chunk as our own beachhead. Via the EXEC patch, I
+write my relock blob into the unused part of the chunk (offset +0x800) and execute it
+from there. SRAM is critical because:
+- during bypass, CORE = sys_clk, SDRAM is starved without refresh — code cannot be
+  in SDRAM;
+- the blob must be **completely self-contained**: no external `bl`
+  (after copying, relative branches would lead nowhere), all constants in
+  its own literal pool (`.ltorg`).
 
-Перевірка спрацювала одразу: записав `mov r0,#0x5A; bx lr` в SRAM, викликав
-через EXEC-патч — повернув `0x5A`. Отже SRAM доступна, виконувана і когерентна
-за I-cache.
-
----
-
-## 7. Перший розгін і що ще довелось врахувати
-
-Блоб relock (детальний розбір бітів — `findings §18`, `src/ocengine.cpp`).
-Три деталі, кожна з яких без досвіду ламає результат:
-
-1. **`EN_DPLL` — це біти [1:0], не [2:0].** Біти [3:2] — APLL 54 МГц; маска `#7`
-   вимкнула б його разом із DPLL. Маску `#3` узяв із коду самої power.dll.
-2. **SDRAM у self-refresh перед вікном** (`SDRC_POWER |= 0x48`). Без цього
-   безголовий прогін проходив, а з живим дисплеєм апарат зависав: DSS
-   безперервно читає кадровий буфер, а ми на час переходу забираємо пам'ять.
-3. **Усі очікування обмежені лічильником.** Переривання вимкнені, тож
-   нескінченний цикл = виймання батареї. При таймауті — апаратний відкат.
-
-**Нова база SDRC:** `0xC6129000` (фіз. `0x68009000`) — доведено збігом шести
-зсувів на відомі регістри. Мапінг тут **не** `+0x7E000000`; правило §4 діє лише
-для вікна `0x48xxxxxx`.
-
-Перший результат (mult 86→91): **+5.8%**, підтверджено обома приладами, 0
-помилок пам'яті. Розгін запрацював.
+The test worked immediately: wrote `mov r0,#0x5A; bx lr` into SRAM, called it
+via the EXEC patch — it returned `0x5A`. Thus SRAM is accessible, executable, and coherent
+with respect to I-cache.
 
 ---
 
-## 8. Чотири «перезавантаження» — насправді жодного
+## 7. The First Overclock and What Else Had to Be Accounted For
 
-Найскладніша діагностика. При роботі з GUI апарат кілька разів «перезавантажу-
-вався». Я двічі висував гіпотезу і двічі помилявся — обидва рази виправлено
-чесно (`findings §19, §20`).
+The relock blob (detailed bit-by-bit breakdown — `findings §18`, `src/ocengine.cpp`).
+Three details, each of which breaks the result without prior experience:
 
-**Ключ дав прямий вимір.** Я почав друкувати `User::NTickCount()` (тіки від
-старту системи, обнуляються лише повним ребутом). Він показав **12 годин
-безперервної роботи** — тобто ядро **не падало жодного разу**. «Перезавантаження»
-було перезапуском UI-оболонки після загибелі системного процесу.
+1. **`EN_DPLL` is bits [1:0], not [2:0].** Bits [3:2] are the 54 MHz APLL; mask `#7`
+   would disable it along with DPLL. Mask `#3` was taken from the code of power.dll itself.
+2. **SDRAM into self-refresh before the window** (`SDRC_POWER |= 0x48`). Without this,
+   a headless run succeeded, but with a live display the device froze: DSS
+   continuously reads the framebuffer, while we take away memory during the transition.
+3. **All waits are bounded by a counter.** Interrupts are disabled, so
+   an infinite loop = pulling the battery. On timeout — hardware rollback.
 
-Урок про методику: спершу я «доводив» відсутність ребута доступністю по мережі.
-Це не доказ — апарат встигає піднятись між перевірками. Прямий вимір uptime —
-доказ.
+**New SDRC base:** `0xC6129000` (phys `0x68009000`) — proven by the match of six
+offsets to known registers. The mapping here is **not** `+0x7E000000`; the rule of §4 applies only
+to the `0x48xxxxxx` window.
 
-**Дві справжні причини:**
-
-*Причина A (§19): перезапис байтів не знімає патч.* Патчер не робить `Cache::IMB`,
-пропатчена функція лишається в I-cache. Спостережено прямо: після відновлення
-байтів `DoControl(1,0)` повертав 0 (відповідь патчу), а не 50/100 (штатний код).
-Надійно знімає лише `DoControl(100)` = `FreeShadowPage` — той самий патчер має
-штатний опкод, який викидає RAM-сторінку і повертає відображення на ROM разом із
-обслуговуванням кешу.
-
-*Причина B (§20): EXEC-патч був небезпечний для чужих викликів.* Простий `bx r1`
-означав, що будь-який виклик `DoControl(1, a1)` з ненульовим `a1` **від іншого
-клієнта** (а канал `dvfs_interface` відкривають ще `mmrmserver.dll` і віконний
-сервер) стрибав у ядрі за чужою адресою. Звідси й захист «стрибати лише на одну
-очікувану адресу» з §5.
-
-Обидві помилки одного роду: підмінюючи функцію ядра, треба виходити з того, що її
-викличе не лише твій код, і прибирати за собою треба надійно.
+First result (mult 86→91): **+5.8%**, confirmed by both instruments, 0
+memory errors. Overclocking worked.
 
 ---
 
-## 9. Дисплей: чому +2 вішало, а +21 — ні
+## 8. Four "Reboots" — In Reality, None
 
-Користувач дав вирішальне спостереження: **пониження** множника (77) вішає так
-само, як підвищення. Отже ламається будь-яка зміна CORE, і ламається відрисовка.
+The most difficult diagnostics. While working with the GUI, the device "rebooted"
+several times. Twice I put forward a hypothesis and twice I was mistaken — both times corrected
+honestly (`findings §19, §20`).
 
-Розбір семи сеттерів `power.dll` дав повну карту `CM_CLKSEL1_CORE`. Дисплей
-(DSS1) тактується `CORE / dss1_div`, штатно ÷6 = 110 МГц. Піднімаючи CORE, ми
-піднімали піксельний клок, нічого не компенсуючи.
+**The key was provided by direct measurement.** I started printing `User::NTickCount()` (ticks since
+system start, reset only on full reboot). It showed **12 hours
+of continuous operation** — meaning the kernel **did not crash a single time**. The "reboot"
+was a restart of the UI shell after the death of a system process.
 
-**Рішення:** компенсувати дільники в **тій самій фіксації** `CLKCFG_CTRL`, що й
-множник:
+A lesson in methodology: initially I "proved" the absence of a reboot by network availability.
+That is not proof — the device manages to come back up between checks. Direct measurement of uptime is
+proof.
+
+**Two real causes:**
+
+*Cause A (§19): rewriting bytes does not remove the patch.* Patcher does not execute `Cache::IMB`,
+the patched function remains in the I-cache. Observed directly: after restoring
+the bytes, `DoControl(1,0)` returned 0 (the patch's response), rather than 50/100 (stock code).
+Only `DoControl(100)` = `FreeShadowPage` reliably removes it — that same patcher has
+a stock opcode that drops the RAM page and restores the mapping back to ROM along with
+cache maintenance.
+
+*Cause B (§20): the EXEC patch was dangerous for foreign calls.* A simple `bx r1`
+meant that any call to `DoControl(1, a1)` with non-zero `a1` **from another
+client** (and the `dvfs_interface` channel is also opened by `mmrmserver.dll` and the window
+server) branched in kernel mode to an arbitrary foreign address. Hence the safeguard "branch only to one
+expected address" from §5.
+
+Both errors are of the same kind: when hooking a kernel function, one must assume that
+it will be called not only by your code, and one must clean up reliably.
+
+---
+
+## 9. Display: Why +2 Froze, While +21 Did Not
+
+The user provided a crucial observation: **lowering** the multiplier (77) freezes just
+the same as raising it. Therefore, any change to CORE breaks things, and rendering breaks.
+
+Disassembly of the seven setters in `power.dll` yielded a full map of `CM_CLKSEL1_CORE`. The display
+(DSS1) is clocked by `CORE / dss1_div`, stock ÷6 = 110 MHz. By raising CORE, we
+were raising the pixel clock without compensating for anything.
+
+**Solution:** compensate dividers in the **very same commit** of `CLKCFG_CTRL` as the
+multiplier:
 ```asm
-str  r6, [r4, #0x540]   ; новий CM_CLKSEL1_PLL
-str  r2, [r4, #0x240]   ; новий CM_CLKSEL1_CORE (дільники L3, DSS1)
-str  r0, [r4, #0x140]   ; новий CM_CLKSEL_MPU
-str  #1, [r4, #0x80]    ; одна фіксація латчить усе разом
+str  r6, [r4, #0x540]   ; new CM_CLKSEL1_PLL
+str  r2, [r4, #0x240]   ; new CM_CLKSEL1_CORE (L3, DSS1 dividers)
+str  r0, [r4, #0x140]   ; new CM_CLKSEL_MPU
+str  #1, [r4, #0x80]    ; single commit latches everything together
 ```
-Одна фіксація — щоб домени ніколи не бачили нову CORE зі старим дільником.
+A single commit — so that domains never see the new CORE with an old divider.
 
-Політика підбору різна: **DSS1** компенсую точно до штатної (дисплею потрібна
-своя частота), **L3/SDRAM** тримаю якнайвище в межах +15% (заміри показали 0
-помилок при +11.5%, опускати було б втратою).
+Selection policy differs: **DSS1** is compensated exactly to stock (the display needs
+its own frequency), **L3/SDRAM** is kept as high as possible within +15% (measurements showed 0
+errors at +11.5%, lowering it would be a waste).
 
 ---
 
-## 10. Де насправді межа
+## 10. Where the Limit Actually Lies
 
-Фінальні заміри користувача на апараті:
+Final measurements by the user on the device:
 
-| mult | MPU | Стан |
+| mult | MPU | State |
 |---|---|---|
-| 107 | 411 МГц (+24%) | стабільно, дзвінки+WiFi, шина точно штатна |
-| **111** | **426 МГц (+29%)** | **максимум стабільного** |
-| 112–116 | 430–445 | авторебут через хвилини |
-| 129 | 495 | миттєвий ребут |
+| 107 | 411 MHz (+24%) | stable, calls+WiFi, bus exactly stock |
+| **111** | **426 MHz (+29%)** | **maximum stable** |
+| 112–116 | 430–445 | auto-reboot within minutes |
+| 129 | 495 | instant reboot |
 
-Рядок **129 вирішальний**: там `129/86 = 1.5`, і дільники L3/DSS множаться рівно
-на 1.5, тобто шина й дисплей **точно на штатних частотах** — а апарат усе одно
-падає. Отже **межа — сам ARM1136 при штатній напрузі**, не шина й не дисплей.
+Row **129 is decisive**: there `129/86 = 1.5`, and the L3/DSS dividers are multiplied exactly
+by 1.5, meaning the bus and display are **exactly at stock frequencies** — yet the device still
+crashes. Therefore **the limit is the ARM1136 itself at stock voltage**, not the bus and not the display.
 
-Профіль відмови підтверджує: 426 тримає безкінечно, 430 падає через хвилини,
-495 не стартує — класична частотно-напругова стеля. Зависань у застосунках при
-цьому немає (це відрізняє від порушення таймінгів SDRC).
+The failure profile confirms this: 426 holds indefinitely, 430 crashes within minutes,
+495 does not start — a classic frequency-voltage ceiling. There are no application freezes
+in this process (distinguishing it from SDRC timing violations).
 
-Прикладний результат — **SPmark 3D: 62 → 75 fps (+21%)**, інтерфейс і емуляція
-помітно швидші.
+Practical result — **SPmark 3D: 62 → 75 fps (+21%)**, interface and emulation
+are noticeably faster.
 
-Наступний очевидний важіль — **напруга** (Menelaus PMIC), який ми не чіпали.
-Але це вже незворотний ризик для кремнію, не оборотний ребутом, тож окрема
-розмова.
-
----
-
-## 11. Застосунок
-
-`ocgui` — AVKON-застосунок (повний екран, керування джойстиком). Дворівневий
-захист: повзунок готує → `APPLY` озброює → окрема `CONFIRM` виконує. Тести
-(ALU, смуга, цілісність SDRAM, кеш, комбінований) — кожен самоперевірний: ALU
-крутить LCG вперед і назад через модульно обернений множник, решта звіряють
-псевдовипадковий візерунок. Тобто кожен тест водночас бенчмарк і детектор тихих
-помилок.
-
-Двигун (`ocengine.cpp`) спільний із консольним пробником — блоб relock в одному
-місці, бо дві копії, що розійшлися, вішають апарат.
-
-Версії: v1.0 (автопідбір дільників, `release/v1/`), v1.1 (ручні дільники всіх
-доменів), v1.2 (дільник MPU — для перевірки гіпотези «межа в CORE, не в ARM»:
-`mpu_div=1` дає ту саму частоту ядра при вдвічі нижчій CORE).
-
-Підписання: RSA+SHA-1 обов'язково (Symbian 9.2 не парсить SHA-256 і звинувачує
-файл), `.pkg` в ASCII+CRLF (makesis псує UTF-8/LF), перевірка `signsis -o`.
+The next obvious lever is **voltage** (Menelaus PMIC), which we did not touch.
+However, this poses irreversible risk to the silicon, not reversible by a reboot, so that is a separate
+topic.
 
 ---
 
-## 12. Що лишилось незакритим
+## 11. The Application
 
-- **Напруга (Menelaus)** — не чіпалась; єдиний важіль за 426 МГц.
-- **SSI** (ймовірно канал до модема) масштабується без компенсації; на 111 це
-  +29%, точно компенсувати не можна (дільники лише 1,2,3,4,6,8).
-- **CPU-прилади дають менший приріст, ніж розрахунок** (+8.5% замість +11.6% на
-  mult 96), тоді як шина масштабується точно. Гіпотеза: губернатор рухає
-  `mpu_div`. Перевіряється ручним режимом v1.2.
+`ocgui` — AVKON application (fullscreen, joystick control). Two-level
+protection: slider stages → `APPLY` arms → separate `CONFIRM` executes. Tests
+(ALU, bandwidth, SDRAM integrity, cache, combined) — each is self-verifying: ALU
+runs LCG forward and backward via a modular inverse multiplier, while the rest verify
+a pseudorandom pattern. That is, each test is simultaneously a benchmark and a silent-error
+detector.
+
+The engine (`ocengine.cpp`) is shared with the console probe — the relock blob is in one
+place, because two diverged copies would hang the device.
+
+Versions: v1.0 (auto-selection of dividers, `release/v1/`), v1.1 (manual dividers for all
+domains), v1.2 (MPU divider — to test the hypothesis "the limit is in CORE, not in ARM":
+`mpu_div=1` gives the same core frequency at half the CORE frequency).
+
+Signing: RSA+SHA-1 is mandatory (Symbian 9.2 does not parse SHA-256 and blames
+the file), `.pkg` in ASCII+CRLF (makesis corrupts UTF-8/LF), verification with `signsis -o`.
 
 ---
 
-## Джерела
+## 12. What Remains Open
 
-Офіційний OMAP2420 TRM (SPRU749) — під NDA, публічно недоступний. Уся робота з
-регістрами трималась на трьох відкритих замінах, кожну звірено з кодом апарата:
+- **Voltage (Menelaus)** — untouched; the only lever beyond 426 MHz.
+- **SSI** (likely the modem channel) scales without compensation; at 111 this is
+  +29%, cannot be compensated exactly (dividers only 1,2,3,4,6,8).
+- **CPU instruments show less gain than calculated** (+8.5% instead of +11.6% at
+  mult 96), whereas the bus scales precisely. Hypothesis: the governor moves
+  `mpu_div`. Being verified by manual mode in v1.2.
 
-- **Ядро Linux (mach-omap2)** — головне джерело масок і послідовностей. Маски
-  `CM_CLKSEL1_CORE` і `CM_CLKSEL_MPU` звірені до біта з
+---
+
+## References
+
+The official OMAP2420 TRM (SPRU749) is under NDA and publicly unavailable. All register
+work relied on three open replacements, each cross-checked against device code:
+
+- **Linux kernel (mach-omap2)** — the primary source of masks and sequences. Masks
+  `CM_CLKSEL1_CORE` and `CM_CLKSEL_MPU` were verified bit-for-bit against
   [`cm-regbits-24xx.h` (v3.7)](https://raw.githubusercontent.com/torvalds/linux/v3.7/arch/arm/mach-omap2/cm-regbits-24xx.h);
-  послідовність relock — з
+  the relock sequence — against
   [`sram242x.S`](https://raw.githubusercontent.com/torvalds/linux/v3.7/arch/arm/mach-omap2/sram242x.S);
-  штатні OPP — з `opp2420_data.c`.
-- **Публічні матеріали TI** (оглядові, без реєстрів):
+  stock OPPs — against `opp2420_data.c`.
+- **Public TI materials** (high-level overviews, without registers):
   [OMAP2420 Key Features](https://www.ti.com/pdfs/wtbu/TI_omap2420.pdf),
   [OMAP2420 SDP](https://www.ti.com/pdfs/wtbu/TI_sdp_omap2420.pdf).
-  Найближчий доступний повний TRM — на споріднений
+  The closest available complete TRM is for the related
   [OMAP35x (SPRUF98)](https://www.ti.com/lit/ug/spruf98y/spruf98y.pdf): PRCM/SDRC
-  тієї самої лінійки концептуально збігаються, зручний як довідник, але **не**
-  еквівалент по адресах.
-- **Дамп ROM самого апарата** (`eka2l1/.../rm-320/`) — остаточний арбітр: усе, що
-  я стверджував, або підтверджено на живому апараті, або виведено з цього коду.
+  of the same family conceptually match, convenient as a reference, but **not**
+  equivalent in addresses.
+- **ROM dump of the device itself** (`eka2l1/.../rm-320/`) — the final arbiter: everything
+  I asserted was either confirmed on a live device or derived from this code.
 
-Порядок читання проєкту: `CLAUDE.md` → `docs/state.md` → `docs/findings.md`
-(§17–22 — суть розгону) → цей документ для наскрізної картини.
+Project reading order: `CLAUDE.md` → `docs/state.md` → `docs/findings.md`
+(§17–22 — the essence of overclocking) → this document for the end-to-end picture.

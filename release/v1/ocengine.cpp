@@ -1,4 +1,4 @@
-// Реалізація двигуна розгону. Див. ocengine.h і docs/findings.md 17-18.
+// Overclock engine implementation. See ocengine.h and docs/findings.md 17-18.
 
 #include "ocengine.h"
 #include <e32svr.h>
@@ -8,32 +8,32 @@ _LIT(KPatcherName, "RomPatcherPlus.Driver");
 _LIT(KDvfsFile, "dvfs_interface.ldd");
 _LIT(KDvfsName, "dvfs_interface");
 
-// Тіло dvfs_interface DoControl(1): рівно 6 слів, 0x80148410..0x80148427.
-// Диспетчер починається з 0x80148428 і лишається недоторканим.
+// Body of dvfs_interface DoControl(1): exactly 6 words, 0x80148410..0x80148427.
+// The dispatcher starts at 0x80148428 and remains untouched.
 const TUint32 KDvfsBody = 0x80148410u;
-// Глобал power.dll: [+4] -> об'єкт power-down, [obj+16] -> лінійна адреса SRAM.
+// power.dll global: [+4] -> power-down object, [obj+16] -> linear SRAM address.
 const TUint32 KPwrDownGlobal = 0xc80030c8u;
-// Джерело копії в ROM: за ним звіряємо, що знайшли саме виконувану копію.
+// Source of copy in ROM: used to verify that we found the executable copy specifically.
 const TUint32 KRomSramRoutine = 0x800a7f6cu;
-// Firmware займає перші 1024 байти чанка; пишемо зі зсувом 2048 з 4096.
+// Firmware occupies the first 1024 bytes of the chunk; writing at offset 2048 of 4096.
 const TUint32 KSramSlot = 0x800u;
 
-// --- код, що виконується з SRAM ---------------------------------------------
+// --- code executed from SRAM ------------------------------------------------
 //
-// Вимоги жорсткі й неочевидні:
-//   * жодного зовнішнього bl - після копіювання відносні переходи вели б у
-//     нікуди. Константи - з власного пулу (.ltorg у кінці), тож ldr [pc,#off]
-//     лишається коректним на будь-якій адресі;
-//   * жодного звернення до SDRAM у критичному вікні: поки DPLL у bypass,
-//     контролер SDRAM тактується мізерною частотою і refresh голодує. Стек
-//     чіпаємо лише до і після вікна;
-//   * EN_DPLL - це БІТИ [1:0] CM_CLKEN_PLL, а не [2:0]. Біти [3:2] - APLL
-//     54 МГц; маска #7 вимкнула б його разом із DPLL. Маску #3 узято з коду
-//     самої power.dll (and r2,r2,#0xfc);
-//   * усі очікування обмежені лічильником: переривання вимкнені, тож
-//     нескінченний цикл означав би виймання батареї.
+// Requirements are strict and non-obvious:
+//   * no external bl - after copying, relative jumps would lead
+//     nowhere. Constants come from own pool (.ltorg at the end), so ldr [pc,#off]
+//     remains correct at any address;
+//   * no access to SDRAM during the critical window: while DPLL is in bypass,
+//     the SDRAM controller is clocked at a tiny frequency and refresh starves. The stack
+//     is touched only before and after the window;
+//   * EN_DPLL is BITS [1:0] of CM_CLKEN_PLL, not [2:0]. Bits [3:2] are APLL
+//     54 MHz; mask #7 would disable it along with DPLL. Mask #3 was taken from
+//     power.dll code itself (and r2,r2,#0xfc);
+//   * all waits are counter-bounded: interrupts are disabled, so an
+//     infinite loop would mean pulling the battery.
 //
-// Порядок - за omap242x_sram_set_prcm і за idle-процедурою power.dll @0x800A7F6C.
+// Order follows omap242x_sram_set_prcm and power.dll idle routine @0x800A7F6C.
 __asm__(
 "   .text                       \n"
 "   .align 2                    \n"
@@ -51,23 +51,23 @@ __asm__(
 "   .ltorg                      \n"
 "OcReadBlobEnd:                 \n"
 "                               \n"
-// EXEC-патч тіла DoControl(1). Критично: канал dvfs_interface відкриваємо не
-// лише ми (§15 - mmrmserver.dll, fmradiotunercontrol.dll), і в застосунку з
-// живим інтерфейсом ці клієнти активні. Простий "bx r1" означав би, що будь-який
-// їхній виклик DoControl(1, a1) стрибає в ядрі за ЧУЖОЮ адресою - звідси
-// зависання, і тим певніше, чим більше таких вікон ми відкриваємо.
-// Тому стрибаємо ТІЛЬКИ на одну очікувану адресу (наш слот у SRAM), а всім
-// іншим повертаємо 0 - безневинно, як і READ-патч на a1=0.
-// Рівно 6 слів = 24 байти, тобто точний розмір оригінального тіла.
+// EXEC patch of the DoControl(1) body. Critical: dvfs_interface channel is opened
+// not only by us (§15 - mmrmserver.dll, fmradiotunercontrol.dll), and in an app with
+// a live UI these clients are active. A simple "bx r1" would mean any
+// of their calls to DoControl(1, a1) jumps in the kernel to a THIRD-PARTY address - hence
+// a freeze, and the more such windows we open, the more certain it is.
+// Therefore we jump ONLY to one expected address (our SRAM slot), and return 0
+// to all others - harmlessly, just like the READ patch with a1=0.
+// Exactly 6 words = 24 bytes, which is the exact size of the original body.
 "   .global OcExecPatchStart    \n"
 "   .global OcExecPatchEnd      \n"
 "OcExecPatchStart:              \n"
-"   ldr  r0, [pc, #12]          \n"   // -> літерал нижче
+"   ldr  r0, [pc, #12]          \n"   // -> literal below
 "   cmp  r1, r0                 \n"
 "   bxeq r1                     \n"
 "   mov  r0, #0                 \n"
 "   bx   lr                     \n"
-"   .word 0xDEADBEEF            \n"   // дозволена адреса; патчиться зовні
+"   .word 0xDEADBEEF            \n"   // allowed address; patched externally
 "OcExecPatchEnd:                \n"
 "                               \n"
 "   .global OcRelockBlobStart   \n"
@@ -76,26 +76,26 @@ __asm__(
 "   stmfd sp!, {r4-r11, lr}     \n"
 "   ldr  r4, =0xC6008000        \n"
 "   ldr  r5, =0xC6129000        \n"
-"   ldr  r6, =0xDEADBEEF        \n"   // новий CM_CLKSEL1_PLL; патчиться зовні
-"   ldr  r11, =0xFEEDFACE       \n"   // початковий, для апаратного відкату
-"   ldr  r2, =0xCAFEBABE        \n"   // новий CM_CLKSEL1_CORE (дільники)
-"   ldr  r3, =0xBAADF00D        \n"   // початковий CM_CLKSEL1_CORE
+"   ldr  r6, =0xDEADBEEF        \n"   // new CM_CLKSEL1_PLL; patched externally
+"   ldr  r11, =0xFEEDFACE       \n"   // initial, for hardware rollback
+"   ldr  r2, =0xCAFEBABE        \n"   // new CM_CLKSEL1_CORE (dividers)
+"   ldr  r3, =0xBAADF00D        \n"   // initial CM_CLKSEL1_CORE
 "   mov  r7, #0                 \n"
 "   mrs  r8, cpsr               \n"
 "   orr  r9, r8, #0xC0          \n"
 "   msr  cpsr_c, r9             \n"
-// SDRAM у self-refresh ДО вікна. Без цього кроку контролер памʼяті лишається
-// в звичайному режимі, поки CORE (а з ним L3 і SDRAM) падає до sys_clk на весь
-// час bypass+relock. Безголовий прогін це переживав, бо трафіку до памʼяті
-// майже не було; із живим дисплеєм, який безперервно читає кадровий буфер,
-// апарат зависав намертво, і то тим певніше, чим більший крок множника (довше
-// захоплення DPLL = довше вікно). Значення 0x48 і саме це місце в
-// послідовності - з idle-процедури power.dll @0x800A7F6C (findings 17), тобто
-// вендорський код для цього ж SoC.
+// SDRAM into self-refresh BEFORE the window. Without this step, the memory controller
+// remains in normal mode while CORE (and with it L3 and SDRAM) drops to sys_clk for the
+// entire bypass+relock duration. A headless run survived this because memory traffic
+// was near zero; with an active display continuously reading the framebuffer,
+// the device froze completely, and more reliably so the larger the multiplier step (longer
+// DPLL lock = longer window). The value 0x48 and this exact spot in the
+// sequence come from the idle routine of power.dll @0x800A7F6C (findings 17), i.e.,
+// vendor code for this exact SoC.
 "   ldr  r0, [r5, #0x70]        \n"
 "   orr  r0, r0, #0x48          \n"
 "   str  r0, [r5, #0x70]        \n"
-"   ldr  r0, [r5, #0x70]        \n"   // читання назад: запис мусить дійти
+"   ldr  r0, [r5, #0x70]        \n"   // readback: the write must post
 "   ldr  r0, [r4, #0x500]       \n"
 "   bic  r0, r0, #3             \n"
 "   orr  r0, r0, #2             \n"
@@ -110,12 +110,12 @@ __asm__(
 "   orr  r7, r7, #1             \n"
 "   b    3f                     \n"
 "2: str  r6, [r4, #0x540]       \n"
-// Дільники домену CORE пишемо ТУТ, разом із множником: одна фіксація
-// CLKCFG_CTRL латчить і PLL, і CLKSEL1_CORE, тож L3/SDRAM і DSS ніколи не
-// бачать нову CORE зі старим дільником. Саме цього бракувало: дисплей
-// тактується CORE/DSS1_div, і будь-яка зміна CORE без компенсації дільника
-// зсувала його піксельний клок - звідси зависання відрисовки, причому
-// симетрично, і при пониженні частоти теж (findings §21).
+// CORE domain dividers are written HERE, together with the multiplier: a single latch
+// via CLKCFG_CTRL latches both PLL and CLKSEL1_CORE, so L3/SDRAM and DSS never
+// see the new CORE with the old divider. That was precisely what was missing: the display
+// is clocked by CORE/DSS1_div, and any CORE change without divider compensation
+// shifted its pixel clock - hence rendering hangs, symmetrically even when
+// underclocking (findings §21).
 "   str  r2, [r4, #0x240]       \n"
 "   mov  r0, #1                 \n"
 "   str  r0, [r4, #0x80]        \n"
@@ -138,11 +138,11 @@ __asm__(
 "   subs r10, r10, #1           \n"
 "   bne  5b                     \n"
 "   orr  r7, r7, #4             \n"
-// АПАРАТНИЙ ВІДКАТ. Якщо DPLL не захопився на новому множнику, лишити його в
-// bypass не можна: CORE тоді дорівнює sys_clk, MPU падає до ~9.6 МГц, і апарат
-// виглядає як намертво зависший, хоча формально живий. Повертаємось у bypass,
-// пишемо ПОЧАТКОВИЙ множник і захоплюємось на ньому - усе всередині тієї самої
-// критичної секції, поки переривання ще вимкнені.
+// HARDWARE ROLLBACK. If DPLL failed to lock on the new multiplier, it cannot be left
+// in bypass: CORE then equals sys_clk, MPU drops to ~9.6 MHz, and the device looks
+// completely frozen, although formally alive. We return to bypass, write the
+// INITIAL multiplier and lock onto it - all within the same critical section
+// while interrupts are still disabled.
 "   ldr  r0, [r4, #0x500]       \n"
 "   bic  r0, r0, #3             \n"
 "   orr  r0, r0, #2             \n"
@@ -154,8 +154,8 @@ __asm__(
 "   beq  9f                     \n"
 "   subs r10, r10, #1           \n"
 "   bne  8b                     \n"
-"9: str  r11, [r4, #0x540]      \n"   // початковий CM_CLKSEL1_PLL
-"   str  r3, [r4, #0x240]       \n"   // і початкові дільники
+"9: str  r11, [r4, #0x540]      \n"   // initial CM_CLKSEL1_PLL
+"   str  r3, [r4, #0x240]       \n"   // and initial dividers
 "   mov  r0, #1                 \n"
 "   str  r0, [r4, #0x80]        \n"
 "   ldr  r0, [r4, #0x500]       \n"
@@ -169,7 +169,7 @@ __asm__(
 "   beq  6f                     \n"
 "   subs r10, r10, #1           \n"
 "   bne  0b                     \n"
-"   orr  r7, r7, #8             \n"   // відкат теж не вдався
+"   orr  r7, r7, #8             \n"   // rollback failed as well
 "6: ldr  r0, [r5, #0x64]        \n"
 "   and  r0, r0, #0xFF00        \n"
 "   ldr  r1, [r5, #0x60]        \n"
@@ -201,12 +201,12 @@ extern "C" void OcRelockBlobEnd(void);
 extern "C" void OcExecPatchStart(void);
 extern "C" void OcExecPatchEnd(void);
 
-// Оригінальні 6 слів тіла DoControl(1), зняті з дизасемблера ROM
-// (out/asm/dvfs_if.asm, 0x80148410..0x80148427). Тримати їх тут обов'язково:
-// без відкату наш патч лишається в ROM-shadow ЖИТИ ПІСЛЯ ВИХОДУ процесу, тобто
-// в системі назавжди (до перезавантаження) висить підмінена функція ядра. Якщо
-// її колись викличе не наш код і не з нулем у a1, ми розіменуємо довільну
-// адресу в режимі ядра - апарат перезавантажиться.
+// Original 6 words of the DoControl(1) body, taken from ROM disassembly
+// (out/asm/dvfs_if.asm, 0x80148410..0x80148427). Keeping them here is mandatory:
+// without rollback our patch remains in ROM-shadow TO LIVE AFTER PROCESS EXIT, meaning
+// a replaced kernel function hangs in the system permanently (until reboot). If it is
+// ever called by non-our code and not with zero in a1, we dereference an arbitrary
+// address in kernel mode - the device reboots.
 static const TUint32 KDvfsOriginal[6] =
     { 0xe92d4010u,   // stmdb sp!, {r4, lr}
       0xe3a00001u,   // mov   r0, #1
@@ -215,12 +215,12 @@ static const TUint32 KDvfsOriginal[6] =
       0xe8bd4010u,   // ldmia sp!, {r4, lr}
       0xea000135u }; // b     0x80148900
 
-// READ-патч: cmp r1,#0 ; ldrne r0,[r1] ; moveq r0,#0 ; bx lr
+// READ patch: cmp r1,#0 ; ldrne r0,[r1] ; moveq r0,#0 ; bx lr
 static const TUint32 KReadPatch[4] =
     { 0xe3510000u, 0x15910000u, 0x03a00000u, 0xe12fff1eu };
 
 
-// --- канали -----------------------------------------------------------------
+// --- channels ---------------------------------------------------------------
 
 TInt RPatcherChannel::Open()
     {
@@ -249,7 +249,7 @@ TInt RDvfsChannel::ReadOrCall(TUint32 aAddress)
     return DoControl(1, (TAny*)aAddress);
     }
 
-// --- розклад тактування -----------------------------------------------------
+// --- clock layout -----------------------------------------------------------
 
 void TOcClocks::Decode(TUint32 aClkSel1, TUint32 aClkSel2, TUint32 aMpuDiv,
                        TUint32 aCoreDiv)
@@ -286,7 +286,7 @@ TUint32 TOcClocks::L3Khz() const
     return iL3Div ? CoreKhz() / (TUint32)iL3Div : 0;
     }
 
-// --- двигун -----------------------------------------------------------------
+// --- engine -----------------------------------------------------------------
 
 COcEngine::COcEngine()
   : iPatcherOpen(EFalse), iDvfsOpen(EFalse), iReady(EFalse), iExecMode(EFalse), iPatched(EFalse), iShadowed(EFalse),
@@ -308,19 +308,19 @@ void COcEngine::ConstructL() {}
 
 COcEngine::~COcEngine()
     {
-    // Порядок обов'язковий і саме такий:
-    //   1. зняти розгін - частота переживає процес;
-    //   2. повернути оригінальні байти ядра - патч теж переживає процес, і
-    //      лишати підмінену функцію в системі означає ставити міну на потім;
-    //   3. лише тоді закривати канали (без патчера крок 2 неможливий).
+    // Order is mandatory and strictly as follows:
+    //   1. remove overclock - frequency survives the process;
+    //   2. restore original kernel bytes - the patch also survives the process, and
+    //      leaving a replaced function in the system means setting a trap for later;
+    //   3. only then close the channels (without the patcher, step 2 is impossible).
     if (iApplied && !iKeep && iSram)
         {
         TUint32 st = 0;
         RestoreStock(st);
         }
     RestoreKernelCode();
-    // Останнім - зняти shadow. Після цього в ядрі не лишається ні наших
-    // байтів, ні виділеної під них сторінки.
+    // Last - remove shadow. After this, neither our bytes nor the page
+    // allocated for them remain in the kernel.
     UnshadowKernelPage();
     if (iDvfsOpen)
         iDvfs.Close();
@@ -328,12 +328,12 @@ COcEngine::~COcEngine()
         iPatcher.Close();
     }
 
-// Повертає тіло DoControl(1) у первісний вигляд. Безпечно викликати повторно.
+// Restores the DoControl(1) body to its original form. Safe to call repeatedly.
 //
-// Пишемо всі 6 слів: EXEC-патч займає рівно стільки. Раніше тут стояло 4 слова
-// з обґрунтуванням "16 байтів - перевірений шлях memmove"; те обґрунтування було
-// хибним діагнозом - справжньою причиною невдалого відкату був I-cache, а не
-// довжина запису (findings §19).
+// We write all 6 words: the EXEC patch occupies exactly that much. Previously 4 words stood here
+// with the justification "16 bytes is the proven memmove path"; that justification was
+// a misdiagnosis - the real reason for the failed rollback was the I-cache, not the
+// write length (findings §19).
 TInt COcEngine::RestoreKernelCode()
     {
     if (!iPatcherOpen || !iPatched)
@@ -347,10 +347,10 @@ TInt COcEngine::RestoreKernelCode()
     return r;
     }
 
-// Знімає ROM-shadow із тіла DoControl(1): сторінці повертається штатне
-// відображення прямо на ROM, а виділена патчером RAM-сторінка звільняється.
-// Робиться ОДИН раз, при завершенні: вміст ми й так відновлюємо після кожної
-// операції, а от alloc/free сторінок ядра на кожне читання - зайва churn.
+// Removes ROM-shadow from the DoControl(1) body: the page is restored to stock
+// mapping directly to ROM, and the RAM page allocated by the patcher is freed.
+// Done ONCE, on termination: we already restore the contents after each
+// operation anyway, whereas kernel page alloc/free on every read is unnecessary churn.
 TInt COcEngine::UnshadowKernelPage()
     {
     if (!iPatcherOpen || !iShadowed)
@@ -363,11 +363,11 @@ TInt COcEngine::UnshadowKernelPage()
     return r;
     }
 
-// Перевірка відкату. Прочитати відновлені байти нічим - примітив читання це
-// і Є ті байти. Але в оригінальної функції є відома поведінка: DoControl(1, 0)
-// віддає відсоток від номіналу (findings 3), тобто 50 або 100. Наш READ-патч
-// на a1=0 повертає рівно 0, а EXEC-патч стрибнув би за нульовою адресою.
-// Отже ненульовий відсоток тут - доказ, що в ядрі знову штатний код.
+// Rollback verification. There is nothing to read the restored bytes with - the read primitive
+// IS those bytes. But the original function has known behavior: DoControl(1, 0)
+// returns percentage of nominal (findings 3), i.e., 50 or 100. Our READ patch
+// with a1=0 returns exactly 0, and the EXEC patch would jump to a null address.
+// Therefore a non-zero percentage here is proof that stock code is in the kernel again.
 TInt COcEngine::VerifyRestored()
     {
     if (!iDvfsOpen || iPatched)
@@ -427,8 +427,8 @@ TInt COcEngine::PokeWords(TUint32 aAddr, const TUint32* aWords, TInt aCount)
     return Poke(aAddr, b);
     }
 
-// Канал доводиться перевідкривати після кожної зміни патчу: драйвер тримає
-// стан, а нам треба гарантувати, що наступний DoControl(1) піде у свіже тіло.
+// The channel has to be reopened after each patch change: the driver holds
+// state, and we need to guarantee that the next DoControl(1) goes into the fresh body.
 TInt COcEngine::ReopenDvfs()
     {
     if (iDvfsOpen)
@@ -442,11 +442,11 @@ TInt COcEngine::ReopenDvfs()
     return r;
     }
 
-// Канал НЕ перевідкриваємо. Доведений прогін пробника відкривав його рівно
-// один раз, і перевідкриття тут нічого не дає: диспетчер драйвера викликає
-// пропатчене тіло через "bl 0x80148410" напряму, нічого не кешуючи. Зайві
-// цикли close/open - це зайві операції над драйвером ядра на кожне читання,
-// а апарат до цієї роботи був стабільний, тож нову churn вносити нема за що.
+// We do NOT reopen the channel. The verified probe run opened it exactly
+// once, and reopening here accomplishes nothing: the driver dispatcher calls
+// the patched body via "bl 0x80148410" directly, caching nothing. Unnecessary
+// close/open cycles mean extra operations on the kernel driver for every read,
+// while the device was stable prior to this work, so there is no reason to introduce new churn.
 TInt COcEngine::ApplyReadPatch()
     {
     TInt r = PokeWords(KDvfsBody, KReadPatch, 4);
@@ -460,8 +460,8 @@ TInt COcEngine::ApplyReadPatch()
 
 TInt COcEngine::ApplyExecPatch()
     {
-    // Байти беремо з асемблерного шаблону, а не з масиву констант: кодування
-    // інструкцій рахує асемблер, а не я вручну.
+    // We take bytes from the assembly template, not from an array of constants: instruction
+    // encoding is computed by the assembler, not manually by me.
     const TUint8* p = (const TUint8*)((TUint32)&OcExecPatchStart & ~1u);
     const TUint8* q = (const TUint8*)((TUint32)&OcExecPatchEnd & ~1u);
     TInt len = (TInt)(q - p);
@@ -470,7 +470,7 @@ TInt COcEngine::ApplyExecPatch()
     TBuf8<24> patch;
     patch.Copy(p, len);
 
-    // Підставляємо єдину адресу, стрибок на яку дозволено.
+    // Substitute the single address to which jumping is allowed.
     const TUint32 allowed = iSram + KSramSlot;
     TBool found = EFalse;
     for (TInt i = 0; i + 4 <= len; i += 4)
@@ -498,14 +498,14 @@ TInt COcEngine::ApplyExecPatch()
     return KErrNone;
     }
 
-// Знімає патч НАДІЙНО. Перезапису байтів для цього НЕ досить: жоден шлях
-// патчера не робить Cache::IMB (findings §14), а пропатчена функція вже
-// виконувалась, тож її інструкції лишаються в I-cache. Спостережено прямо:
-// після відновлення байтів DoControl(1,0) повертав 0, тобто патч був живий.
-// FreeShadowPage натомість викидає RAM-сторінку й повертає відображення на
-// справжній ROM - разом із коректним обслуговуванням кешу.
-// Байти все одно переписуємо першими: якщо unshadow колись не спрацює, вміст
-// сторінки має бути штатним.
+// Removes the patch RELIABLY. Rewriting bytes is NOT sufficient for this: no patcher
+// path executes Cache::IMB (findings §14), and the patched function has already
+// executed, so its instructions remain in the I-cache. Observed directly:
+// after restoring bytes, DoControl(1,0) returned 0, meaning the patch was alive.
+// FreeShadowPage instead discards the RAM page and restores mapping to
+// real ROM - along with proper cache maintenance.
+// Bytes are still rewritten first: if unshadow ever fails, page contents
+// must still be stock.
 TInt COcEngine::EndPatchSession()
     {
     RestoreKernelCode();
@@ -542,7 +542,7 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     if (aLevel < 1)
         return KErrNone;
 
-    // Рівень 1: контракт func 105 на власному буфері. Ядро не чіпається.
+    // Level 1: func 105 contract on own buffer. Kernel is not touched.
     iStep = EOcStepSelfTest;
     TBuf8<4> target;
     TBuf8<4> bytes;
@@ -557,8 +557,8 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     if (aLevel < 2)
         return KErrNone;
 
-    // Рівень 2: перший дотик до коду ядра. Саме тут виникає ROM-shadow сторінка,
-    // і вона лишається до перезавантаження навіть після відновлення вмісту.
+    // Level 2: first touch of kernel code. This is where the ROM-shadow page arises,
+    // and it remains until reboot even after contents are restored.
     iStep = EOcStepOpenDvfs;
     User::LoadLogicalDevice(KDvfsFile);
     r = ReopenDvfs();
@@ -570,8 +570,8 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     if (r != KErrNone)
         return r;
     aReadValue = (TUint32)iDvfs.ReadOrCall(KRegClkSel1Pll);
-    // Перевіряти ПІСЛЯ unshadow, а не після перезапису байтів: саме unshadow
-    // і є надійним зняттям патчу.
+    // Verify AFTER unshadow, not after rewriting bytes: unshadow specifically
+    // is the reliable patch removal.
     EndPatchSession();
     aVerify = VerifyRestored();
     if (aLevel < 3)
@@ -586,7 +586,7 @@ TInt COcEngine::Prepare()
     TInt r = User::LoadLogicalDevice(KPatcherFile);
     if (r != KErrNone && r != KErrAlreadyExists)
         return r;
-    // dvfs_interface у ROM уже є, але спроба не завадить.
+    // dvfs_interface is already in ROM, but an attempt won't hurt.
     User::LoadLogicalDevice(KDvfsFile);
 
     iStep = EOcStepOpenPatcher;
@@ -595,7 +595,7 @@ TInt COcEngine::Prepare()
         return r;
     iPatcherOpen = ETrue;
 
-    // Самоперевірка контракту func 105 на власному буфері: ядро не чіпається.
+    // Self-test of func 105 contract on own buffer: kernel is not touched.
     iStep = EOcStepSelfTest;
     TBuf8<4> target;
     TBuf8<4> bytes;
@@ -628,8 +628,8 @@ TInt COcEngine::Prepare()
     if (sram < 0xc0000000u || (sram & 3))
         return KErrNotFound;
 
-    // Адресі не віримо без звірки: перше слово копії мусить дорівнювати
-    // першому слову оригіналу в ROM. Інакше писали б у випадкову память ядра.
+    // We do not trust the address without verification: first word of the copy must equal
+    // first word of the original in ROM. Otherwise we would be writing to random kernel memory.
     iStep = EOcStepVerifySram;
     TUint32 w0 = (TUint32)iDvfs.ReadOrCall(sram);
     TUint32 romw0 = (TUint32)iDvfs.ReadOrCall(KRomSramRoutine);
@@ -646,11 +646,11 @@ TInt COcEngine::Prepare()
         return KErrCorrupt;
     iStockClkSel1 = sel1;
     iStockCore = core;
-    // core_sel читається то як 1, то як 2: губернатор DVFS рухає його в
-    // рантаймі (findings 12, 18). Миттєвий відлік тут брехливий - спіймавши
-    // апарат на нижній OPP, ми показали б 165 МГц замість 330. Тому знімаємо
-    // серію ПІД НАВАНТАЖЕННЯМ і беремо максимум: губернатор піднімає OPP лише
-    // тоді, коли є робота, а сповільнити відлік завада може, завищити - ні.
+    // core_sel is read sometimes as 1, sometimes as 2: the DVFS governor moves it at
+    // runtime (findings 12, 18). An instantaneous reading here is misleading - catching
+    // the device at a lower OPP, we would display 165 MHz instead of 330. So we take
+    // a series UNDER LOAD and take the maximum: the governor raises OPP only
+    // when there is work, and interference can slow down a reading, never inflate it.
     TUint32 bestSel2 = sel2 & 3;
     for (TInt k = 0; k < 8; ++k)
         {
@@ -665,8 +665,8 @@ TInt COcEngine::Prepare()
     iStockClocks.Decode(sel1, sel2, mpud, core);
     iAppliedMult = iStockClocks.iMult;
 
-    // Пакет читань закінчено - знімаємо патч повністю. Далі кожна операція
-    // накладає його сама, рівно на час своєї роботи.
+    // Read batch completed - removing patch completely. Going forward, each operation
+    // applies it on its own, strictly for the duration of its execution.
     EndPatchSession();
 
     iStep = EOcStepReady;
@@ -680,12 +680,12 @@ void COcEngine::ClocksFor(TInt aMult, TOcClocks& aOut) const
     aOut.iMult = aMult;
     }
 
-// Підбір дільників під нову CORE. Мета - лишити L3 і DSS1 якнайближче до їхніх
-// ШТАТНИХ частот: саме їхній зсув ламав апарат, а не сама частота ядра.
-// Дільники цілочисельні, тож точна компенсація можлива не завжди; за рівної
-// похибки віддаємо перевагу МЕНШІЙ частоті - вона безпечніша і для панелі,
-// і для памʼяті (refresh рахується в тактах L3, тож повільніша шина означає
-// частіший refresh, а не рідший).
+// Selection of dividers for the new CORE. Goal is to keep L3 and DSS1 as close to their
+// STOCK frequencies as possible: their shift was what broke the device, not the core frequency itself.
+// Dividers are integers, so exact compensation is not always possible; at equal
+// error we prefer LOWER frequency - it is safer both for the panel
+// and for memory (refresh is counted in L3 cycles, so a slower bus means
+// more frequent refresh, not less frequent).
 static TInt PickDivider(TUint32 aNewCoreKhz, TUint32 aWantKhz, TInt aMin, TInt aMax)
     {
     if (!aWantKhz)
@@ -696,8 +696,8 @@ static TInt PickDivider(TUint32 aNewCoreKhz, TUint32 aWantKhz, TInt aMin, TInt a
         {
         TUint32 got = aNewCoreKhz / (TUint32)d;
         TUint32 err = (got > aWantKhz) ? (got - aWantKhz) : (aWantKhz - got);
-        // Строго менше: за рівної похибки лишається БІЛЬШИЙ дільник, тобто
-        // нижча частота.
+        // Strictly less: at equal error, the LARGER divider remains, i.e.,
+        // lower frequency.
         if (err < bestErr)
             {
             bestErr = err;
@@ -715,16 +715,16 @@ TUint32 COcEngine::CompensatedCore(TInt aMult) const
     if (!newCore)
         return iStockCore;
 
-    // DSS1 - точна компенсація до найближчого. Це та частота, зсув якої ламав
-    // відрисовку, і вона нам не потрібна вища: дисплею байдуже до швидкості,
-    // йому потрібна СВОЯ частота.
+    // DSS1 - exact compensation to the nearest. This is the frequency whose shift broke
+    // rendering, and we do not need it higher: the display does not care about speed,
+    // it needs ITS OWN frequency.
     const TInt dss = PickDivider(newCore, iStockClocks.Dss1Khz(), 1, 31);
 
-    // L3/SDRAM - навпаки, тримаємо ЯКНАЙВИЩОЮ в межах допустимого. Компенсувати
-    // її "до найближчого" було б помилкою: на mult 96 це опустило б памʼять
-    // нижче штатної, тоді як замір показав, що вона спокійно тримає +11.5% з
-    // нульовими помилками. Тож беремо найменший дільник, за якого L3 не
-    // перевищує штатну більш ніж на 15%.
+    // L3/SDRAM - on the contrary, we keep AS HIGH AS POSSIBLE within tolerance. Compensating
+    // it "to nearest" would be a mistake: at mult 96 this would drop memory
+    // below stock, whereas benchmarking showed that it comfortably holds +11.5% with
+    // zero errors. So we take the smallest divider under which L3 does not
+    // exceed stock by more than 15%.
     const TUint32 l3Cap = iStockClocks.L3Khz() + iStockClocks.L3Khz() / 7u;
     TInt l3 = iStockClocks.iL3Div ? iStockClocks.iL3Div : 4;
     for (TInt d = 1; d <= 31; ++d)
@@ -736,7 +736,7 @@ TUint32 COcEngine::CompensatedCore(TInt aMult) const
             }
         }
     if (l3 < iStockClocks.iL3Div)
-        l3 = iStockClocks.iL3Div;      // ніколи не розганяємо шину сильніше, ніж вийшло б само
+        l3 = iStockClocks.iL3Div;      // never overclock the bus higher than it would end up naturally
 
     TUint32 v = iStockCore;
     v = (v & ~KCoreL3Mask) | (((TUint32)l3 << KCoreL3Shift) & KCoreL3Mask);
@@ -764,9 +764,9 @@ TInt COcEngine::WriteRelockBlob(TUint32 aClkSel1Value, TUint32 aCoreValue)
     TBuf8<512> blob;
     blob.Copy(p, len);
 
-    // Два слова-заглушки: цільове значення і початкове (для апаратного відкату
-    // всередині критичної секції). Обидва мусять знайтись, інакше блоб не той,
-    // на який ми розраховуємо, і виконувати його не можна.
+    // Two stub words: target value and initial value (for hardware rollback
+    // inside the critical section). Both must be found, otherwise the blob is not what
+    // we expect, and executing it is unsafe.
     TInt patched = 0;
     for (TInt i = 0; i + 4 <= len; i += 4)
         {
@@ -802,7 +802,7 @@ TInt COcEngine::ApplyMult(TInt aMult, TUint32& aStatus)
     if (aMult < KOcMultMin || aMult > KOcMultMax)
         return KErrArgument;
 
-    // Міняємо рівно біти [21:12], решту регістра зберігаємо.
+    // Change exactly bits [21:12], preserve the rest of the register.
     TUint32 target = (iStockClkSel1 & ~0x003ff000u) |
                      (((TUint32)aMult & 0x3ff) << 12);
 
@@ -816,8 +816,8 @@ TInt COcEngine::ApplyMult(TInt aMult, TUint32& aStatus)
     TUint32 rc = (TUint32)iDvfs.ReadOrCall(iSram + KSramSlot);
     aStatus = rc >> 28;
 
-    // Знімаємо патч НЕГАЙНО й повністю: далі йдуть заміри, і тримати підмінене
-    // тіло функції ядра весь цей час не можна.
+    // Remove the patch IMMEDIATELY and completely: measurements follow, and keeping the
+    // replaced kernel function body all that time is prohibited.
     EndPatchSession();
 
     iAppliedMult = aMult;
@@ -833,8 +833,8 @@ TInt COcEngine::ApplyMultRamp(TInt aTarget, TUint32& aStatus)
     if (aTarget < KOcMultMin || aTarget > KOcMultMax)
         return KErrArgument;
 
-    // Йдемо від ФАКТИЧНОГО множника, а не від запамʼятованого: якщо попередня
-    // спроба відкатилась сама, стан у залізі може не збігатися з нашим.
+    // We step from the ACTUAL multiplier, not the remembered one: if the previous
+    // attempt rolled back on its own, hardware state may not match ours.
     TInt cur = 0;
     TInt r = LiveMult(cur);
     if (r != KErrNone)
@@ -850,11 +850,11 @@ TInt COcEngine::ApplyMultRamp(TInt aTarget, TUint32& aStatus)
         aStatus |= st;
         if (r != KErrNone)
             return r;
-        // Ненульовий статус означає, що блоб уже сам відкатився на попереднє
-        // значення. Далі не йдемо: наступна сходинка лише повторила б відмову.
+        // Non-zero status means the blob already rolled back on its own to the previous
+        // value. We go no further: the next step would only repeat the failure.
         if (st != 0)
             return KErrAbort;
-        User::After(20000);            // 20 мс на осідання підсистем
+        User::After(20000);            // 20 ms for subsystems to settle
         }
     return KErrNone;
     }

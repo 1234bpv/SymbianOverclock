@@ -1,28 +1,34 @@
-# Нормалізувати перенос рядків у текстових файлах
+# Normalise line endings in text files
 * text=auto
 
-# Скрипти Windows тримати з CRLF (cmd/bat ламаються від LF)
-*.cmd  text eol=crlf
-*.bat  text eol=crlf
-*.ps1  text eol=crlf
+# Windows scripts stay CRLF (cmd/bat break on LF)
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
 
-# Джерела й документація — LF
-*.cpp  text eol=lf
-*.h    text eol=lf
-*.js   text eol=lf
-*.md   text eol=lf
-*.mmp  text eol=lf
-*.rss  text eol=lf
-*.inf  text eol=lf
+# Sources and documentation - LF
+*.cpp text eol=lf
+*.h   text eol=lf
+*.js  text eol=lf
+*.md  text eol=lf
+*.txt text eol=lf
+*.rss text eol=lf
+*.mmp text eol=lf
+*.inf text eol=lf
+*.json text eol=lf
 
-# .pkg мусить лежати в робочій копії з CRLF: makesis мовчки псує файл із LF,
-# і про це прямо сказано в коментарі всередині ocgui.pkg. Раніше тут стояло
-# eol=lf, тобто свіжий клон отримав би несправний пакет; на цій машині це не
-# спливло лише тому, що робоча копія жодного разу не перевикачувалась.
-*.pkg  text eol=crlf
+# The .pkg must sit in the working copy with CRLF: makesis silently corrupts a
+# file with LF endings, which is stated outright in a comment inside ocgui.pkg.
+# This used to say eol=lf, meaning a fresh clone would have produced a broken
+# package; it never surfaced on this machine only because the working copy was
+# never re-cloned.
+*.pkg text eol=crlf
 
-# Бінарні артефакти
-*.sis   binary
-*.rom   binary
-*.bmp   binary
-*.png   binary
+# Binary artefacts
+*.sis binary
+*.sisx binary
+*.exe binary
+*.dll binary
+*.ldd binary
+*.rom binary
+*.bin binary

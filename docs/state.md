@@ -1,1030 +1,1028 @@
-# Стан робіт і точка відновлення
+# Work Status and Recovery Point
 
-Читати разом із `findings.md` — там технічні висновки, тут операційний стан.
-Оновлювати після кожного етапу: це єдина точка відновлення після втрати контексту.
+Read alongside `findings.md` — technical conclusions are there, operational status is here.
+Update after every stage: this is the single recovery point after losing context.
 
-`WALKTHROUGH.md` (2026-08-08) — наративний розбір усього шляху для читача збоку:
-лікнеп по залізу й Symbian, хронологія з тупиками, методичні уроки, джерела
-документації на OMAP2420. Основа для майбутнього README при публікації.
+`WALKTHROUGH.md` (2026-08-08) — narrative breakdown of the entire journey for an outside reader:
+a primer on hardware and Symbian, chronology with dead ends, methodological lessons, sources
+of OMAP2420 documentation. The foundation for the future README upon publication.
 
-`ROADMAP.md` (2026-08-08) — план робіт до публікації на GitHub і порядок їх
-виконання. Поточний перший пункт — автозастосування безпечних налаштувань із
-60-секундним вікном скасування, далі гейт по прошивці й сигнатурний пошук адрес.
+`ROADMAP.md` (2026-08-08) — work plan prior to publication on GitHub and order of its
+execution. Current first item — auto-apply of safe settings with a
+60-second cancellation window, followed by a firmware gate and signature-based address search.
 
-## Мета
+## Objective
 
-З'ясувати, чи можливий розгін CPU на Symbian 9.2 / OMAP 2420, і якщо так —
-зробити його. Еталон: Nokia N95 8GB (RM-320) — власний, розблокований для
-homebrew (dev-unlocked), підключений по локальному WiFi. Контекст і межі —
+Determine whether CPU overclocking is possible on Symbian 9.2 / OMAP 2420, and if so —
+implement it. Reference device: Nokia N95 8GB (RM-320) — owned, unlocked for
+homebrew (dev-unlocked), connected over local WiFi. Context and scope —
 `docs/SCOPE.md`.
 
-## Де ми зараз
+## Where We Are Now
 
-### Версія 2.0.1: відкат живими словами, робочий тестовий профіль (2026-09-11)
+### Version 2.0.1: rollback with live words, working test profile (2026-09-11)
 
-Фінальна рецензія перед релізом знайшла п'ять розбіжностей, і всі п'ять
-підтвердились при читанні коду. Головна: рядок TEST PROFILE не працював узагалі,
-бо його обробник стояв за перевіркою готовності двигуна, а на невідомому апараті
-двигун не готовий саме тому, що профілю ще немає. Решта - залишковий напис
-UNKNOWN DEVICE після вдалого підключення, хибний NON-STOCK at start на тестових
-профілях (порівняння йшло з полями профілю, які там нульові), відсутність меж у
-пошуку глобала і застарілий абзац у PORTING.md.
+The final pre-release review found five discrepancies, and all five
+were confirmed upon reading the code. The main one: the TEST PROFILE string did not work at all
+because its handler was placed behind the engine readiness check, and on an unknown device
+the engine is not ready precisely because the profile does not exist yet. The rest — residual text
+UNKNOWN DEVICE after a successful connection, false NON-STOCK at start on test
+profiles (comparison was made against profile fields, which are zero there), lack of boundaries in
+the global search, and an outdated paragraph in PORTING.md.
 
-Власна перевірка знайшла гіршу ваду, якої в рецензії не було. Відкат патча
-записував назад константу з RM-320, у якій три слова з шести - зміщення
-переходів конкретної збірки. На чужій збірці такий відкат лишив би драйвер
-зіпсованим до перезавантаження, причому мовчки. Тепер штатні слова знімаються з
-живого ROM перед першим записом, а та сама операція дала й впізнання апарата:
-байти за адресою патча звіряються маскою до будь-якого запису в ядро, і для
-тестового профілю розбіжність означає відмову. Перевірено на N95 (findings §42).
+Our own check found a worse defect that was not in the review. The patch rollback
+wrote back a constant from RM-320, in which three words out of six are branch
+offsets of a specific build. On a different build, such a rollback would leave the driver
+corrupted until reboot, silently at that. Now stock words are captured from
+live ROM before the first write, and that same operation also provided device identification:
+bytes at the patch address are verified with a mask prior to any write to the kernel, and for
+a test profile, a mismatch means rejection. Verified on N95 (findings §42).
 
-**Локалізація розширена до 28 мов**, і додано те, чого бракувало: відображення
-регіональних варіантів мови апарата на основну. Австрійська німецька, бельгійська
-французька, бразильська португальська й подібні доти мовчки давали англійську,
-хоча переклад був. Ідея взята з i18n емулятора PS1.
+**Localization expanded to 28 languages**, and what was missing was added: mapping
+device language regional variants to the base language. Austrian German, Belgian
+French, Brazilian Portuguese, and similar previously silently gave English,
+even though a translation existed. The idea was borrowed from PS1 emulator i18n.
 
-### Версія 2.0.0: тестові профілі, 15 мов, схема автозапуску (2026-09-11)
+### Version 2.0.0: test profiles, 15 languages, autostart scheme (2026-09-11)
 
-**Тестові профілі.** Nokia N82 (RM-313) і N95 classic (RM-159) додані як
-ТЕСТОВІ: автоматично не добираються ніколи, вибір лише вручну й після двох
-попереджень. Те, що можна було довести з образів, доведено власноруч
-побайтово (findings §41), а те, чого не вдалось, - адресу глобала power-down -
-двигун шукає на апараті зі звіркою копії SRAM. Механізм пошуку перевірено на
-обох робочих апаратах проти відомих відповідей: `c80030c8` на N95 і
-`c8003068` на E90.
+**Test profiles.** Nokia N82 (RM-313) and N95 classic (RM-159) added as
+TEST profiles: never picked automatically, selectable only manually and after two
+warnings. What could be proven from images was proven firsthand
+byte by byte (findings §41), and what could not be proven — the power-down global address —
+the engine searches for on the device with SRAM copy verification. The search mechanism was verified on
+both working devices against known answers: `c80030c8` on N95 and
+`c8003068` on E90.
 
-**Локалізація на 15 мов** із запасним варіантом англійською для кожного
-окремого рядка. Це те, чого бракувало підходу емулятора, де кожна таблиця
-мусить бути повною. Широко перекладено 21 рядок, які користувач читає як
-звʼязний текст; службові формати з іменами регістрів і довідка лишаються
-англійською та українською свідомо.
+**Localization into 15 languages** with an English fallback for every
+individual string. This was what the emulator approach lacked, where each table
+must be complete. 21 strings that the user reads as
+coherent text are widely translated; service formats with register names and help remain
+in English and Ukrainian deliberately.
 
-**Автозапуск** описано в `docs/AUTOSTART.md` як пропозицію й не
-реалізовано. Головні відмінності від ROADMAP §0: сходинка вниз замість відмови
-після трьох спроб, і другий детектор циклу з настінного годинника, незалежний
-від того, чи встиг маркер лягти у флеш. Два правила названо жорсткими: шину
-автоматично не чіпати ніколи, і шлях відновлення через Mass Storage перевірити
-на апараті ДО релізу.
-
-
-### Підготовка до релізу: локалізація, довідка, гейт по прошивці (2026-09-11)
-
-Застосунок 1.9.0. Три зміни, з яких головна - остання.
-
-**Локалізація.** Англійська й українська, мова береться з налаштувань апарата
-один раз на старті. Джерело перекладу - `src/strings.json`, таблиці генерує
-`node tools/gen_strings.js` у `src/ocstr.cpp` як екрани виду backslash-x-XXXX.
-Так зроблено навмисно: покладатись на те, що старий GCCE правильно перетворить
-UTF-8 усередині L"..." у UTF-16, підстав немає, а помилка була б тихою і
-вилізла б лише на екрані апарата. Перевірено інакше, ніж збіркою: у готовому
-бінарнику знайдено UTF-16 українських рядків.
-
-**Вбудована інструкція.** Рядок `HELP` відкриває довідку на весь екран,
-гортання вгору/вниз, вихід будь-якою іншою клавішею. Текст лежить у тому ж
-джерелі перекладу, тож інструкція є на апараті рідною мовою й без мережі.
-
-**Гейт по прошивці - і що він одразу знайшов.** Адреси профілю виведені з
-КОНКРЕТНОЇ збірки, а не з моделі, тож збіг машинного uid не гарантує нічого: на
-іншій збірці той самий патч ляже не на той код. Тепер рушій читає версію
-прошивки апарата й без збігу до ядра не торкається; нечитабельна версія - теж
-відмова. Перший же прогін показав, що N95 8GB працює на **35.0.001**, а профіль
-весь час називався 31.0.015. Тепер у профілі обидві збірки з різними підставами:
-35.0.001 доведена на апараті, 31.0.015 - образ, з якого адреси виводили, і їхній
-збіг сам по собі є доказом, що між цими збірками код не зсунувся.
-
-**Портування замість вигаданих профілів.** Невідомий апарат тепер друкує
-машинний uid і версію прошивки - рівно те, з чого починається профіль; решта в
-`docs/PORTING.md`. Профілів для N82, RM-159, N93 і N93i НЕМАЄ і не буде, доки
-їх не підтвердить залізо. Офлайнові розбори в `out/analysis/` справжні, але
-підагенти, яких пускали по машинні uid і штатні розкладки, повернули числа без
-сліду доказів (наприклад `0x20002D85` при RM-320 `0x20002D84` - тобто сусіднє
-за шаблоном), а другий чесно зізнався, що не мав чим запустити objdump і
-екстраполював зсувом. Такі дані в профіль не йдуть.
-
-Релізні документи: `README.md`, `LICENSE` (MIT - вибір за замовчуванням, варто
-підтвердити), `CHANGELOG.md`, `AGENTS.md`. Тека `release/v1/` - це свідомий
-зліпок доведеної версії 1.0, а не забутий дублікат; у неї є власний README.
-
-**Межа локалізації - свідома.** Через таблицю йдуть рядки, звернені до
-користувача: підписи рядків меню, попередження, вердикти тестів, підказки й уся
-довідка. Технічні рядки журналу з іменами регістрів і шістнадцятковими
-значеннями лишаються англійськими: переклад формату, повного полів CLKSEL,
-відібрав би ясність, а не додав її.
-
-**Димовий тест.** 1.9.0 залито на N95 і запущено віддалено - демон віддав
-`OK proc 1`, тобто процес створюється й бінарник на апараті робочий.
-
-**Автозапуску як не було, так і немає**, і для релізу це правильно: застосунок
-не застосовує нічого сам, а `.pkg` не кладе запис у список запуску. Протокол
-маркера спроби з ROADMAP §0 лишається нереалізованим і непотрібним доти, доки
-цього не змінять.
-
-**Рецензія підагентом знайшла справжню критичну ваду, і це головний зиск дня.**
-На E90 `iDspSetter` дорівнює нулю - адресу для цього апарата не міряли, - а
-`ApplyDspDiv` її не перевіряв. Натиснувши OK на рядку `DSPDIV`, користувач
-виконав би перехід за нульовою адресою в режимі ядра. Пункт меню при цьому був
-доступний завжди, тобто це рівно те, що заборонено правилом "нічого, що може
-зависнути, за замовчуванням". Тепер профіль без сеттера отримує відмову до
-будь-якої дії, і застосунок пояснює причину словами.
-
-Там само знайдено обхід гейта: `SelfTestLevel` на рівні 2 накладав патч без
-перевірки прошивки, а профіль за замовчуванням еталонний, тож `ocprobe
-selftest 2` на чужому апараті записав би адресу RM-320 у чуже ядро. Закрито тим
-самим гейтом.
-
-І третє, про що варто пам'ятати окремо: застосунок досі казав користувачу, що
-підйом шини вбив апарат чотири рази з чотирьох. Це спростовано власним заміром
-(§39), і формулювання виправляли в findings, але в тексти самого застосунку
-виправлення не дійшло. Тепер дійшло - і в довідку, і в попередження, і в README.
-
-**Друга рецензія: п'ять із шести пунктів закрито, шостий доведено до кінця.**
-Підагент перевірив кожне виправлення по коду й підтвердив, що відмова через
-нульовий `iDspSetter` стоїть до будь-якої дії й обійти її нічим (єдиний шлях до
-`WriteDspBlob` - через `ApplyDspDiv`), що гейт у `SelfTestLevel` на місці, що
-README погоджено з findings і що `out/analysis/` тепер у git. Шостим пунктом він
-назвав рядки, які ще йшли повз локалізацію; їх дороблено всі. Англійською
-лишився тільки технічний шар - імена регістрів, шістнадцяткові дампи й одиниці
-замірів, - і це свідомо.
-
-**Блокер закрито: гейт перевірено на E90.** Павло підняв апарат, збірку залито,
-`patcher engine` пройшов до кінця: у лозі `profile: RA-6 400.34.93` і
-`engine ready: SRAM @cb102000, stock mult 86`, далі всі регістри прочитані й
-`restore check ... -> 1`, тобто код ядра повернено на місце. Отже рядок версії
-E90 справді містить "400.34.93", і профіль гейт проходить. Застосунок на E90
-теж запускається (`OK proc 1`). Апарат при цьому стоїть на штатному
-`CLKSEL1_CORE=04360626`, тобто після ребута шина повернулась сама.
-
-Відкритих блокерів до релізу немає. Лишилися речі, які нічого не блокують:
-ліцензію MIT обрано за замовчуванням і варто підтвердити; скрипти збірки й
-`.pkg` носять абсолютні шляхи авторової машини, і про це прямо сказано в README;
-профілі для решти апаратів на OMAP 2420 чекають на живе залізо (`docs/PORTING.md`).
+**Autostart** is described in `docs/AUTOSTART.md` as a proposal and is not
+implemented. Main differences from ROADMAP §0: a step down instead of failure
+after three attempts, and a second loop detector based on the wall clock, independent
+of whether the marker managed to land in flash. Two rules are designated as hard: never
+touch the bus automatically, and verify the Mass Storage recovery path
+on the device BEFORE release.
 
 
-### E90 на 503 МГц; стеля ~500 МГц підтверджена на другому апараті (2026-09-11)
+### Preparation for release: localization, help, firmware gate (2026-09-11)
 
-Множник 131 (на два кроки вище за стару стелю повзунка 129), ALU 37 Mitr/s,
-памʼять 534 МБ/с. Піднята до 255 межа знадобилась на практиці одразу. Разом із
-491 МГц на N95 це дає однакову межу ядра на обох апаратах — близько 500 МГц без
-підйому напруги.
+Application 1.9.0. Three changes, of which the main one is the last.
 
-Окремо варте уваги порівняння з C5: 38.2 Mitr/s при 600 МГц проти 37 Mitr/s при
-503 МГц, тобто розігнаний E90 фактично зрівнявся з помітно новішим апаратом
+**Localization.** English and Ukrainian, language is taken from device settings
+once at startup. Translation source is `src/strings.json`, tables are generated by
+`node tools/gen_strings.js` into `src/ocstr.cpp` as escapes of the form backslash-x-XXXX.
+Done this way deliberately: there is no reason to rely on old GCCE correctly converting
+UTF-8 inside L"..." to UTF-16, and an error would be silent and
+surface only on the device screen. Verified otherwise than by build: UTF-16
+of Ukrainian strings was found in the finished binary.
+
+**Built-in manual.** The `HELP` item opens full-screen help,
+scrolling up/down, exit by any other key. The text resides in the same
+translation source, so the manual is on the device in the native language and without a network.
+
+**Firmware gate — and what it found right away.** Profile addresses are derived from
+a SPECIFIC build, not from the model, so a match of the machine uid guarantees nothing: on
+another build the exact same patch would land on the wrong code. Now the engine reads the device
+firmware version and does not touch the kernel without a match; an unreadable version is also
+a rejection. The very first run showed that N95 8GB runs on **35.0.001**, whereas the profile
+was named 31.0.015 all along. Now the profile contains both builds with different grounds:
+35.0.001 is proven on device, 31.0.015 is the image from which addresses were derived, and their
+match in itself is proof that code did not shift between these builds.
+
+**Porting instead of made-up profiles.** An unknown device now prints
+the machine uid and firmware version — exactly what a profile begins with; the rest is in
+`docs/PORTING.md`. Profiles for N82, RM-159, N93, and N93i DO NOT exist and will not until
+hardware confirms them. Offline analyses in `out/analysis/` are real, but
+subagents sent for machine uids and stock layouts returned numbers without
+a trace of evidence (for example `0x20002D85` against RM-320 `0x20002D84` — that is, adjacent
+by template), and the second honestly admitted lacking the means to run objdump and
+extrapolated by offset. Such data does not go into a profile.
+
+Release documents: `README.md`, `LICENSE` (MIT — default choice, worth
+confirming), `CHANGELOG.md`, `AGENTS.md`. The `release/v1/` directory is a deliberate
+snapshot of the proven version 1.0, not a forgotten duplicate; it has its own README.
+
+**Localization boundary is deliberate.** Strings facing the user go through
+the table: menu row captions, warnings, test verdicts, hints, and all
+help. Technical log lines with register names and hex
+values remain English: translating a format full of CLKSEL fields
+would detract from clarity rather than add to it.
+
+**Smoke test.** 1.9.0 uploaded to N95 and launched remotely — daemon returned
+`OK proc 1`, meaning the process is created and the binary on the device is working.
+
+**Autostart never existed and still does not**, and for release this is correct: the application
+does not apply anything itself, and `.pkg` does not put an entry into the startup list. The attempt
+marker protocol from ROADMAP §0 remains unimplemented and unneeded until
+this is changed.
+
+**Subagent review found a real critical defect, and this is the main gain of the day.**
+On E90 `iDspSetter` equals zero — the address for this device was not measured — while
+`ApplyDspDiv` did not check it. By pressing OK on the `DSPDIV` item, the user
+would execute a branch to a null address in kernel mode. Meanwhile, the menu item was
+always accessible, which is precisely what is forbidden by the rule "nothing that can
+hang by default". Now a profile without a setter receives a rejection prior to
+any action, and the application explains the reason in words.
+
+A gate bypass was found in the same place: `SelfTestLevel` at level 2 applied a patch without
+a firmware check, and the default profile is the reference one, so `ocprobe
+selftest 2` on someone else's device would write the RM-320 address into someone else's kernel. Closed by the
+same gate.
+
+And third, worth remembering separately: the application still told the user that
+raising the bus killed the device four times out of four. This was disproven by our own measurement
+(§39), and the wording was fixed in findings, but the fix did not reach the texts of the application itself.
+Now it has reached them — into help, warnings, and README.
+
+**Second review: five out of six items closed, the sixth seen through to completion.**
+The subagent verified each fix against the code and confirmed that rejection due to
+null `iDspSetter` stands before any action and there is no way to bypass it (the only path to
+`WriteDspBlob` is via `ApplyDspDiv`), that the gate in `SelfTestLevel` is in place, that
+README is aligned with findings, and that `out/analysis/` is now in git. As the sixth item it
+named strings that were still bypassing localization; all of them were completed. Only
+the technical layer remained in English — register names, hex dumps, and measurement
+units — and this is deliberate.
+
+**Blocker closed: gate verified on E90.** Pavlo brought up the device, build was uploaded,
+`patcher engine` completed to the end: in log `profile: RA-6 400.34.93` and
+`engine ready: SRAM @cb102000, stock mult 86`, then all registers read and
+`restore check ... -> 1`, meaning kernel code was restored to its place. Thus the E90 version string
+indeed contains "400.34.93", and the profile passes the gate. The application on E90
+also starts (`OK proc 1`). The device at that sits on stock
+`CLKSEL1_CORE=04360626`, meaning after reboot the bus returned by itself.
+
+No open blockers before release. Things remaining block nothing:
+MIT license is chosen by default and is worth confirming; build scripts and
+`.pkg` carry absolute paths of the author's machine, and this is stated directly in README;
+profiles for the remaining OMAP 2420 devices await live hardware (`docs/PORTING.md`).
+
+
+### E90 at 503 MHz; ~500 MHz ceiling confirmed on second device (2026-09-11)
+
+Multiplier 131 (two steps above the old slider ceiling of 129), ALU 37 Mitr/s,
+memory 534 MB/s. The limit raised to 255 was needed in practice immediately. Together with
+491 MHz on N95, this gives the same core limit on both devices — around 500 MHz without
+voltage increase.
+
+Separately worthy of attention is the comparison with C5: 38.2 Mitr/s at 600 MHz versus 37 Mitr/s at
+503 MHz, meaning the overclocked E90 virtually caught up with a noticeably newer device
 (findings §40.1).
 
 
-### ocgui залито на C5-00.2 як вимірювальний прилад (2026-09-11)
+### ocgui uploaded to C5-00.2 as a measurement tool (2026-09-11)
 
-C5 не OMAP 2420, профілю під нього немає, і застосунок на невідомому апараті
-чесно відмовляється чіпати ядро — але заміри ЦП і памʼяті працюють і без
-патчера, і саме заради них він там потрібен. Залито по Bluetooth на COM12 три
-файли: `C:\sys\bin\ocgui.exe` з записом у `C:\sys\hash`,
-`C:\resource\apps\ocgui.rsc` і
-`C:\private\10003a3f\import\apps\ocgui_reg.rsc`. Без двох останніх
-апарат не показав би застосунок у меню, бо там його ніколи не встановлювали
-пакетом. Запуск за шляхом перевірено: демон віддав `OK proc 1`.
+C5 is not OMAP 2420, there is no profile for it, and the application on an unknown device
+honestly refuses to touch the kernel — but CPU and memory measurements work even without
+the patcher, and it is precisely for them that it is needed there. Three files uploaded
+over Bluetooth to COM12: `C:\sys\bin\ocgui.exe` with an entry in `C:\sys\hash`,
+`C:\resource\apps\ocgui.rsc`, and
+`C:\private\10003a3f\import\apps\ocgui_reg.rsc`. Without the latter two,
+the device would not show the application in the menu, because it was never installed there
+as a package. Launch by path verified: daemon returned `OK proc 1`.
 
-Спільні висновки про розгін винесено рівнем вище, у
-`SymbianProjects/CLAUDE.md` — вони потрібні й `PS1Emulator`, і
-`Hexen2Update`, бо головне з них не про частоту, а про те, що ARM1136 у 3D
-впирається в памʼять.
-
-
-### ПІДЙОМ ШИНИ ПРАЦЮЄ, і в 3D він дає більше за розгін ядра (2026-09-11)
-
-Павло вимкнув `BUS GUARD` і підняв шину E90 на 50% (`l3div` 6 -> 4, тобто
-110.08 -> 165.12 МГц). Апарат вижив, а приріст найбільший з усього, що проєкт
-міряв: 16.33 -> 23.00 fps на великому екрані при памʼяті 339 -> 463 МБ/с, і до
-24.55 fps / 509 МБ/с при подальшому розгоні шиною.
-
-Це виправляє §38.2: підняти шину МОЖНА, висновок «понизити можна, підняти — ні»
-був неправильний. Правдою лишається, що всі чотири смерті сталися на ПОВЕРНЕННІ
-шини з уже зниженої, і чому саме — досі невідомо.
-
-Практичний висновок міняє пріоритети. ARM1136 у 3D майже повністю впирається в
-памʼять: ядро при цих замірах не рухалось узагалі. Множник упирається в кремній
-близько 500 МГц (§38.9), а шина щойно дала +41% у 3D. Далі має сенс міряти саме
-шину.
+Common conclusions regarding overclocking are moved a level higher, into
+`SymbianProjects/CLAUDE.md` — they are needed by both `PS1Emulator` and
+`Hexen2Update`, because the main one among them is not about frequency, but about ARM1136 in 3D
+being bottlenecked by memory.
 
 
-### Запобіжник шини став перемикачем `BUS GUARD` (2026-09-11)
+### RAISING THE BUS WORKS, and in 3D it yields more than core overclocking (2026-09-11)
 
-Показати затиск було замало: заборона лишалась абсолютною, а Павлові потрібна
-можливість спробувати підйом шини на власному апараті. Тепер це окремий рядок
-GUI `BUS GUARD: ON / OFF` під `BUSDIV` і ключ `guard=0` у пробника; типово
-ввімкнений. Вимкнення знімає і затиск у `ApplyMultAndCore`, і відмову в
+Pavlo disabled `BUS GUARD` and raised the E90 bus by 50% (`l3div` 6 -> 4, that is
+110.08 -> 165.12 MHz). The device survived, and the gain is the largest of everything the project
+has measured: 16.33 -> 23.00 fps on the large screen with memory at 339 -> 463 MB/s, and up to
+24.55 fps / 509 MB/s with further bus overclocking.
+
+This corrects §38.2: raising the bus CAN be done, the conclusion "can lower, cannot raise"
+was incorrect. What remains true is that all four deaths occurred on RETURNING
+the bus from an already lowered state, and why exactly — is still unknown.
+
+The practical conclusion shifts priorities. ARM1136 in 3D is almost entirely bottlenecked by
+memory: the core during these measurements was not moved at all. Multiplier hits silicon limits
+around 500 MHz (§38.9), while the bus just gave +41% in 3D. Going forward, it makes sense to measure specifically
+the bus.
+
+
+### Bus safeguard became `BUS GUARD` toggle (2026-09-11)
+
+Showing the clamp was not enough: the prohibition remained absolute, whereas Pavlo needed
+the ability to try raising the bus on his own device. Now this is a separate GUI row
+`BUS GUARD: ON / OFF` under `BUSDIV` and the `guard=0` flag in the probe; enabled by
+default. Disabling removes both the clamp in `ApplyMultAndCore` and the rejection in
 `RestoreStock` (findings §38.8).
 
-Правда про сам підйом не змінилась: чотири смерті з чотирьох, на двох апаратах,
-обома шляхами, і жодного успішного підйому досі не було. Ціна невдачі —
-миттєвий ребут, бо у флеш не пишеться нічого. Корисна ціль на N95 при множнику
-129 — `l3div=6` (штатні 165 МГц шини), а не `l3div=4` (247 МГц, півтора штату).
+The truth about the raise itself has not changed: four deaths out of four, on two devices,
+by both paths, and not a single successful raise had occurred so far. The cost of failure is
+an immediate reboot, because nothing is written to flash. A useful target on N95 at multiplier
+129 is `l3div=6` (stock 165 MHz bus), not `l3div=4` (247 MHz, 1.5x stock).
 
-Межа ARM1136 без підйому напруги — близько 500 МГц (§38.9), тож піднята до 255
-стеля повзунка сама по собі частоти не додасть: практичний запас лишився в шині,
-не в множнику.
+The limit of ARM1136 without voltage increase is around 500 MHz (§38.9), so raising the slider
+ceiling to 255 by itself will not add frequency: practical headroom remained in the bus,
+not in the multiplier.
 
-GUI 1.8.0 залито на обидва апарати.
+GUI 1.8.0 uploaded to both devices.
 
 
-### Стелю множника піднято до 255; затиск шини тепер видно в інтерфейсі (2026-09-10)
+### Multiplier ceiling raised to 255; bus clamp now visible in UI (2026-09-10)
 
-Межа повзунка 129 була нашою, а не апаратною, і Павло попросив підняти її до
-255. Зроблено; вище 129 не перевірено нічого, і про це окремим рядком кажуть
-і GUI, і пробник (findings §38.7).
+The slider limit of 129 was ours, not hardware-imposed, and Pavlo asked to raise it to
+255. Done; nothing above 129 has been verified, and both the GUI and the probe state
+this in a separate line (findings §38.7).
 
-Разом з тим знято скаргу «дільники не працюють». Причина не в апаратурі й не в
-ваді: обидва апарати після дослідів §38.2 лишились на `l3div=8` і не
-перезавантажувались, тож запобіжник §38.3 мовчки затискав кожну спробу опустити
-дільник, тобто підняти шину. Понад це, на RM-320 при переході з множника 111 на
-112 автопідбір сам переходить на `l3div=6`, бо шина інакше перевищила б
-стелю 213120 кГц. Поведінку не міняли — вона тримається на чотирьох смертях, —
-але тепер її видно: рядок `BUSDIV` друкує `/4 CLAMPED /8` і справжню частоту,
-а `armed` окремо каже `bus stays /8 clamped` (findings §38.5). Знімається
-затиск лише ребутом.
+At the same time, the complaint "dividers do not work" has been resolved. The reason is neither hardware nor
+a bug: both devices after the experiments of §38.2 remained at `l3div=8` and were not
+rebooted, so the safeguard of §38.3 silently clamped every attempt to lower
+the divider, that is, raise the bus. Moreover, on RM-320 when transitioning from multiplier 111 to
+112, auto-selection itself switches to `l3div=6`, because the bus would otherwise exceed
+the ceiling of 213120 kHz. Behavior was not changed — it is backed by four deaths —
+but now it is visible: the `BUSDIV` line prints `/4 CLAMPED /8` and the true frequency,
+while `armed` separately states `bus stays /8 clamped` (findings §38.5). The clamp
+is cleared only by a reboot.
 
-Дільник дисплея на E90 усунув проблему з зовнішнім екраном — підтверджено
-Павлом, findings §38.6.
+Display divider on E90 resolved the problem with the external screen — confirmed
+by Pavlo, findings §38.6.
 
-Наступний крок — дослід із множником понад 129 на N95 при піднятому `l3div`,
-кроком по одному, зі зупинкою на першому ненульовому статусі relock.
+Next step — experiment with multiplier above 129 on N95 with raised `l3div`,
+in steps of one, stopping at the first non-zero relock status.
 
-### ЗАКРИТО: дільник шини працює; повертати шину назад — не можна (2026-09-09)
+### CLOSED: bus divider works; returning the bus back is forbidden (2026-09-09)
 
-Дільники CORE не записувались через ваду застосунку, а не апаратури: єдиний
-запис у `ApplyRampWithCore` стояв усередині циклу `while (cur != aTarget)`, тож
-зміна самих дільників при незмінному множнику не писала нічого (findings §38.1).
-Після виправлення дільник шини виміряно бенчмарком памʼяті — тим приладом, який
-Павло й назвав єдиним чесним, — на обох апаратах:
+CORE dividers were not being written due to an application defect rather than hardware: the sole
+write in `ApplyRampWithCore` was placed inside the `while (cur != aTarget)` loop, so
+changing dividers alone with an unchanged multiplier wrote nothing (findings §38.1).
+After the fix, the bus divider was measured with the memory benchmark — the very tool that
+Pavlo called the only honest one — on both devices:
 
 ```
 E90   l3div 6 -> 8:  CPU  0.0%   MEM -21.0%
 N95   l3div 4 -> 8:  CPU +0.6%   MEM -44.9%
 ```
 
-Домени розділяються повністю: частота ядра не рухається, памʼять просідає рівно
-за дільником. Розкладка тримається під навантаженням, нуль зіпсованих слів у
+Domains are completely separated: core frequency does not move, memory drops exactly
+according to the divider. The layout holds under load, zero corrupted words in
 SDRAM.
 
-Зате ПОВЕРНЕННЯ шини назад убиває апарат: чотири смерті з чотирьох, обома
-шляхами, на двох апаратах. Смерть E90 спростувала пояснення §26.15 через
-губернатора DVFS — на E90 губернатора немає взагалі. Тому `RestoreStock` тепер
-відмовляється це робити, лишає знижену шину (стан виміряно як безпечний) і
-ставить `RestoreNeedsReboot()`; проба й GUI кажуть перезавантажитись, а ребут
-повертає штатне тактування гарантовано. Запобіжник живе в рушії: проба раніше
-ходила повз нього і кликала `ReassertDividers` напряму зі сталими RM-320.
+However, RETURNING the bus back kills the device: four deaths out of four, by both
+paths, on two devices. The death of E90 disproved the explanation in §26.15 via
+the DVFS governor — on E90 there is no governor at all. Therefore `RestoreStock` now
+refuses to do this, leaves the lowered bus (state measured as safe), and
+sets `RestoreNeedsReboot()`; the probe and GUI say to reboot, and a reboot
+guarantees restoring stock clocking. The safeguard lives in the engine: the probe previously
+bypassed it and called `ReassertDividers` directly with RM-320 constants.
 
-Перевірено на апараті: N95 пройшов `patcher clocks l3=8 sec=10` до кінця й
-лишився живим — уперше на цій операції. Розбір — `findings.md` §38.2.
+Verified on device: N95 completed `patcher clocks l3=8 sec=10` to the end and
+stayed alive — for the first time on this operation. Breakdown — `findings.md` §38.2.
 
-**Правило методу.** Працездатність дільника перевіряється ВИМІРОМ (бенчмарк
-памʼяті), а не рядком у лозі; читання регістра це доповнює, не заміняє.
+**Methodological rule.** Divider operability is verified by MEASUREMENT (memory
+benchmark), not by a log line; register reading complements this, not replaces it.
 
-**N95 бере 491 МГц, коли шина нижча за штатну.** Гіпотеза про шину як
-обмежувач підтвердилась: при `l3div=8` апарат пройшов рампу 86 → 129 без жодної
-відмови, витримав 15 с навантаження, нуль зіпсованих слів у SDRAM, `CPU +50.1%`,
-`MEM +50.5%`. Доти стелею було 111 (426 МГц). Розбір і застереження про
-губернатора — `findings.md` §38.4.
+**N95 takes 491 MHz when the bus is lower than stock.** The hypothesis about the bus as
+a limiter was confirmed: at `l3div=8` the device completed the ramp 86 → 129 without any
+failure, endured 15 s of load, zero corrupted words in SDRAM, `CPU +50.1%`,
+`MEM +50.5%`. Until then, the ceiling was 111 (426 MHz). Breakdown and caveat about
+the governor — `findings.md` §38.4.
 
-**Запобіжник живе в точці запису.** Затиск поля `l3` стоїть у
-`ApplyMultAndCore`, крізь яку проходить будь-який запис розкладки, а не лише у
-`RestoreStock`: інакше те саме смертельне підняття шини робилося б звичайним
-`APPLY` з GUI. Запис не відхиляється, а затискається живим значенням, тож
-розгін після зміни шини лишається можливим. Проба й GUI звіряють живий регістр
-із `LastCoreWritten()`, а не із замовленим, інакше свідомий затиск читався б як
-відмова апаратури (§38.3).
+**The safeguard lives at the write point.** The clamping of field `l3` is located in
+`ApplyMultAndCore`, through which any layout write passes, not just in
+`RestoreStock`: otherwise the same fatal bus raise would be done with a regular
+`APPLY` from the GUI. The write is not rejected, but clamped to the live value, so
+overclocking after a bus change remains possible. The probe and GUI compare the live register
+with `LastCoreWritten()`, not with the requested one, otherwise a deliberate clamp would be read as
+hardware failure (§38.3).
 
-**Дільник дисплея теж пишеться.** На E90 `dssdiv` 6 → 8 і назад беруться,
-читання назад збігається. Мигання зовнішнього екрана, отже, стосується поведінки
-панелі, а не запису регістра.
+**The display divider is also written.** On E90 `dssdiv` 6 → 8 and back are accepted,
+readback matches. Blinking of the external screen, therefore, pertains to panel behavior,
+not to register writing.
 
-**Наступний крок.** Звузити поріг N95: чи візьме він множник 129 при `l3div=6`,
-тобто при шині 165 МГц, як у E90. Потрібен ребут, бо піднімати шину в рантаймі
-заборонено запобіжником.
+**Next step.** Narrow the N95 threshold: will it take multiplier 129 at `l3div=6`,
+that is, at a 165 MHz bus, as in E90. A reboot is needed because raising the bus at runtime
+is prohibited by the safeguard.
 
-Обидва апарати після прогонів лишились зі зниженою шиною (`l3div=8`) — це
-навмисно й безпечно, ребут поверне штатну.
+Both devices after the runs remained with a lowered bus (`l3div=8`) — this is
+intentional and safe, a reboot will restore stock.
 
-GUI-застосунок керування розгоном стоїть і працює на обох апаратах; профіль він
-добирає сам за HAL EMachineUid (findings §37).
+The GUI overclocking management application is installed and working on both devices; it picks
+the profile itself via HAL EMachineUid (findings §37).
 
-Зібрано підписаний пакет `group/SymbianOverclock_sha1.sis` (версія 1.8.0) з цією
-збіркою: `tools/build_sis.cmd`. Спосіб перевірки пакета — не звіт скрипта, а
-окремий контроль: `signsis -o` показує видавця, а розпакований `dumpsis -x`
-має містити саме новий `ocgui.exe`, і SHA-1 розпакованого file0 має збігтися
-з щойно зібраним бінарником (для 1.6.0 це зроблено, для 1.8.0 ще ні: бінарник
-залито на апарати напряму в `C:sysin`, минаючи пакет). Версію видно на
-самому апараті: рядок журналу
-`profile: RA-6 400.34.93  SymbianOverclock 1.8.0`. Самі `.sis`
-у git не кладемо, вони під `.gitignore`; у репозиторії живе опис пакета й скрипт.
+Signed package `group/SymbianOverclock_sha1.sis` (version 1.8.0) was built with this
+build: `tools/build_sis.cmd`. Method of package verification is not the script report, but
+separate control: `signsis -o` shows the publisher, and unpacked `dumpsis -x`
+must contain specifically the new `ocgui.exe`, and SHA-1 of the unpacked file0 must match
+the freshly built binary (done for 1.6.0, not yet for 1.8.0: binary
+was uploaded to devices directly to `C:sys\bin`, bypassing the package). The version is visible on
+the device itself: log line
+`profile: RA-6 400.34.93  SymbianOverclock 1.8.0`. We do not put `.sis` files
+themselves into git, they are under `.gitignore`; the repository holds the package description and script.
 
-Розгін працює на ДВОХ апаратах: N95 8GB (RM-320) і Nokia E90 (RA-6): E90 +29%
-зі штатною шиною, N95 +50% при зниженій. E90 доданий заповненням профілю, без правок двигуна.
+Overclocking works on TWO devices: N95 8GB (RM-320) and Nokia E90 (RA-6): E90 +29%
+with stock bus, N95 +50% with lowered bus. E90 added by filling the profile, without engine edits.
 
 
-### E90 РОЗІГНАНО: +29%, метод переносний (2026-09-09)
+### E90 OVERCLOCKED: +29%, method is portable (2026-09-09)
 
-Другий апарат розігнано тим самим двигуном, що й еталон, і доданий він не
-переписуванням коду, а заповненням профілю. Повний розбір — `findings.md` §36.
+The second device was overclocked with the same engine as the reference, and it was added not
+by rewriting code, but by filling in a profile. Full breakdown — `findings.md` §36.
 
-| множник | MPU | шина L3 | вимір | стан |
+| multiplier | MPU | L3 bus | measurement | status |
 |---|---|---|---|---|
-| 86 штат | 330.24 | 110.08 | 328 МГц, 344 MB/s | — |
-| 95 | 364.80 | 121.60 | 362 МГц (+10.3%) | чисто |
-| 107 | 410.88 | 136.96 | 408 МГц (+24.3%) | чисто |
-| **111** | **426.24** | **142.08** | **423 МГц (+28.9%)** | **чисто** |
+| 86 stock | 330.24 | 110.08 | 328 MHz, 344 MB/s | — |
+| 95 | 364.80 | 121.60 | 362 MHz (+10.3%) | clean |
+| 107 | 410.88 | 136.96 | 408 MHz (+24.3%) | clean |
+| **111** | **426.24** | **142.08** | **423 MHz (+28.9%)** | **clean** |
 
-Кожен прогін — `status=0`, пʼять раундів витримки без зіпсованих слів,
-повернення на штатний множник із контрольним заміром рівно 328 МГц. За всі три
-прогони апарат не перезавантажувався (`startTick` незмінний). NOP, ALU і памʼять
-масштабуються в одній пропорції, тож це справжня частота, а не зсув показника.
+Every run — `status=0`, five rounds of endurance without corrupted words,
+return to the stock multiplier with a control measurement of exactly 328 MHz. Across all three
+runs the device did not reboot (`startTick` unchanged). NOP, ALU, and memory
+scale in the same proportion, so this is true frequency, not an indicator artifact.
 
-Заразом виправлено два хибні рядки в звітах: мітка профілю показувала стару
-стратегію, а `NOT STOCK AT START` порівнював стан E90 з опорною точкою RM-320 і
-через це спрацьовував на цілком штатному апараті.
+At the same time, two erroneous strings in reports were corrected: the profile label showed the old
+strategy, and `NOT STOCK AT START` compared the E90 state with the RM-320 reference point,
+thereby triggering on a completely stock device.
 
-**Що далі.** Тривала щоденна робота E90 на 111 не перевірена — на RM-320 це був
-тиждень спостережень. Стелю E90 свідомо не шукали. Незакритий борг — сеттер
-дільника DSP для E90 (`iDspSetter = 0`): для розгону не потрібен, потрібен лише
-побічній гілці DSP.
+**What's next.** Prolonged daily operation of E90 at 111 is not verified — on RM-320 that was
+a week of observations. E90 ceiling was deliberately not sought. An open debt is the DSP
+divider setter for E90 (`iDspSetter = 0`): not needed for overclocking, needed only
+by the secondary DSP branch.
 
-### Носій примітиву профільний; E90 упирається в патчі Open4all (2026-09-09, ніч)
+### Primitive host is profile-based; E90 hits Open4all patches (2026-09-09, night)
 
-Профіль E90 заповнено виміряними адресами, двигун навчено працювати через носій
-Usbc, регресію на еталоні пройдено — але сам розгін E90 ще не перевірений, бо
-апарат став недосяжним для заливки. Повний розбір — `findings.md` §35.
+The E90 profile was populated with measured addresses, the engine was taught to operate via the
+Usbc host, regression on the reference passed — but the overclocking of E90 itself is not yet verified, because
+the device became unreachable for uploading. Full breakdown — `findings.md` §35.
 
-Що зроблено. Носій READ/EXEC-примітиву винесено в профіль (`TOcHost`): RM-320
-працює через `dvfs_interface` (`DoControl(1)`, адреса в `r1`), E90 — через
-`Usbc` (`DoControl(69)`, адреса в `r2`). Послідовність relock лишилась одна на
-двох, як і вимагає правило проєкту.
+What was done. The READ/EXEC primitive host was moved into the profile (`TOcHost`): RM-320
+operates via `dvfs_interface` (`DoControl(1)`, address in `r1`), E90 — via
+`Usbc` (`DoControl(69)`, address in `r2`). The relock sequence remained one for
+both, as required by project rule.
 
-Три адреси E90 виміряно на живому апараті сигнатурним сканом і дизасемблюванням
-вивантажених вікон:
+Three E90 addresses were measured on the live device by signature scan and disassembly
+of dumped windows:
 
-| поле | значення | чим доведено |
+| field | value | how proven |
 |---|---|---|
-| `iDvfsBody` | `0x800bf874` | пролог `DoControl`; диспетчер `0x800c09a4` кличе саме його і пропускає opcode 69 |
-| `iRomSramRoutine` | `0x80058da4` | relock-рутина (DSB, SDRC, bypass, WFI, DLL `0x770E`); її ж адресу конструктор подає в memmove до SRAM |
-| `iPwrDownGlobal` | `0xc8003068` | `str r0,[r5,#4]` @`0x80059448` після виклику конструктора |
+| `iDvfsBody` | `0x800bf874` | prologue of `DoControl`; dispatcher `0x800c09a4` calls specifically it and passes opcode 69 |
+| `iRomSramRoutine` | `0x80058da4` | relock routine (DSB, SDRC, bypass, WFI, DLL `0x770E`); its address is passed by constructor into memmove to SRAM |
+| `iPwrDownGlobal` | `0xc8003068` | `str r0,[r5,#4]` @`0x80059448` after constructor call |
 
-Сеттер дільника DSP лишається нулем: для розгону він не потрібен.
+DSP divider setter remains zero: it is not needed for overclocking.
 
-**Апарат перезавантажувався один раз, і причина відома.** У `Prepare()` був
-другий, пропущений мною виклик накладання READ-патча зі старою r1-константою; на
-носії Usbc у `r1` лежить опкод 69, тож стаб розіменував адресу 69 у режимі ядра.
-Виправлено, і заразом дописано три запобіжники (§35): відмова при нулях у
-профілі, перевірка що патч живий до того як йому вірити, і перевірка відкату
-прямим читанням шести слів тіла замість виклику в ядро.
+**The device rebooted once, and the cause is known.** In `Prepare()` there was
+a second, overlooked by me, call applying the READ patch with the old r1 constant; on
+the Usbc host `r1` contains opcode 69, so the stub dereferenced address 69 in kernel mode.
+Fixed, and at the same time three safeguards were added (§35): rejection on zeroes in
+the profile, checking that the patch is alive before trusting it, and checking rollback
+by direct reading of the six body words instead of a call into the kernel.
 
-**Регресія на RM-320 після перебудови — чиста.** `patcher dsp` як раніше;
-`patcher oc 107` дав 328 → 408 МГц (+24.3%), пʼять раундів витримки без жодного
-зіпсованого слова, повернення на 86 зі `status=0`, uptime 722 хвилини.
+**Regression on RM-320 after rebuild is clean.** `patcher dsp` as before;
+`patcher oc 107` yielded 328 → 408 MHz (+24.3%), five rounds of endurance without a single
+corrupted word, return to 86 with `status=0`, uptime 722 minutes.
 
-**Блокер.** Після ребуту на E90 вимкнулись патчі `Open4all`, і запис у
-`E:\\sys\\bin` віддає `-46`. Потрібна дія руками на апараті: запустити
-`RomPatcher+` і ввімкнути патчі. Одразу після цього — `ocprobe patcher dsp e90`,
-який проганяє весь новий шлях, не пишучи в PRCM жодного біта; і лише якщо він
-чистий — `patcher oc` з обережним множником.
+**Blocker.** After reboot on E90 `Open4all` patches were disabled, and writing to
+`E:\\sys\\bin` returns `-46`. Manual action on the device is required: launch
+`RomPatcher+` and enable patches. Immediately after that — `ocprobe patcher dsp e90`,
+which exercises the entire new path without writing a single bit to PRCM; and only if it
+is clean — `patcher oc` with a cautious multiplier.
 
-### Примітив читання на E90 ПРАЦЮЄ; офлайнові адреси E90 спростовано (2026-09-09)
+### Read primitive on E90 WORKS; offline E90 addresses disproven (2026-09-09)
 
-Головний зсув етапу: **XIP читається з користувацького режиму**, тож залежні від
-прошивки адреси знаходяться сигнатурним сканом прямо на апараті. Циклічна
-залежність, у яку впиралася вся гілка E90 («щоб просканувати ROM, потрібен
-примітив читання»), знята. Повний розбір і докази — `findings.md` §34.
+The main shift of the stage: **XIP is readable from user mode**, so firmware-dependent
+addresses are found by signature scanning directly on the device. The cyclical
+dependency that blocked the entire E90 branch ("to scan ROM, a read primitive
+is required") has been eliminated. Full breakdown and evidence — `findings.md` §34.
 
-Дорогою спростовано те, на чому трималися §31 і §33: адреси E90 виведені з
-`out/roms/e90.rom` за припущенням, що зсув у файлі лінійно переводиться у
-віртуальну адресу. Апарат каже інше — `HAL EMemoryROM` дає 19776 КБ проти 1.7 МБ
-у витягнутому образі, і за виведеними адресами лежить чужий код. Через це патч
-лягав у чужу сторінку: запис проходив, виконуватись не було чому, апарат не
-падав. Три адреси профілю E90 у коді **обнулено** — хибне число небезпечніше за
-відсутнє.
+Along the way, what §31 and §33 relied on was disproven: E90 addresses were derived from
+`out/roms/e90.rom` under the assumption that a file offset linearly translates into
+a virtual address. The device says otherwise — `HAL EMemoryROM` reports 19776 KB against 1.7 MB
+in the extracted image, and unrelated code lies at the derived addresses. Because of this, the patch
+landed on someone else's page: writing succeeded, there was nothing to execute, the device did not
+crash. Three E90 profile addresses in the code were **zeroed out** — an incorrect number is more dangerous than
+an absent one.
 
-Виміряно на живому E90 (Bluetooth, COM9; апарат не перезавантажувався жодного
-разу за весь сеанс, `startTick` незмінний):
+Measured on live E90 (Bluetooth, COM9; device did not reboot a single
+time throughout the entire session, `startTick` unchanged):
 
-| адреса | що це |
+| address | what it is |
 |---|---|
-| `0x8005a610`, `0x800610d8`, `0x800e640c` | пул `CM_CLKSEL1_PLL` |
-| `0x8005c338`, `0x800610dc` | пул `CM_CLKSEL_MPU` |
-| `0x800bf874` | `DLddUsbcChannel::DoControl` (хост примітиву) |
-| `0x800c09a4` | диспетчер `HandleMsg` того ж драйвера |
+| `0x8005a610`, `0x800610d8`, `0x800e640c` | `CM_CLKSEL1_PLL` pool |
+| `0x8005c338`, `0x800610dc` | `CM_CLKSEL_MPU` pool |
+| `0x800bf874` | `DLddUsbcChannel::DoControl` (primitive host) |
+| `0x800c09a4` | `HandleMsg` dispatcher of the same driver |
 
-З виміряним хостом `ocprobe usbcboot e90` дав **3/3** контрольних слова, відкат
-і `FreeShadowPage` чисті. Тобто READ/EXEC-примітив на E90 доведено на апараті.
+With the measured host, `ocprobe usbcboot e90` gave **3/3** check words; rollback
+and `FreeShadowPage` are clean. That is, the READ/EXEC primitive on E90 is proven on device.
 
-Нові режими пробника, усі лише для читання: `romread` (перевірка бази),
-`romscan` (суцільний скан живого XIP за сигнатурами), `romdump <a> <len>`
-(вивантаження вікна в `E:\romdump.bin`).
+New probe modes, all read-only: `romread` (base verification),
+`romscan` (continuous scan of live XIP by signatures), `romdump <a> <len>`
+(dumping a window to `E:\romdump.bin`).
 
-Штатне тактування E90 тим самим примітивом уже **виміряно** (findings §34.1):
-`CM_CLKSEL1_PLL = 0x00056400` (mult=86, div=4, sys_clk 19.2 МГц),
+Stock clocking of E90 by the same primitive is already **measured** (findings §34.1):
+`CM_CLKSEL1_PLL = 0x00056400` (mult=86, div=4, sys_clk 19.2 MHz),
 `CM_CLKSEL2_PLL = 2`, `CM_CLKSEL_MPU = 2`, `CM_CLKSEL1_CORE = 0x04360626`,
-DPLL у lock. Тобто E90 штатно йде на тих самих **330.24 МГц**, що й RM-320, і
-здогад «86» підтвердився замiром. Ці три числа лягли в `KProfileE90`.
+DPLL in lock. That is, E90 runs stock at the exact same **330.24 MHz** as RM-320, and
+the guess "86" was confirmed by measurement. These three numbers went into `KProfileE90`.
 
-**Наступний крок.** Тим самим сканом виміряти на апараті три адреси, які
-лишились нулями: relock-рутину SRAM, сеттер дільника DSP і глобал power-down.
-Аж після цього — WRITE-шлях E90.
+**Next step.** Using the same scan, measure on the device the three addresses that
+remained zero: the SRAM relock routine, the DSP divider setter, and the power-down global.
+Only after that — the E90 WRITE path.
 
-### Проєкт у приватному git; профіль E90 у коді, `Prepare()` захищено (2026-09-09)
+### Project in private git; E90 profile in code, `Prepare()` protected (2026-09-09)
 
-Заведено приватний репозиторій `github.com/1234bpv/SymbianOverclock` (private).
-Поза комітом свідомо лишено `sign/` (приватний ключ підпису) і `out/` (артефакти,
-138 МБ) — обидва під `.gitignore`; додано `.gitattributes` для переносів рядків.
+A private repository `github.com/1234bpv/SymbianOverclock` (private) was set up.
+Deliberately left outside the commit are `sign/` (private signing key) and `out/` (artifacts,
+138 MB) — both under `.gitignore`; added `.gitattributes` for line endings.
 
-У коді закрито борг «профіль E90». Додано `KProfileE90` з чотирма виведеними
-офлайн і байтово звіреними адресами (`iRomSramRoutine=0x80056874`,
-`iDspSetter=0x80059aa4`, `iPwrDownGlobal=0xc8004194`, `iDvfsBody=0`), стратегія
-`EReadMeasureOnly`. Штатну розкладку CORE/MPU E90 лишено `0`: рантайм-штат
-офлайн не виводиться. Bootstrap E90 знайдено й звірено (`findings §33`) — він
-програмує `CM_CLKSEL1_CORE=0x08301044` і `mult=97` (266 МГц, не 330/86), але це
-рання фаза, а не робочий штат ОС (той у стиснутій ROFS). Тож ці числа в профіль
-НЕ кладемо, `iStockMult=86` лишається позначеним здогадом. Заразом виправлено
-хибний запис у `_summary.md`: читач множника E90 таки в резидентному XIP
-(`0x8005ea00`, близнюк RM-320 `0x800b1544`), а не в пейджованій частині.
+In the code, the "E90 profile" debt was closed. Added `KProfileE90` with four addresses
+derived offline and byte-matched (`iRomSramRoutine=0x80056874`,
+`iDspSetter=0x80059aa4`, `iPwrDownGlobal=0xc8004194`, `iDvfsBody=0`), strategy
+`EReadMeasureOnly`. Stock CORE/MPU layout of E90 left as `0`: runtime stock
+cannot be derived offline. E90 bootstrap was found and verified (`findings §33`) — it
+programs `CM_CLKSEL1_CORE=0x08301044` and `mult=97` (266 MHz, not 330/86), but that
+is an early phase, not the OS operating stock (the latter is in compressed ROFS). Therefore these numbers
+are NOT placed in the profile; `iStockMult=86` remains marked as a guess. At the same time, an erroneous
+entry in `_summary.md` was corrected: the E90 multiplier reader is indeed in resident XIP
+(`0x8005ea00`, twin of RM-320 `0x800b1544`), not in the paged part.
 
-Головне — знято footgun `§27`. `Prepare()` тепер відмовляє з
-`KErrNotSupported`/`EOcStepUnsupported` ДО будь-якого дотику до ядра, коли профіль
-не `EReadDvfs` або `iDvfsBody==0`. `ocprobe` обирає `KProfileE90` за словом `e90`
-у patcher-команді, тож `patcher ... e90` на E90 дає чисту відмову в лог замість
-патча RM-320-адрес у чуже ядро. RM-320 не змінився ні на біт; збірка `gcce urel`
-(ocprobe+ocgui) чиста.
+Most importantly — the footgun of `§27` was eliminated. `Prepare()` now rejects with
+`KErrNotSupported`/`EOcStepUnsupported` BEFORE any kernel touch when the profile
+is not `EReadDvfs` or `iDvfsBody==0`. `ocprobe` selects `KProfileE90` by the word `e90`
+in the patcher command, so `patcher ... e90` on E90 logs a clean rejection instead of
+patching RM-320 addresses into someone else's kernel. RM-320 did not change by a single bit; the `gcce urel`
+build (ocprobe+ocgui) is clean.
 
-**Підтверджено на апараті (2026-09-09, N95 RM-320 по WiFi `192.168.3.22`).** Два
-тести на живому еталоні. `patcher dsp` — штатний шлях: `engine ready: SRAM
-@cb202000, stock mult 86`, домен DSP прочитано, `restore check ... -> 50
-(original code back)`; правка `Prepare()` штатний RM-320 не зачепила. `patcher dsp
-e90` — guard: у лозі `profile: RA-6 400.34.93 (EReadMeasureOnly, no dvfs)` і
-`engine NOT ready: err -5 at step [profile has no dvfs read path (E90)]`, тобто
-відмова ДО дотику до ядра. Апарат не перезавантажувався, лишився штатним. Footgun
-§27 на реальному залізі знято.
+**Confirmed on device (2026-09-09, N95 RM-320 over WiFi `192.168.3.22`).** Two
+tests on the live reference. `patcher dsp` — stock path: `engine ready: SRAM
+@cb202000, stock mult 86`, DSP domain read, `restore check ... -> 50
+(original code back)`; the edit to `Prepare()` did not affect stock RM-320. `patcher dsp
+e90` — guard: in log `profile: RA-6 400.34.93 (EReadMeasureOnly, no dvfs)` and
+`engine NOT ready: err -5 at step [profile has no dvfs read path (E90)]`, that is,
+rejection BEFORE kernel touch. The device did not reboot, remained stock. The footgun
+of §27 on real hardware was eliminated.
 
-**Наступний крок** незмінний: розгінний READ/WRITE-шлях E90 через бутстрап Usbc
-(`usbcboot e90`) — потребує самого E90 й піднятого BT-лінку (SPP/COM до E90; N95,
-що зараз на зв'язку, для цього кроку не підходить — це інший апарат).
+**Next step** remains unchanged: the overclocking READ/WRITE path of E90 via Usbc bootstrap
+(`usbcboot e90`) — requires E90 itself and an established BT link (SPP/COM to E90; N95,
+which is currently connected, is not suitable for this step — it is a different device).
 
-### Примітив читання/виклику E90 доведено на RM-320; хост — Usbc (2026-09-03)
+### E90 read/call primitive proven on RM-320; host is Usbc (2026-09-03)
 
-Знайдено й перевірено носій READ/EXEC-примітиву для E90 (де dvfs немає): стандартний
-драйвер USB-клієнта `DLddUsbcChannel` (LDD «Usbc»). Диспетчер `HandleMsg` знайдено
-сигнатурою `ldr [r1,#24]; cmp ,#0x80000000` (E90 `0x80095be8`, RM-320 `0x8010ce3c`);
-його DoControl-гілка дає `bl DoControl` з a1 у **r2** (E90 `0x80094ac4`, RM-320
-`0x8010bd04`, пролог байт-у-байт). READ-стаб r2-варіанта
-(`cmp r2,#0; ldrne r0,[r2]; moveq r0,#0; bx lr`) кладеться в пролог, читання йде
-через `DoControl(69,addr)` (opcode 69 диспетчер пропускає до DoControl і без
-готовності USB). Патч знімається одразу + `FreeShadowPage`.
+Found and verified the carrier of the READ/EXEC primitive for E90 (where there is no dvfs): standard
+USB client driver `DLddUsbcChannel` (LDD "Usbc"). The `HandleMsg` dispatcher was found
+by signature `ldr [r1,#24]; cmp ,#0x80000000` (E90 `0x80095be8`, RM-320 `0x8010ce3c`);
+its DoControl branch gives `bl DoControl` with a1 in **r2** (E90 `0x80094ac4`, RM-320
+`0x8010bd04`, prologue byte-for-byte). The READ stub of the r2 variant
+(`cmp r2,#0; ldrne r0,[r2]; moveq r0,#0; bx lr`) is placed in the prologue, reading goes
+via `DoControl(69,addr)` (the dispatcher passes opcode 69 to DoControl even without
+USB readiness). The patch is removed immediately + `FreeShadowPage`.
 
-**Перевірено на RM-320** (`ocprobe usbcboot`, findings §32): Usbc відкрився, стаб
-прочитав три відомі слова ROM правильно (3/3), відкат чистий, без ребуту. Той самий
-код на E90 — команда `ocprobe usbcboot e90` (host `0x80094ac4`), готова до прогону.
+**Verified on RM-320** (`ocprobe usbcboot`, findings §32): Usbc opened, the stub
+read three known ROM words correctly (3/3), rollback is clean, no reboot. The same
+code on E90 — command `ocprobe usbcboot e90` (host `0x80094ac4`), ready to run.
 
-**Наступний крок:** прогнати `usbcboot e90` на E90 щойно підніметься BT-лінк
-(на 2026-09-03 жодного COM-порту на ПК — SPP до E90 не піднятий; торік був COM9).
-Після збігу 3/3 на E90 — заповнити `KProfileE90` (host Usbc r2, romSram/dspSetter/
-pwrDown уже є) і дописати WRITE-шлях E90 (резолвінг SRAM через цей примітив).
+**Next step:** run `usbcboot e90` on E90 as soon as the BT link is up
+(as of 2026-09-03 not a single COM port on PC — SPP to E90 is not up; last year was COM9).
+After a 3/3 match on E90 — populate `KProfileE90` (host Usbc r2, romSram/dspSetter/
+pwrDown already exist) and implement the E90 WRITE path (resolving SRAM via this primitive).
 
 
-### Базовий результат: RM-320 розігнано (2026-08-08)
+### Baseline result: RM-320 overclocked (2026-08-08)
 
-**ГОТОВО. Розгін працює, +29% стабільно (2026-08-08).** Множник DPLL піднято в
-рантаймі з 86 до 111: **330.2 -> 426.2 МГц** на ядрі. Перевірено на живому
-RM-320, апарат повністю стабільний, приймає дзвінки й тримає WiFi.
+**DONE. Overclocking works, +29% stable (2026-08-08).** DPLL multiplier raised in
+runtime from 86 to 111: **330.2 -> 426.2 MHz** on the core. Verified on live
+RM-320, device is completely stable, receives calls, and holds WiFi.
 
-| mult | MPU | Шина L3 | Стан |
+| mult | MPU | L3 bus | Status |
 |---|---|---|---|
-| 86 штат | 330.2 | 165.12 | — |
-| **107** | 410.9 (+24.4%) | 205.44 (+24.4%) | перша перевірена точка, є запас |
-| **111** | 426.2 (+29.1%) | 213.12 (+29.1%) | **робоча щодня** (уточнено 2026-08-08) |
-| 112+ | 430+ | — | авторебут через хвилини |
+| 86 stock | 330.2 | 165.12 | — |
+| **107** | 410.9 (+24.4%) | 205.44 (+24.4%) | first verified point, headroom exists |
+| **111** | 426.2 (+29.1%) | 213.12 (+29.1%) | **daily driver** (refined 2026-08-08) |
+| 112+ | 430+ | — | autoreboot after minutes |
 
-> **ВИПРАВЛЕНО 2026-08-15.** У колонці «Шина L3» тут стояли 164.35 і 170.50,
-> тобто ті числа, які мала б дати компенсація дільників. Компенсація на цих
-> множниках **не працювала**: вона підбирала дільник, якого апарат не бере, а
-> недійсне значення відкидає весь запис у `CM_CLKSEL1_CORE` (`findings.md` §26).
-> Отже шина весь час їхала разом із CORE, і апарат тиждень стабільно тримає +29%
-> не лише по ядру, а й по шині та дисплею — це сильніший результат, ніж тут було
-> записано.
+> **CORRECTED 2026-08-15.** In the "L3 bus" column here stood 164.35 and 170.50,
+> that is, the numbers that divider compensation was supposed to yield. Compensation on these
+> multipliers **did not work**: it selected a divider that the device does not accept, and
+> an invalid value rejects the entire write to `CM_CLKSEL1_CORE` (`findings.md` §26).
+> Hence the bus traveled alongside CORE all along, and the device has been holding +29% stably for a week
+> not only on the core, but also on the bus and display — this is a stronger result than was
+> recorded here.
 >
-> Після виправлення шина на 111 лишається тією самою (213.12 — політика підбору
-> тепер цілиться саме в неї, бо вона виміряна), а дисплей уперше справді
-> компенсується: 106.56 МГц замість непередбачених 142.08. Обидві розкладки
-> перевірені на апараті.
+> After the fix, the bus at 111 remains the same (213.12 — selection policy
+> now targets specifically it, because it is measured), while the display for the first time is truly
+> compensated: 106.56 MHz instead of the unintended 142.08. Both layouts
+> verified on device.
 
-Реальний ефект, не синтетика: **SPmark 3D 62 -> 75 fps (+21%)**, інтерфейс і
-емуляція помітно швидші.
+Real-world effect, not synthetics: **SPmark 3D 62 -> 75 fps (+21%)**, UI and
+emulation noticeably faster.
 
-**Межа - сам ARM1136 при штатній напрузі, а не шина чи дисплей.** Доказ: на
-mult 129 і шина, і дисплей виставлені ТОЧНО на штатні частоти (`129/86 = 1.5`,
-обидва дільники множаться на 1.5), а апарат усе одно перезавантажується
-миттєво. Повний розбір - `findings.md` §22.
+**The limit is ARM1136 itself at stock voltage, not the bus or display.** Proof: at
+mult 129 both the bus and display are set EXACTLY to stock frequencies (`129/86 = 1.5`,
+both dividers are multiplied by 1.5), yet the device still reboots
+instantly. Full breakdown — `findings.md` §22.
 
-Робочий цикл:
-
-```
-tools\build.cmd run 192.168.1.5 "patcher hold 107"   застосувати й лишити
-tools\build.cmd run 192.168.1.5 "patcher hold 86"    повернути штатну
-tools\build.cmd run 192.168.1.5 "patcher oc 107"     розгін + заміри + повернення
-tools\build.cmd run 192.168.1.5 "patcher dsp"        регістри домену DSP, лише читання
-```
-
-Усе рантаймове: ребут повертає апарат як був, у флеш не пишеться нічого.
-
-Три примітиви, на яких це тримається (жоден не потребує Kernel DevKit):
-1. читання адреси ядра — READ-патч тіла `DoControl(1)` @`0x80148410`;
-2. виконання коду ядра — той самий патч, але з перевіркою адреси (§20);
-3. плацдарм поза SDRAM — SRAM-чанк power.dll, лінійна `0xCB202000`.
-
-Плюс компенсація дільників `CM_CLKSEL1_CORE` в тій самій фіксації (§21): без неї
-дисплей і шина їхали разом із CORE.
-
-### Побічна гілка: домен DSP (`docs/TASK_DSP_CLOCK.md`)
-
-Завдання від сусіднього проєкту `../TMS320C55x test`: перевірити, чи C55x
-тактується вдвічі нижче за номінал, і якщо так — виправити. Ядерний доступ до
-PRCM є лише тут.
-
-**Зроблено, з двома результатами протилежного знаку** (`findings.md` §23, §24).
-
-**Вихідна гіпотеза спростована.** На апараті `CM_CLKSEL_DSP = 0x23C3`, поле
-`[3:0] = 3`, тобто C55x **уже на номінальних 220.16 МГц**, і за 12 знімків
-значення не змінилось жодного разу. «110 000», які бачив замовник, — це не
-дільник DSP, а `CORE`: `ord60` рахує `CORE / [3:0]`, а `CM_CLKSEL2_PLL[1:0]`
-сам ходить між 1 і 2 під губернатором DVFS — що цей проєкт уже знав (§12, §18)
-і через що `Prepare()` бере максимум серії, а не миттєвий відлік. Виправляти
-там нема чого; їхній власний контроль (пропускна здатність між «110» і «220»
-прогонами не мінялась) із самого початку вказував на це.
-
-**Зате зʼявився важіль, якого не було.** Дільник DSP тепер **змінюється в
-рантаймі**: 3 → 2, тобто 220.16 → 330.24 МГц (+50%), підтверджено читанням
-назад, ні CORE, ні SDRAM, ні дисплей не зачіпаються. Шлях — виклик ШТАТНОГО
-сеттера `power.dll` @`0x800AC59C` через наявний EXEC-патч (трамплін у SRAM
-ставить `r1` і робить `blx` прямо в ROM), плюс **обовʼязкова фіксація
-`PRCM_CLKCFG_CTRL`**: без неї сеттер повертає 0, а регістр не змінюється — це,
-найпевніше, і є причина, чому обидва штатні сеттери цього регістра ніде в ROM
-не викликаються.
+Work cycle:
 
 ```
-tools\build.cmd run <IP> "patcher dsp"          прочитати домен
-tools\build.cmd run <IP> "patcher dspset 2"     змінити й повернути на виході
-tools\build.cmd run <IP> "patcher dsphold 2"    змінити й лишити
+tools\build.cmd run 192.168.1.5 "patcher hold 107"   apply and leave
+tools\build.cmd run 192.168.1.5 "patcher hold 86"    restore stock
+tools\build.cmd run 192.168.1.5 "patcher oc 107"     overclock + measurements + return
+tools\build.cmd run 192.168.1.5 "patcher dsp"        DSP domain registers, read-only
 ```
 
-У GUI зʼявився рядок `DSPDIV` (вліво/вправо — значення, OK — застосувати одразу,
-без arm/confirm, бо вікна зависання тут немає). `RESTORE STOCK` і вихід із
-застосунку повертають штатний дільник разом із частотою ядра.
+Everything is runtime: a reboot restores the device as it was, nothing is written to flash.
 
-**Межу знайдено, і дільник для розгону непридатний (`findings.md` §24.6–§24.7).**
-Домен DSP на CORE/2 живий, поки на C55x нічого не виконується (240 с глибокого
-простою — чисто), і валить апарат, щойно DSP піднімають: смерть настала на
-завантаженні базового образу, у вікні, де дільник тримав наш живий процес.
-Попереднє пояснення «справа у володінні процесом / idle-retention» цим
-спростоване й виправлене в тексті.
+Three primitives on which this rests (none requires Kernel DevKit):
+1. kernel address read — READ patch of `DoControl(1)` body @`0x80148410`;
+2. kernel code execution — same patch, but with address check (§20);
+3. staging ground outside SDRAM — SRAM chunk of power.dll, linear `0xCB202000`.
 
-Дільник цілочисловий, тож зі штатних 3 єдиний крок — одразу 2, тобто +50%. Таких
-проміжних значень, які кремній витримав би, не існує.
+Plus `CM_CLKSEL1_CORE` divider compensation in the same commit (§21): without it,
+display and bus traveled alongside CORE.
 
-**Але розгін DSP уже досягнутий — множником.** DSP = CORE/3, тож при робочому
-`mult 111` він іде на **284.16 МГц (+29%)**, і цей режим апарат тримає щодня.
-Виміряно бенчмарком сусіднього проєкту: **1 136 260 → 882 995 мкс, −22%**, тобто
-рівно тактове масштабування. Межа C55x при штатній напрузі — між 284 і 330 МГц.
+### Secondary branch: DSP domain (`docs/TASK_DSP_CLOCK.md`)
 
-| частота C55x | звідки | стан |
+Task from the neighboring project `../TMS320C55x test`: verify whether C55x
+is clocked at half its nominal rate, and if so — fix it. Kernel access to
+PRCM exists only here.
+
+**Done, with two results of opposite sign** (`findings.md` §23, §24).
+
+**Initial hypothesis disproven.** On the device `CM_CLKSEL_DSP = 0x23C3`, field
+`[3:0] = 3`, meaning C55x is **already at nominal 220.16 MHz**, and across 12 snapshots
+the value did not change a single time. The "110 000" seen by the client is not
+the DSP divider, but `CORE`: `ord60` computes `CORE / [3:0]`, while `CM_CLKSEL2_PLL[1:0]`
+itself shifts between 1 and 2 under the DVFS governor — which this project already knew (§12, §18)
+and because of which `Prepare()` takes the maximum of a series rather than an instantaneous reading. There is
+nothing to fix there; their own control (throughput between "110" and "220"
+runs did not change) pointed to this from the very beginning.
+
+**However, a lever that did not exist appeared.** The DSP divider is now **changed in
+runtime**: 3 → 2, that is 220.16 → 330.24 MHz (+50%), confirmed by readback,
+neither CORE, nor SDRAM, nor display are affected. The route is calling the STOCK
+setter of `power.dll` @`0x800AC59C` via the existing EXEC patch (trampoline in SRAM
+sets `r1` and executes `blx` directly into ROM), plus **mandatory latching of
+`PRCM_CLKCFG_CTRL`**: without it the setter returns 0, and the register does not change — this
+is most likely the reason why both stock setters of this register are never called anywhere in ROM.
+
+```
+tools\build.cmd run <IP> "patcher dsp"          read domain
+tools\build.cmd run <IP> "patcher dspset 2"     change and restore on exit
+tools\build.cmd run <IP> "patcher dsphold 2"    change and leave
+```
+
+In the GUI the line `DSPDIV` appeared (left/right — value, OK — apply immediately,
+without arm/confirm, because there is no hang window here). `RESTORE STOCK` and application exit
+restore the stock divider along with the core frequency.
+
+**The limit was found, and the divider is unsuitable for overclocking (`findings.md` §24.6–§24.7).**
+The DSP domain at CORE/2 remains alive while nothing executes on C55x (240 s of deep
+idle — clean), and crashes the device as soon as DSP is brought up: death occurred upon
+loading the base image, in the window where the divider was held by our live process.
+The previous explanation "an issue of process ownership / idle-retention" was thereby
+disproven and corrected in the text.
+
+The divider is an integer, so from the stock 3 the only step is immediately 2, that is +50%. No
+intermediate values that the silicon could withstand exist.
+
+**However, DSP overclocking has already been achieved — via multiplier.** DSP = CORE/3, so at working
+`mult 111` it runs at **284.16 MHz (+29%)**, and the device holds this mode daily.
+Measured with the neighboring project's benchmark: **1 136 260 → 882 995 µs, −22%**, that is
+exact clock scaling. The limit of C55x at stock voltage is between 284 and 330 MHz.
+
+| C55x frequency | origin | status |
 |---|---|---|
-| 220.16 | штат | — |
-| **284.16** | `mult 111` | **працює щодня** |
-| 330.24 | дільник 2 | валить апарат при роботі DSP |
+| 220.16 | stock | — |
+| **284.16** | `mult 111` | **works daily** |
+| 330.24 | divider 2 | crashes device during DSP operation |
 
-У застосунку рядок `DSPDIV` лишається: рух **угору** (4, 6, 8 → 165/110/82 МГц)
-безпечний і економить живлення, а спроба піти нижче штатного вмикає сторожа з
-поверненням і пише в лог, що це валить апарат і що правильний важіль — `MULT`.
+In the application, the line `DSPDIV` remains: moving **up** (4, 6, 8 → 165/110/82 MHz)
+is safe and saves power, while an attempt to go below stock enables the watchdog with
+rollback and writes to log that this crashes the device and that the correct lever is `MULT`.
 
-### Побічна гілка: дільник MPU (`docs/TASK_MPU_DIVIDER.md`)
+### Secondary branch: MPU divider (`docs/TASK_MPU_DIVIDER.md`)
 
-Завдання від сусіднього проєкту `../PS1Emulator`, поставлене 2026-08-15. Йому
-потрібна конфігурація, у якій частота ядра змінена, а частота шини ні, — інакше
-не розділити бюджет кадру емулятора на процесорну й пам'яттєву частини. Усі
-потрібні конфігурації є **зниженням** частот, тож питання стабільності не стоїть.
+Task from the neighboring project `../PS1Emulator`, assigned on 2026-08-15. It
+requires a configuration in which the core frequency is changed while the bus frequency is not — otherwise
+the emulator frame budget cannot be split into processor and memory parts. All
+required configurations are **underclocking** (lowering) frequencies, so the stability question does not arise.
 
-**Питання §5 закрито трьома прогонами 2026-08-15.** Повний розбір —
-`findings.md` §26, відповідь замовникові —
+**The §5 question was closed with three runs on 2026-08-15.** Full breakdown —
+`findings.md` §26, reply to client —
 `../PS1Emulator/plans/reports/answer-mpu-divider-2026-08-15.md`.
 
-Розкладка **тримається**, утримувати нічого не треба. `CM_CLKSEL_MPU = 4`
-протримався 40 с під навантаженням без резидентного патча і через перехід OPP;
-нештатний `CM_CLKSEL1_CORE` — так само, а слово, залишене прогоном замовника,
-дожило до наступного дня. Гіпотеза «губернатор переписує дільники» спростована.
+The layout **holds**, there is no need to actively sustain anything. `CM_CLKSEL_MPU = 4`
+held for 40 s under load without a resident patch and across an OPP transition;
+non-stock `CM_CLKSEL1_CORE` did likewise, and the word left by the client's run
+survived until the next day. The hypothesis "governor overwrites dividers" is disproven.
 
-**Справжня причина того, що описували як «дільники не тримаються», інша:
-компенсація не записувалась узагалі.** Недійсне значення дільника відкидає весь
-запис у `CM_CLKSEL1_CORE`, а не лише своє поле. Виміряно розділенням змінних:
-`mult=107 l3=6 dss=7` не записався, а `mult=107 l3=6 dss=6` записався.
+**The actual reason for what was described as "dividers do not hold" is different:
+compensation was not being written at all.** An invalid divider value rejects the entire
+write to `CM_CLKSEL1_CORE`, not just its own field. Measured by separation of variables:
+`mult=107 l3=6 dss=7` was not written, while `mult=107 l3=6 dss=6` was written.
 
-Урок ширший за одне значення: **таблиці валідації прошивки недостатньо**.
-Валідатор DSS1 приймає 7, а апарат ні. Тому автоматичний підбір тепер працює на
-завідомо вузькому наборі (1, 2, 4, 6, 8, 12, 16), ручний лишається ширшим, і
-кожен запис читається назад.
+The lesson is broader than a single value: **the firmware validation table is not enough**.
+The DSS1 validator accepts 7, but the hardware does not. Therefore automatic selection now operates on
+a deliberately narrow set (1, 2, 4, 6, 8, 12, 16), manual selection remains wider, and
+every write is read back.
 
-Заразом виправлено два хибні висновки в тексті: набір дозволених значень L3 у
-§21 (відкидаються 0, 3, 5, 9, 18, а не саме лише 18) і напрямок дії refresh
-SDRAM — повільніша шина робить його **рідшим**, а не частішим, тож опускати шину
-нижче штатної це ризик, а не запобіжник.
+At the same time, two erroneous conclusions in the text were corrected: the set of allowed L3 values in
+§21 (0, 3, 5, 9, 18 are rejected, not just 18 alone) and the direction of SDRAM refresh
+action — a slower bus makes it **less frequent**, not more frequent, so lowering the bus
+below stock is a risk, not a safeguard.
 
-Заразом прилад відкалібровано: половинна частота ядра при незмінній шині коштує
-`BestMem` 20.8%, а знижена шина при незмінному ядрі — 30.2%. Тобто цей вимір
-відповідає на обидва домени, і в старих логах, де ядро й шина їхали разом, він
-не розділяв нічого.
+At the same time, the instrument was calibrated: half core frequency with an unchanged bus costs
+`BestMem` 20.8%, while a lowered bus with an unchanged core costs 30.2%. That is, this measurement
+responds to both domains, and in old logs where core and bus moved together, it
+separated nothing.
 
-Що зроблено в коді: стала опорна точка компенсації (ратчет `dssdiv` закритий),
-рядок `NOT STOCK AT START`, команда `patcher clocks` із повною розкладкою й
-дочірнім процесом, читання назад у `patcher hold`, і блоб `ReassertDividers` —
-який для цієї задачі, як з'ясувалось, не потрібен, тож лишається за ключем
-`hold=1` і на апараті не виконувався.
+What was done in code: constant compensation reference point (`dssdiv` ratchet closed),
+line `NOT STOCK AT START`, `patcher clocks` command with full layout and
+a child process, readback in `patcher hold`, and the `ReassertDividers` blob —
+which, as it turned out, is not needed for this task, so it remains behind the
+`hold=1` switch and was not executed on the device.
 
-Нову компенсацію перевірено на обох робочих множниках: `107 -> l3=4 dss=8` і
-`111 -> l3=4 dss=8` записуються, читаються назад і тримають вікно. Тобто щоденна
-конфігурація лишає шину там, де вона фактично й була (213.12 МГц), а дисплей
-уперше справді компенсується — 106.56 замість непередбачених 142.08.
+The new compensation was verified on both working multipliers: `107 -> l3=4 dss=8` and
+`111 -> l3=4 dss=8` are written, read back, and hold the window. That is, daily
+configuration leaves the bus where it actually was (213.12 MHz), while the display
+for the first time is truly compensated — 106.56 instead of the unintended 142.08.
 
-**Дві межі, знайдені дорогою.** Рампа ВНИЗ до множника 43 валить апарат — двічі
-з двох, і лог локалізує момент усередині рампи, а не на кінцевій розкладці
-(§26.10). Спуск нижче 86 у проєкті ніколи не пробувався; поки туди не ходимо.
-А знижена шина валить апарат навіть без рампи: `l3div=8` при штатному множнику
-записався й протримав вікно, але апарат помер одразу після нього — двічі з двох,
-і обидва рази саме на **поверненні** штатного стану (§26.12, §26.14). Гіпотезу
-про розтягнутий refresh спростовано власним замірoм: прошивка ARCV таки рухає
-(1242 → 806 при переході OPP), а утримання заряду чисте — нуль зіпсованих слів
-на мегабайті за три п'ятисекундні витримки. Лишається асиметрія: 4 → 8 чисто, 8 → 4 смерть.
-Здогад про вікно bypass перевірено й теж послаблено — легкий шлях без bypass
-(`ReassertDividers`) помер так само. Отже падають обидва способи повернення, і
-спільного в них два: підйом частоти шини вдвічі та відсутність захисту SDRAM у
-легкому блобі.
+**Two limits found along the way.** A ramp DOWN to multiplier 43 crashes the device — twice
+out of two, and the log pinpoints the moment inside the ramp, not at the final layout
+(§26.10). Stepping below 86 was never attempted in the project; for now we do not go there.
+And a lowered bus crashes the device even without a ramp: `l3div=8` at stock multiplier
+was written and held the window, but the device died immediately after it — twice out of two,
+and both times specifically upon **returning** the stock state (§26.12, §26.14). The hypothesis
+about stretched refresh was disproven by our own measurement: the ARCV firmware does move it
+(1242 → 806 on OPP transition), and charge retention is clean — zero corrupted words
+per megabyte over three five-second holds. What remains is the asymmetry: 4 → 8 clean, 8 → 4 death.
+The guess about the bypass window was tested and also weakened — the lightweight path without bypass
+(`ReassertDividers`) died just the same. Thus both return methods crash, and
+they share two things: doubling the bus frequency and the lack of SDRAM protection in
+the lightweight blob.
 
-**Покроковий лог показав точне місце (§26.15).** Апарат гине **всередині**
-`ReassertDividers`: рядок про вхід у виклик є, рядок із його результатом — ні.
-Знімок безпосередньо перед смертю додав деталь, якої бракувало: губернатор на той
-момент стоїть на нижній OPP, тож шина йде з 41.28 МГц, і повернення `l3div` на 4
-множить її вчетверо відносно того, що памʼять бачила щойно, — наживо, без
-self-refresh, який є лише у великому relock-блобі. Отже з двох кандидатів
-лишається перший. Рішення, коли до нього дійдуть руки: та сама пара «self-refresh
-перед зміною, вихід після» в `OcDivBlob`. **Три смерті на одній операції — доти
-туди не ходимо.**
+**The step-by-step log revealed the exact location (§26.15).** The device perishes **inside**
+`ReassertDividers`: the line indicating entry into the call exists, the line with its result does not.
+A snapshot immediately before death added a missing detail: the governor at that
+moment is at the lower OPP, so the bus runs at 41.28 MHz, and restoring `l3div` to 4
+multiplies it fourfold relative to what memory just saw — live, without
+self-refresh, which exists only in the large relock blob. Thus of the two candidates,
+the first remains. The solution, when time permits: the same pair of "self-refresh
+before change, exit after" in `OcDivBlob`. **Three deaths on a single operation — until then
+we do not go there.**
 
-**Прилад розкладено на два внески** (§26.13): `BestMem` віддає близько 0.9 від
-зміни частоти шини і близько 0.42 від зміни частоти ядра. Тобто це суміш, а не
-вимір шини, і всі попередні «RESULT MEM» у логах треба читати саме так.
+**The instrument was decomposed into two contributions** (§26.13): `BestMem` reflects about 0.9 of
+bus frequency change and about 0.42 of core frequency change. That is, it is a mixture, not
+a bus measurement, and all prior "RESULT MEM" in logs must be read accordingly.
 
-Для замовника з чотирьох конфігурацій доступні три: A і D безпечні, C доступна
-без множника 43 (`mult=86 mpu=2 l3=8 dss=6` дає ті самі частоти) але апарат у ній
-тримати не можна, B недосяжна. Решта відкритого — §26.9; пари потребують
-`ps1stage1.exe` на апараті.
+For the client, out of four configurations three are available: A and D are safe, C is available
+without multiplier 43 (`mult=86 mpu=2 l3=8 dss=6` gives the same frequencies) but the device cannot
+be kept in it, B is unreachable. The remainder of what is open — §26.9; pairs require
+`ps1stage1.exe` on the device.
 
-### Історія до цього результату
+### History prior to this result
 
-Знаємо **що** писати — регістр `CM_CLKSEL1_PLL` (фізична `0x48008540`,
-віртуальна `0xC6008540`), бітові поля й формулу (розділ 4 у `findings.md`).
+We know **what** to write — register `CM_CLKSEL1_PLL` (physical `0x48008540`,
+virtual `0xC6008540`), bit fields, and formula (section 4 in `findings.md`).
 
-Не маємо **чим** писати: примітиву запису за довільною адресою ядра.
+We lack **the means** to write: an arbitrary kernel address write primitive.
 
-| Гілка | Стан |
+| Branch | Status |
 |---|---|
-| Користувацький DVFS API (`dvfs_interface`) | **закрита**: бінарна засувка, рівень зашитий, розгону не дає |
-| Власний kernel-side LDD | **закрита**: у публічному SDK немає `include\kernel\` і `ekern.lib` |
-| `TestPowerAPI` (`d_powerapi.ldd`) | **закрита**: довільного запису не дає, а промацування вішає апарат |
-| RomPatcher+ `patcher.ldd` | **придатна для патчу ROM-коду**, не для прямого PRCM: запис у MMIO був би 4×`strb`, але ROM-shadow успішно пропатчив `dvfs_interface.ldd`; через нього вже зчитано PRCM (findings §10, §15) |
+| User DVFS API (`dvfs_interface`) | **closed**: binary latch, level hardcoded, does not provide overclocking |
+| Custom kernel-side LDD | **closed**: public SDK lacks `include\kernel\` and `ekern.lib` |
+| `TestPowerAPI` (`d_powerapi.ldd`) | **closed**: does not provide arbitrary write, while probing hangs the device |
+| RomPatcher+ `patcher.ldd` | **suitable for patching ROM code**, not for direct PRCM: writing to MMIO would be 4×`strb`, but ROM-shadow successfully patched `dvfs_interface.ldd`; PRCM has already been read through it (findings §10, §15) |
+## Stage: Generalization to Other Firmwares (from 2026-08-30)
 
-## Етап: узагальнення на інші прошивки (з 2026-08-30)
+Devices are at home, the daemon is updated and controls all three over two transports: N95 via
+WiFi/TCP, E90 and C5-00.2 via Bluetooth (`deploy_net.ps1 -Com COMx`). The goal of the stage is
+to make overclocking work not only on our RM-320 `31.0.015` firmware.
 
-Апарати вдома, демон оновлений і керує всіма трьома по двох транспортах: N95 по
-WiFi/TCP, E90 і C5-00.2 по Bluetooth (`deploy_net.ps1 -Com COMx`). Мета етапу —
-щоб розгін ставав не лише на нашу прошивку RM-320 `31.0.015`.
+Two corrections to previously recorded notes, both from Pavlo:
 
-Дві поправки до раніше записаного, обидві від Павла:
+- **E90 fully cracked.** The limitation recorded in
+  `SymbianDeployDaemon/docs/state.md` (`PUT` to `C:\sys\bin` returned `-46`,
+  updating only via SIS from the card) is no longer in effect. Iteration on E90 is now
+  just as cheap as on N95.
+- **C5-00.2 is excluded from this stage.** It is not an OMAP 2420, but an ARM11 600 MHz with FPU,
+  meaning a different SoC. First we bring 2420 to completion.
 
-- **E90 доламано до кінця.** Обмеження, записане в
-  `SymbianDeployDaemon/docs/state.md` (`PUT` у `C:\sys\bin` віддавав `-46`,
-  оновлення тільки через SIS із картки), більше не діє. Ітерація на E90 тепер
-  така сама дешева, як на N95.
-- **C5-00.2 з цього етапу виключений.** Там не OMAP 2420, а ARM11 600 МГц з FPU,
-  тобто інший SoC. Спершу доводимо до кінця 2420.
+What prevents putting the code on another firmware: four addresses taken from the disassembler
+of our specific ROM, and inferring them on the device is impossible (to scan ROM,
+a read primitive is needed, and to obtain it — one must already know the first address).
 
-Що заважає поставити код на іншу прошивку: чотири адреси, узяті з дизасемблера
-саме нашого ROM, і вивести їх на апараті неможливо (щоб просканувати ROM,
-потрібен примітив читання, а щоб його дістати — треба вже знати першу адресу).
-
-| Константа | Значення для RM-320 31.0.015 | Що це |
+| Constant | Value for RM-320 31.0.015 | What it is |
 |---|---|---|
-| `KDvfsBody` | `0x80148410` | тіло `DoControl(1)` у `dvfs_interface.ldd`, ціль READ-патча |
-| `KRomSramRoutine` | `0x800A7F6C` | idle-процедура `power.dll`, звідки код копіюється в SRAM |
-| `KDspSetter` | `0x800AC59C` | штатний сеттер дільника DSP у `power.dll` |
-| `KPwrDownGlobal` | `0xC80030C8` | глобал об'єкта power-down |
+| `KDvfsBody` | `0x80148410` | body of `DoControl(1)` in `dvfs_interface.ldd`, target of the READ patch |
+| `KRomSramRoutine` | `0x800A7F6C` | idle routine of `power.dll`, from where code is copied to SRAM |
+| `KDspSetter` | `0x800AC59C` | stock DSP divider setter in `power.dll` |
+| `KPwrDownGlobal` | `0xC80030C8` | power-down object global |
 
-Адреси регістрів PRCM і SDRC до прошивки не прив'язані — це сам OMAP 2420.
-Звірити для нової прошивки треба тільки зсув відображення периферії
-`+0x7E000000`: його обирає варіантний код ядра, а не залізо, і він теж видно з
-дампа.
+Addresses of PRCM and SDRC registers are not tied to firmware — this is OMAP 2420 itself.
+All that needs to be verified for a new firmware is the peripheral mapping offset
+`+0x7E000000`: it is chosen by the variant kernel code, not the hardware, and it is also visible from
+the dump.
 
-Перелік апаратів на цьому SoC, продуктові коди й порядок перевірки — у
-`ROADMAP.md` §2a. Головне звідти: качати треба різні **версії** прошивки, а не
-регіональні варіанти, бо продуктовий код не змінює ROM-ядра (три `.vpl` у
-`firmware/n95-8gb/` посилаються на один MCU-файл з тією самою CRC `e7ffb3c7`).
-З пакета потрібен лише MCU/CORE (`*.C0R` / `*_core.fpsx`).
-
-
-### Завантажено 2026-08-30
-
-У `../firmware/` лежать MCU-образи (`*.C0R`/`*.c00`/`*.C0`) і мовні пакети для
-пʼяти апаратів: E90 RA-6 `400.34.93`, N95 8GB RM-320 `35.0.001` (додатково до
-нашої `31.0.015`), N95 RM-159 `35.0.002`, N82 RM-313 `35.0.002`, N93 RM-55
-`20.0.058`. Усі пʼять мають правильну сигнатуру FPSX (`b2 00 00 0x`, далі `BB5`
-на зміщенні `0x11`), тобто це справжні образи, а не обгортки.
-
-Джерело — `archive.org/download/nokia-bb5-euro3-firmwares`, де файли лежать уже
-розпаковані, і Internet Archive віддає окремий файл із середини zip прямим
-посиланням. Повний каталог версій є на `archive.15pmm01.com` (сама лише RM-320
-має там 130 версій), але кожна загорнута в інсталятор InstallShield. Шлях до
-них зʼясовано: `setup.exe /extract_all:<тека>` дає `Disk1` з `data1.hdr`,
-`data1.cab` і `data2.cab`, а це формат ISc, який 7-Zip не читає. Розпакувальник
-на Node (`tools/unshield.js`) написано, див. нижче.
-
-Розпакувальник InstallShield написано: `tools/unshield.js`, чистий Node без
-залежностей, формат ISc версії 9, дані стиснені звичайним deflate. Перевірено
-не звітом підагента, а власним прогоном: `list` на RM-320 `20.0.016` показує
-94 файли, `extract` дістає `RM-320_20.0.016_PR.C0R` на 70 989 931 байт за
-6.7 с, і в розпакованому файлі на місці сигнатура FPSX. Одна пастка: імена
-MCU різняться між моделями - `.C0R` у N95 і N82, `.C01` в E90, `.C0` у N93,
-тож шаблон пошуку має бути `.(c0[0-9r]?)$`, а не список розширень.
-
-Масовий прогін завершено 2026-08-31: 52 MCU-образи, по одному на кожну
-пару «модель + версія прошивки». E90 закритий цілком (шість версій), N82 -
-шість, N95 RM-159 - одинадцять, RM-245 - сім, RM-160 - чотири, N95 8GB
-RM-320 - сім і RM-421 - три, N93i RM-156 - чотири, N93 RM-55 - три. Разом
-4.1 ГБ. Усі 52 образи мають правильну сигнатуру FPSX (`b2 00 00 0x` і далі
-рядок `BB5`), перевірено суцільним проходом, а не вибірково.
-
-Дві дрібниці, знайдені тим проходом. У ранніх прошивках E90 (`07.24.0.3`,
-`07.38.0.2`, `07.40.1.2`) поля заголовка йдуть у зворотному порядку -
-спершу `XSR 1.5`, потім `BB5`, - тож перевірка за фіксованим зсувом на них
-хибно спрацьовує. І частина пакетів Nokia взагалі не містить MCU: у N93
-`10.0.025` це 45 файлів самих мовних пакетів і маніфестів. Для таких
-версій ядро треба брати з іншого, більшого пакета тієї самої версії - для N93
-RM-55 це спрацювало, для китайського RM-153 ядра немає в жодному з трьох
-пакетів, тож ця модель лишилась незакритою разом з N93i RM-157.
-
-Розпакувальник доведено остаточно: у масовому прогоні заново витягнуто
-RM-320 `31.0.015` - ту саму версію, чий образ у нас уже лежав з іншого
-джерела (archive.org). MD5 збігся байт у байт:
-`00d98c87a04dfd4e0db71b3b3f832e50`. Тобто `unshield.js` відтворює вміст
-точно, а не приблизно, і образам з інсталяторів можна вірити так само, як
-розпакованим.
-
-Відкрите питання: чим розгортати MCU-образ у файлову систему `z:`. Наявний
-`eka2l1/data/drives/z/rm-320/` зроблено встановленням у EKA2L1 через `.vpl`;
-чи візьме EKA2L1 наш набір з одним продуктовим кодом, ще не перевірено.
+The list of devices on this SoC, product codes, and verification order are in
+`ROADMAP.md` §2a. The main point from there: one needs to download different **versions** of firmware, not
+regional variants, because the product code does not alter the ROM kernel (three `.vpl` in
+`firmware/n95-8gb/` reference the same MCU file with the same CRC `e7ffb3c7`).
+From the package, only MCU/CORE (`*.C0R` / `*_core.fpsx`) is needed.
 
 
+### Downloaded 2026-08-30
 
-### E90: застосунок встановлено, запуск свідомо НЕ зроблено (2026-08-31)
+In `../firmware/` lie MCU images (`*.C0R`/`*.c00`/`*.C0`) and language packs for
+five devices: E90 RA-6 `400.34.93`, N95 8GB RM-320 `35.0.001` (in addition to
+our `31.0.015`), N95 RM-159 `35.0.002`, N82 RM-313 `35.0.002`, N93 RM-55
+`20.0.058`. All five have the valid FPSX signature (`b2 00 00 0x`, followed by `BB5`
+at offset `0x11`), meaning these are genuine images, not wrappers.
 
-`ocgui.exe` (39752 байти) стоїть у `C:\sys\bin` на E90, реєстрація на місці.
-Але запускати чинну збірку на E90 не можна: `Prepare()` одразу пише READ-патч у
-`0x80148410` — адресу, вірну лише для RM-320, — а на E90 це чужий код ядра, і
-через відсутність DVFS патч не знімається. Наслідок був би перезавантаженням.
-Деталі й вимоги до E90-збірки — `findings.md` §27 (застереження).
+Source — `archive.org/download/nokia-bb5-euro3-firmwares`, where files lie already
+unpacked, and Internet Archive serves an individual file from inside the zip via a direct
+link. A full catalog of versions exists on `archive.15pmm01.com` (RM-320 alone
+has 130 versions there), but each is wrapped in an InstallShield installer. The path to
+them has been clarified: `setup.exe /extract_all:<dir>` yields `Disk1` with `data1.hdr`,
+`data1.cab`, and `data2.cab`, which is the ISc format that 7-Zip cannot read. An unpacker
+in Node (`tools/unshield.js`) has been written, see below.
 
-Автономно зроблено безпечне: дизасемблювання коду тактування E90 з образу
-(`objdump`, вікно перед пулом PRCM). Знайдено рутину запису клоків у `power.dll`
-з регістром множника `0xc6008540` і helper читання поряд — механізм на E90 є,
-лише не через DVFS. Наступний крок для E90: встановити образ у EKA2L1 задля
-точних vaddr, тоді зробити E90-збірку з адресами-параметрами й безпечним
-відкатом READ-патчу на аварійній гілці.
+InstallShield unpacker written: `tools/unshield.js`, pure Node without
+dependencies, ISc format version 9, data compressed with standard deflate. Verified
+not by a subagent report, but by our own run: `list` on RM-320 `20.0.016` shows
+94 files, `extract` extracts `RM-320_20.0.016_PR.C0R` of 70,989,931 bytes in
+6.7 s, and the FPSX signature is in place in the unpacked file. One trap: MCU
+names differ between models — `.C0R` on N95 and N82, `.C01` on E90, `.C0` on N93,
+so the search pattern must be `.(c0[0-9r]?)$`, not a list of extensions.
+
+Mass run completed 2026-08-31: 52 MCU images, one for each
+"model + firmware version" pair. E90 is fully covered (six versions), N82 —
+six, N95 RM-159 — eleven, RM-245 — seven, RM-160 — four, N95 8GB
+RM-320 — seven and RM-421 — three, N93i RM-156 — four, N93 RM-55 — three. Total
+4.1 GB. All 52 images have the valid FPSX signature (`b2 00 00 0x` followed by
+the string `BB5`), verified by a continuous pass rather than selectively.
+
+Two minor details found by that pass. In early E90 firmwares (`07.24.0.3`,
+`07.38.0.2`, `07.40.1.2`), the header fields are in reverse order —
+first `XSR 1.5`, then `BB5` — so the fixed-offset check falsely
+triggers on them. And some Nokia packages contain no MCU at all: in N93
+`10.0.025` these are 45 files of language packs and manifests alone. For such
+versions, the core must be taken from another, larger package of the same version — for N93
+RM-55 this worked, for the Chinese RM-153 no core exists in any of the three
+packages, so this model remained uncovered along with N93i RM-157.
+
+The unpacker has been proven definitively: in the mass run, RM-320 `31.0.015` was extracted anew —
+the very version whose image we already had from another
+source (archive.org). The MD5 matched byte-for-byte:
+`00d98c87a04dfd4e0db71b3b3f832e50`. That is, `unshield.js` reproduces content
+accurately, not approximately, and images from installers can be trusted just like
+unpacked ones.
+
+Open question: what to use to deploy an MCU image into the `z:` file system. The existing
+`eka2l1/data/drives/z/rm-320/` was produced by installing into EKA2L1 via `.vpl`;
+whether EKA2L1 will accept our set with a single product code has not yet been verified.
 
 
-### Урок: сліпе відкриття kernel-каналів валить апарат (2026-09-02)
 
-Перша версія `e90scan` (`E90ScanReaders`) відкривала `DoCreate` до КОЖНОГО
-завантаженого LDD. На E90 один із них завалив ядро — апарат перезавантажився під
-час прогону (PUT+хеш пройшли, RUN стартував і не повернувся). Деякі драйвери на
-DoCreate виконують ініціалізацію, що падає без коректних параметрів. Це
-порушення правила «не вмикати наосліп нічого, що може зависнути».
+### E90: Application Installed, Launch Deliberately NOT Performed (2026-08-31)
 
-Виправлено: `e90scan` тепер лише ПЕРЕЛІЧУЄ драйвери (`TFindLogicalDevice`, без
-жодного DoCreate). Вибір носія READ-патча й розбір його DoControl — офлайн за
-резидентним XIP; відкривати відкриватиме наступна версія рівно один вибраний
-драйвер, під захистом, з логом імені ПЕРЕД спробою.
+`ocgui.exe` (39752 bytes) resides in `C:\sys\bin` on the E90, registration is in place.
+But launching the current build on the E90 must not be done: `Prepare()` immediately writes a READ patch to
+`0x80148410` — an address valid only for RM-320 — while on the E90 this is foreign kernel code, and
+due to the absence of DVFS, the patch is not removed. The consequence would be a reboot.
+Details and requirements for the E90 build — `findings.md` §27 (caution).
 
-Заразом підтверджено: доступ до `E:\sys\bin` на E90 працює лише коли активні
-патчі взлому (Open4all), а вони не завжди вмикаються самі після ребуту — перший
-PUT дав `ERR open -46`, після ручного ввімкнення патчів пройшов.
+Autonomously, the safe part was performed: disassembling E90 clocking code from the image
+(`objdump`, window before the PRCM pool). Found the clock write routine in `power.dll`
+with multiplier register `0xc6008540` and a read helper alongside — the mechanism on the E90 exists,
+only not via DVFS. Next step for the E90: install the image into EKA2L1 for
+exact vaddrs, then make an E90 build with parameterized addresses and safe
+rollback of the READ patch on the failure branch.
 
-### E90: пробник розвідки читача зібрано (2026-09-02)
 
-Три з чотирьох полів профілю E90 виведено офлайн (`iRomSramRoutine=0x80056874`,
-`iDspSetter=0x80059aa4`, `iPwrDownGlobal=0xc8004194`, `iDvfsBody=0`). Лишається
-примітив ЧИТАННЯ для резолвінгу SRAM. Обрано (користувач) бутстрап через запис:
-записом RomPatcher+ пропатчити тіло opcode користувацьки-відкривного драйвера E90
-READ-стабом (`cmp r1,#0; ldrne r0,[r1]; moveq r0,#0; bx lr`, той самий, що на
-RM-320) і читати ним.
+### Lesson: Blindly Opening Kernel Channels Crashes the Device (2026-09-02)
 
-Перший крок — з'ясувати, які драйвери на E90 взагалі відкриваються з нашими
-дозволами. Додано в `ocprobe.cpp` режим `e90scan` (`E90ScanReaders`): перелічує
-завантажені LDD і пробує `DoCreate` до кожного, звітує OPEN/код помилки. НІЧОГО не
-патчить — безпечна розвідка. Капабіліті пробника розширено до «все, крім
-TCB/AllFiles/DRM», щоб відмова відкриття означала недоступність каналу, а не брак
-дозволу. Зібрано: `ocprobe.exe`, `group/SymbianOverclock_sha1.sis`.
+The first version of `e90scan` (`E90ScanReaders`) opened `DoCreate` to EVERY
+loaded LDD. On the E90, one of them crashed the kernel — the device rebooted during
+the run (PUT+hash succeeded, RUN started and did not return). Some drivers execute
+initialization on DoCreate that crashes without valid parameters. This is
+a violation of the rule "do not turn on blindly anything that can hang".
 
-Кандидати-носії з резидентного XIP E90 (для наступної версії, коли знатимемо, що
-відкривається): `RSecEnvLogicalChannel`, `DSdramCrashDataBufferLogicalChannel`,
+Fixed: `e90scan` now only ENUMERATES drivers (`TFindLogicalDevice`, without
+any DoCreate). Selecting the READ patch carrier and analyzing its DoControl is done offline from
+the resident XIP; the next version will open exactly one selected
+driver, protected, logging the name BEFORE the attempt.
+
+At the same time, confirmed: access to `E:\sys\bin` on the E90 works only when hack
+patches (Open4all) are active, and they do not always turn on automatically after a reboot — the first
+PUT gave `ERR open -46`, and succeeded after manually enabling the patches.
+
+### E90: Reader Reconnaissance Probe Built (2026-09-02)
+
+Three of the four E90 profile fields have been deduced offline (`iRomSramRoutine=0x80056874`,
+`iDspSetter=0x80059aa4`, `iPwrDownGlobal=0xc8004194`, `iDvfsBody=0`). What remains is
+the READ primitive for resolving SRAM. The choice made (by user) is bootstrapping via write:
+using RomPatcher+ write to patch the opcode body of a user-openable E90 driver
+with a READ stub (`cmp r1,#0; ldrne r0,[r1]; moveq r0,#0; bx lr`, the same one as on
+RM-320) and read through it.
+
+The first step is to find out which drivers on the E90 can be opened at all with our
+capabilities. Added mode `e90scan` (`E90ScanReaders`) to `ocprobe.cpp`: enumerates
+loaded LDDs and attempts `DoCreate` to each, reporting OPEN / error code. It patches
+NOTHING — safe reconnaissance. Probe capabilities have been expanded to "all except
+TCB/AllFiles/DRM" so that an open failure indicates channel unavailability rather than lack of
+capability. Built: `ocprobe.exe`, `group/SymbianOverclock_sha1.sis`.
+
+Candidate carriers from the resident XIP of E90 (for the next version, once we know what
+opens): `RSecEnvLogicalChannel`, `DSdramCrashDataBufferLogicalChannel`,
 `DIscChannel`/`NokiaISCDriver`, `DLddUsbcChannel`.
 
-Наступний крок: прогнати `ocprobe.exe e90scan` на E90 (демон через Bluetooth),
-забрати `E:\ocprobe.log`, вибрати відкривний драйвер, офлайн розібрати його
-DoControl (він резидентний), і зібрати другу версію, що ставить READ-патч,
-звіряє його проти відомого слова ROM і резолвить SRAM
+Next step: run `ocprobe.exe e90scan` on the E90 (daemon via Bluetooth),
+retrieve `E:\ocprobe.log`, select an openable driver, analyze its
+DoControl offline (it is resident), and build a second version that installs the READ patch,
+verifies it against a known ROM word, and resolves SRAM
 `0xc8004194+4 -> obj -> obj+16`.
 
-### Адреси тактування виведено по всій лінійці; E90 WRITE упирається в резолвінг SRAM (2026-09-02)
+### Clocking Addresses Deduced Across the Entire Lineup; E90 WRITE Blocked on SRAM Resolving (2026-09-02)
 
-Три кодові якорі (читач множника, `iRomSramRoutine`, `iDspSetter`) знайдено за
-підписом і байтово перевірено в RM-320, RM-159, N82, N93, N93i; для E90 —
-`iRomSramRoutine=0x80056874` і `iDspSetter=0x80059aa4`. Чотири апарати розібрали
-паралельно підагенти `agy`, E90 й еталон — сам. Таблиця — `out/analysis/_summary.md`,
-докази — `out/analysis/<dev>.md`, повний розбір — `findings.md` §31.
+Three code anchors (multiplier reader, `iRomSramRoutine`, `iDspSetter`) were found by
+signature and byte-verified in RM-320, RM-159, N82, N93, N93i; for E90 —
+`iRomSramRoutine=0x80056874` and `iDspSetter=0x80059aa4`. Four devices were analyzed
+in parallel by `agy` subagents, E90 and the reference — by myself. Summary table — `out/analysis/_summary.md`,
+evidence — `out/analysis/<dev>.md`, full breakdown — `findings.md` §31.
 
-E90 офлайн упирається у два поля: `iDvfsBody=0` (процесорного dvfs немає, підтверджено
-повторно — «dvfs» у XIP стосується дисплея) і резолвінг адреси SRAM, який робиться
-в рантаміні через примітив читання, якого на E90 нема. Примітив ЗАПИСУ (`patcher.ldd`)
-є. Тож WRITE на E90 потребує або разового читання на апараті, або бутстрапу читання
-через запис. Безпечний тестовий крок без читання — `EReadMeasureOnly` (вимір роботою).
+E90 offline is blocked on two fields: `iDvfsBody=0` (no CPU dvfs exists, reconfirmed —
+"dvfs" in XIP pertains to the display) and resolving the SRAM address, which is done
+at runtime via a read primitive, which does not exist on the E90. The WRITE primitive (`patcher.ldd`)
+exists. Therefore, WRITE on the E90 requires either a one-time read on the device or bootstrapping read
+via write. A safe test step without reading is `EReadMeasureOnly` (measurement by work).
 
-### XIP тепер дістається без GUI EKA2L1; усі шість апаратів розібрано офлайн (2026-09-02)
+### XIP Is Now Extracted Without EKA2L1 GUI; All Six Devices Analyzed Offline (2026-09-02)
 
-Гейт з §29 (ручне встановлення `.vpl` у EKA2L1) знято. Інсталятор прошивок
-EKA2L1 вилітає на E90 і N82, а headless-режиму встановлення в збірці немає
-взагалі. Тому XIP тепер витягується прямо з образу прошивки — `tools/fpsx_extract.js`,
-точний порт відкритого FPSX-парсера EKA2L1. Повний розбір і докази — `findings.md`
+The gate from §29 (manual installation of `.vpl` into EKA2L1) has been lifted. The EKA2L1 firmware
+installer crashes on E90 and N82, and a headless installation mode does not exist in the build
+at all. Therefore, XIP is now extracted directly from the firmware image — `tools/fpsx_extract.js`,
+an exact port of EKA2L1's open-source FPSX parser. Full breakdown and evidence — `findings.md`
 §30.
 
-Перевірено на істині: витягнутий з RM-320 образ у зоні коду байт-у-байт збігається
-з тим `SYM.ROM`, який EKA2L1 колись розпакував сам, а множник `0xc6008540` стоїть
-точно за `vaddr 0x800b16ec`. Прогнав по всіх шести апаратах OMAP2420 — кожен дав
-валідний XIP з регістром множника всередині, образи в `out/roms/*.rom`. E90 навколо
-свого пулу `0x800b76dc` дизасемблюється у зв'язний ARM PRCM-код (`objdump`).
+Verified against ground truth: the image extracted from RM-320 in the code region matches byte-for-byte
+with the `SYM.ROM` that EKA2L1 once unpacked itself, and the multiplier `0xc6008540` is located
+precisely at `vaddr 0x800b16ec`. Ran across all six OMAP2420 devices — each yielded
+a valid XIP with the multiplier register inside, images in `out/roms/*.rom`. E90 around
+its `0x800b76dc` pool disassembles into coherent ARM PRCM code (`objdump`).
 
-Дорогою з'ясувалося, що ОС розколото: N95/N82 тримають увесь ОС нестиснутим
-(`SOS+CORE`, ~43 МБ), а E90/N93/N93i — лише резидентний XIP (`SOS+UPDAPP`, 1–1.8 МБ),
-решту стискають (`SOS*CORE`, зірочка). Код тактування в усіх у нестиснутій частині,
-тож для розгону цього досить.
+Along the way, it turned out that the OS is split: N95/N82 keep the entire OS uncompressed
+(`SOS+CORE`, ~43 MB), while E90/N93/N93i keep only the resident XIP (`SOS+UPDAPP`, 1–1.8 MB),
+compressing the rest (`SOS*CORE`, asterisk). The clocking code is in the uncompressed part on all of them,
+which is sufficient for overclocking.
 
-**Наступний крок** тепер суто офлайновий: дизасемблювати E90 `out/roms/e90.rom`
-навколо `0x800b76dc`, знайти чотири залежні від прошивки адреси (аналоги
-`KRomSramRoutine`/`KDspSetter`/`KPwrDownGlobal` і місце запису множника), заповнити
-`KProfileE90` і дописати гілку `EReadMeasureOnly`. Апарат потрібен лише наприкінці,
-щоб підтвердити вгадане.
+**The next step** is now purely offline: disassemble E90 `out/roms/e90.rom`
+around `0x800b76dc`, find the four firmware-dependent addresses (equivalents of
+`KRomSramRoutine`/`KDspSetter`/`KPwrDownGlobal` and the multiplier write location), populate
+`KProfileE90`, and implement the `EReadMeasureOnly` branch. The device is needed only at the end
+to confirm what was guessed.
 
-### Офлайн-адаптація: метод, запобіжник і профіль апарата (2026-09-01)
+### Offline Adaptation: Method, Safety Fuse, and Device Profile (2026-09-01)
 
-Зроблено без участі апарата, крім фінальної заливки минулого разу. Три речі:
+Done without device involvement, except for the final upload last time. Three things:
 
-1. **Метод адаптації описано** — `findings.md` §29. Коротко: єдиної лінійної
-   мапи «файл→vaddr» на образ немає (FPSX зберігає ROM блоками), тож справжні
-   адреси беруться з `TRomImageHeader.iCodeAddress` кожного модуля, тобто з
-   розпакованого `z:`. Власний розпакувальник FPSX не пишемо — його роль виконує
-   встановлення образу в EKA2L1 (без апарата) + `romtool.ps1`. Еталон RM-320
-   витягнуто: helper читання регістра `bl 0x800b1c60`, множник `0xc6008540` у
-   пулі, формула DPLL @`0x800b1544`.
+1. **Adaptation method described** — `findings.md` §29. In brief: there is no single linear
+   "file→vaddr" map for an image (FPSX stores ROM in blocks), so real
+   addresses are taken from `TRomImageHeader.iCodeAddress` of each module, i.e., from
+   the unpacked `z:`. We do not write our own FPSX unpacker — its role is fulfilled by
+   installing the image into EKA2L1 (without the device) + `romtool.ps1`. The RM-320 reference
+   has been extracted: register read helper `bl 0x800b1c60`, multiplier `0xc6008540` in
+   the pool, DPLL formula @`0x800b1544`.
 
-2. **Аварійний відкат READ-патча полагоджено** (борг §27). Тіло `Prepare` після
-   накладання патча винесене в `PrepareProbe()`, а `EndPatchSession()` тепер
-   викликається ЗАВЖДИ — і на успіху, і на будь-якій помилці проби, і навіть
-   якщо `PokeWords` ляже частково. Тепер невдалий `Prepare` на апараті з іншими
-   адресами не лишає підмінене чуже тіло ядра. Зібрано, RM-320 без змін.
+2. **Emergency rollback of the READ patch fixed** (§27 debt). The body of `Prepare` after
+   applying the patch was moved into `PrepareProbe()`, and `EndPatchSession()` is now
+   called ALWAYS — both on success and on any probe error, and even
+   if `PokeWords` fails partially. Now a failed `Prepare` on a device with different
+   addresses does not leave a substituted foreign kernel body behind. Built, RM-320 unchanged.
 
-3. **Профіль апарата** (`TOcProfile` у `ocengine.h`). Чотири залежні від прошивки
-   адреси (`iDvfsBody`, `iRomSramRoutine`, `iDspSetter`, `iPwrDownGlobal`), штатна
-   розкладка тактування й стратегія читання (`EReadDvfs`/`EReadPowerHelper`/
-   `EReadMeasureOnly`) зібрані в структуру. Двигун бере адреси з `iProfile`, а не
-   з констант. Регістри PRCM і маски полів лишились глобальними — це сам OMAP2420.
-   Еталон `KProfileRM320` заповнено доведеними числами; RM-320 працює як раніше
-   (зібрано, поведінка тотожна). Додати апарат = додати другий такий запис.
+3. **Device profile** (`TOcProfile` in `ocengine.h`). Four firmware-dependent
+   addresses (`iDvfsBody`, `iRomSramRoutine`, `iDspSetter`, `iPwrDownGlobal`), the stock
+   clocking scheme, and reading strategy (`EReadDvfs`/`EReadPowerHelper`/
+   `EReadMeasureOnly`) are assembled into a structure. The engine takes addresses from `iProfile` rather than
+   from constants. PRCM registers and field masks remained global — this is OMAP2420 itself.
+   Reference `KProfileRM320` is populated with proven numbers; RM-320 works as before
+   (built, behavior is identical). Adding a device = adding a second such entry.
 
-Що ЛИШАЄТЬСЯ для робочої E90-збірки, і чому саме тут межа автономності:
-- **Точні vaddr E90** (romSram, dspSetter, pwrDown, плюс helper'и читання/запису
-  power.dll). Потрібне розпакування образу E90 в EKA2L1 — а це дія в GUI, яку
-  headless зробити не можна. Це єдиний ручний крок.
-- **Гілка стратегії читання без dvfs.** Уся проба `Prepare` зараз побудована під
-  `EReadDvfs` (патч тіла dvfs). Для E90 (`EReadMeasureOnly` — найбезпечніше, без
-  жодної адреси читання, лише вимір роботи) цю гілку треба дописати, і писати її
-  варто вже проти реальних адрес E90, а не проти здогадів.
+What REMAINS for a working E90 build, and why this is precisely the boundary of autonomy:
+- **Exact E90 vaddrs** (romSram, dspSetter, pwrDown, plus power.dll read/write
+  helpers). Unpacking the E90 image in EKA2L1 is required — which is a GUI action that
+  cannot be performed headless. This is the only manual step.
+- **Reading strategy branch without dvfs.** The entire `Prepare` probe is currently built for
+  `EReadDvfs` (patching the dvfs body). For E90 (`EReadMeasureOnly` — the safest, without
+  any read address, measuring work only) this branch needs to be implemented, and it is worth
+  writing it against real E90 addresses rather than against guesses.
 
-Наступний крок (потребує одного кліку від Павла): встановити `.vpl` E90 в EKA2L1
+Next step (requires a single click from Pavlo): install E90 `.vpl` into EKA2L1
 (File -> Install -> Device -> Firmware(VPL) -> `firmware/e90-ra-6-400.34.93/
-RA6_0564689_400.34.93_001.vpl`). Далі я офлайн дизасемблюю E90 `power.dll`,
-заповнюю профіль E90 і дописую гілку `EReadMeasureOnly`.
+RA6_0564689_400.34.93_001.vpl`). Then I disassemble E90 `power.dll` offline,
+populate the E90 profile, and implement the `EReadMeasureOnly` branch.
 
-### Метод «з файлу» перевірено й прогнано по всіх образах (2026-08-31)
+### "From File" Method Verified and Run Across All Images (2026-08-31)
 
-`tools/romscan.js` шукає в сирому образі прошивки драйвер `dvfs_interface` (за
-іменем — надійно), тіло `DoControl(1)` (за сигнатурою — точний патч-сайт) і пули
-регістрів PRCM (механізм запису). Перевірено на істині: на RM-320 `31.0.015`
-скрипт видає рівно `KDvfsBody` = `0x80148410`, який ми здобули на апараті; на E90
-драйвера немає ні в образі, ні на живому `LS`. Повний розбір методу і його межі —
-`findings.md` §28, таблиця по 51 образу — `firmware/_romscan.md`.
+`tools/romscan.js` searches the raw firmware image for the `dvfs_interface` driver (by
+name — reliable), the body of `DoControl(1)` (by signature — exact patch site), and PRCM
+register pools (write mechanism). Verified against ground truth: on RM-320 `31.0.015`,
+the script outputs exactly `KDvfsBody` = `0x80148410`, which we obtained on the device; on the E90,
+the driver is absent both in the image and in live `LS`. Full method breakdown and its limitations —
+`findings.md` §28, table across 51 images — `firmware/_romscan.md`.
 
-Ключове: сигнатура тіла — детектор лише позитивний (промах не доводить
-відсутності, бо `DoControl(1)` компілюється між версіями по-різному), тож
-present/absent судимо за іменем драйвера. DVFS присутній у 25 образах із 51 і
-з'являється з певної версії навіть у межах моделі (RM-159 — з `13.0.003`, RM-245
-китайський — ніде, RM-320 — скрізь). Пули PRCM є майже всюди, тобто механізм
-ЗАПИСу розгону наявний і там, де читача DVFS немає.
+Key point: the body signature is a positive-only detector (a miss does not prove
+absence, because `DoControl(1)` is compiled differently between versions), so
+present/absent is judged by driver name. DVFS is present in 25 out of 51 images and
+appears starting from a certain version even within a model (RM-159 — from `13.0.003`, Chinese
+RM-245 — nowhere, RM-320 — everywhere). PRCM pools are present almost everywhere, meaning the
+overclock WRITE mechanism exists even where there is no DVFS reader.
 
-Делеговано підагентам AGY (чотири паралельні `ag-programmer`): вони прогнали
-romscan по своїх партіях образів і повернули таблиці. Результат звірено власним
-прогоном — збігся до зсуву, включно з аномаліями, тож звіти підагентів прийнято,
-а аномалії виявились властивістю методу, не помилкою.
+Delegated to AGY subagents (four parallel `ag-programmer`): they ran
+romscan across their batches of images and returned tables. The result was checked by our own
+run — matched down to the offset, including anomalies, so the subagent reports were accepted,
+and the anomalies turned out to be a property of the method, not an error.
 
-Точну числову адресу окремим відніманням бази з файла взяти НЕ можна (XIP не
-лягає пласким зсувом — перевірено). Надійний шлях до адрес і повного переліку
-файлів — встановити образ у EKA2L1 і читати `z:` через `romtool.ps1`; апарат не
-потрібен, але крок ручний (інсталяція в емулятор headless-підагенту не дається).
+The exact numerical address CANNOT be obtained by simply subtracting a base from the file (XIP does
+not map with a flat offset — verified). The reliable path to addresses and the complete list
+of files is to install the image in EKA2L1 and read `z:` via `romtool.ps1`; the device is not
+needed, but the step is manual (installation into the emulator is not possible for a headless subagent).
 
-### E90 на зв'язку, і перша ж перевірка змінила план (2026-08-31)
+### E90 Connected, and the Very First Check Changed the Plan (2026-08-31)
 
-Приєднання по Bluetooth (`deploy_net.ps1 -Com COM9`) спрацювало з першої
-спроби: демон живий, автозапущений при завантаженні, доступ до `C:\sys\bin\`
-повний, `patcher.ldd` на апараті є. Прошивка зчитана з самого апарата —
-`400.34.93` від 21-04-2009, RA-6, — і її образ у нас уже лежить.
+Connecting over Bluetooth (`deploy_net.ps1 -Com COM9`) worked on the first
+attempt: the daemon is alive, auto-started at boot, access to `C:\sys\bin\` is
+full, `patcher.ldd` is present on the device. Firmware was read from the device itself —
+`400.34.93` dated 21-04-2009, RA-6 — and its image is already in our possession.
 
-Далі виявилося важливе, і воно уточнює наступний крок. У прошивці E90 немає
-підсистеми DVFS, з якої ми знімали частоту для перевірки, і немає ще двох
-запасних читачів (`d_powerapi.ldd`, `memoryaccess.ldd`). Але сам механізм
-розгону на E90 присутній: `power.dll`, `ehwaomap.pdd` і `patcher.ldd` на місці,
-а в образі знаходяться ті самі маповані регістри PRCM, зокрема множник DPLL
-`0xc6008540`, упаковані в літеральний пул коду `power.dll`. Тобто бракує не
-механізму, а читача результату. Повний розбір і межі — `findings.md` §27 з
-виправленням.
+Next, an important fact was discovered, clarifying the next step. E90 firmware lacks
+the DVFS subsystem from which we read frequency for verification, and lacks two
+backup readers (`d_powerapi.ldd`, `memoryaccess.ldd`). However, the overclocking
+mechanism itself is present on the E90: `power.dll`, `ehwaomap.pdd`, and `patcher.ldd` are in place,
+and the image contains the same mapped PRCM registers, including the DPLL multiplier
+`0xc6008540`, packed into the literal pool of the `power.dll` code. That is, what is missing is not
+the mechanism, but the result reader. Full breakdown and boundaries — `findings.md` §27 with
+correction.
 
-Тому пункт «сигнатурний пошук адрес» (`ROADMAP.md` §2) для E90 не застосовний
-у нинішньому вигляді. Спершу треба знайти іншу точку входу для читання пам'яті,
-і лише потім говорити про зсуви. Для інших прошивок **тієї самої** моделі
-RM-320 план лишається без змін — там підсистема та сама.
-## Наступний крок
+Therefore, the item "signature search for addresses" (`ROADMAP.md` §2) is inapplicable to the E90
+in its current form. First, a different entry point for reading memory must be found,
+and only then can offsets be discussed. For other firmwares of the **same**
+RM-320 model, the plan remains unchanged — the subsystem there is the same.
+## Next Step
 
-Symbian-inflate реалізований і **доведений** (`tools/syminflate.js`): розтискає
-`file0/1/2` рівно в їхній `iUncompressedSize` (2688/2700/2780 байтів), образи
-дають валідний ARM. Диспетчер і шлях запису розібрано — `findings.md` розділ 10:
-функції каналу 100–105, маршрутизація за межами `0x85a4`, запис через імпорт
-ядра **ординал 725** `(dest,src,len)`; адреса поза ROM пишеться прямо, без
-відхилення. Артефакти — `out/rp/inflated/`.
+Symbian-inflate is implemented and **proven** (`tools/syminflate.js`): decompresses
+`file0/1/2` exactly to their `iUncompressedSize` (2688/2700/2780 bytes), images
+yield valid ARM. Dispatcher and write path analyzed — `findings.md` section 10:
+channel functions 100–105, routing outside `0x85a4`, write via kernel import
+**ordinal 725** `(dest,src,len)`; address outside ROM is written directly, without
+rejection. Artifacts — `out/rp/inflated/`.
 
-Розбір ekern (export directory реального образу) і повний розбір каналу patcher
-дали **три результати** — деталі й докази `findings.md` розділ 10:
-- ординал 725 = `memmove(dest,src,len)` @`0x8006F800`; 401/402 = lock/unlock; усі
-  30 стубів patcher резольвлено проти реальної export-таблиці — ланцюг запису
-  доведено від клієнта до `str` у ядрі;
-- **але** канал patcher НЕ дає читання довільної адреси (105 бере src лише з
-  дескриптора, 103 — фіксований геттер);
-- **і** memmove для len=4 пише 4×`strb` — хибна розрядність для регістрів PRCM.
+Analysis of ekern (export directory of the real image) and full analysis of the patcher channel
+yielded **three results** — details and evidence `findings.md` section 10:
+- ordinal 725 = `memmove(dest,src,len)` @`0x8006F800`; 401/402 = lock/unlock; all
+  30 patcher stubs resolved against the real export table — the write chain is
+  proven from client to `str` in the kernel;
+- **but** the patcher channel DOES NOT provide arbitrary address reading (105 takes src only from
+  a descriptor, 103 is a fixed getter);
+- **and** memmove for len=4 writes 4×`strb` — wrong access width for PRCM registers.
 
-**Висновок: `patcher.ldd` для програмування PRCM непридатний.** Мапінг MMIO він
-не блокує (адреса поза ROM іде прямим str, kaomap це доводить), блокують
-розрядність memmove і відсутність читання.
+**Conclusion: `patcher.ldd` is unsuitable for programming PRCM.** It does not block
+MMIO mapping (an address outside ROM goes via direct str, kaomap proves this); what blocks
+is the memmove access width and the lack of reading.
 
-### Інвентаризація драйверів ROM — зроблено, негативний результат
+### ROM Driver Inventory — Done, Negative Result
 
-Просканував усі 2712 модулів на імпорт kaomap Read32/Write32/Modify32
-(findings §11). Імпортують 24; юзер-бік мають 6 LDD. У кожному адреса MMIO —
-зашита база драйвера, **жоден не бере адресу від клієнта.** Примітиву сирого
-MMIO з правильною розрядністю в ROM немає.
+Scanned all 2712 modules for kaomap Read32/Write32/Modify32 imports
+(findings §11). 24 import them; 6 LDDs have a user side. In each, the MMIO address is
+the hardcoded driver base, **none takes an address from the client.** A raw
+MMIO primitive with correct access width does not exist in ROM.
 
-### Переорієнтація: як прошивка реально керує частотою (findings §12)
+### Reorientation: How Firmware Actually Controls Frequency (findings §12)
 
-Розбір power.dll: множник DPLL (`CM_CLKSEL1_PLL`) задається лише на буті й
-рантайм не пишеться (145 Write32, жодного в `0xC6008540`). Рантаймовий DVFS
-масштабує тільки **дільники** вниз від стелі 330 МГц. Отже:
-- знизити дільник — потрібно спершу прочитати поточний (примітиву читання нема);
-- підняти DPLL — валідованого рантайм-шляху в прошивці нема, робити самотужки
-  можна лише коректним MMIO-примітивом (якого нема).
+Analysis of power.dll: the DPLL multiplier (`CM_CLKSEL1_PLL`) is set only at boot and
+is not written at runtime (145 Write32, none to `0xC6008540`). Runtime DVFS
+scales only **dividers** downward from the 330 MHz ceiling. Therefore:
+- to lower a divider — one must first read the current one (no read primitive);
+- to raise DPLL — there is no validated runtime path in firmware, doing it on our own
+  is possible only with a correct MMIO primitive (which does not exist).
 
-**Точне формулювання блокера:** бракує не знання «що писати» (відоме), а
-робочого каналу в ядро з коректною розрядністю доступу **і читанням**.
+**Exact formulation of the blocker:** what is missing is not knowledge of "what to write" (known), but
+a working channel into the kernel with correct access width **and reading**.
 
-### Обраний шлях: патчити КОД power.dll, а не MMIO (findings §13)
+### Chosen Approach: Patch power.dll CODE, Not MMIO (findings §13)
 
-Boot-множник DPLL Symbian-кодом не програмується (задає pre-Symbian
-завантажувач), тож таблиці для «чистого» патча нема. Натомість:
+The DPLL boot multiplier is not programmed by Symbian code (it is set by the pre-Symbian
+bootloader), so there is no table for a "clean" patch. Instead:
 
-- код power.dll (`0x800A7C98..0x800B3298`) — у ROM-регіоні, який patcher патчить
-  shadow-шляхом; патч коду = запис у звичайну память (побайтовий memmove тут
-  коректний, проблема розрядності знята);
-- регістри чіпає сама power.dll своїми коректними 32-бітними kaomap-примітивами;
-- тригер уже є: `DoControl(1)` на `dvfs_interface` → `GetClockFrequency`
+- power.dll code (`0x800A7C98..0x800B3298`) is in a ROM region that patcher patches
+  via the shadow path; patching code = writing to normal memory (byte-by-byte memmove is
+  correct here, access width issue is eliminated);
+- registers are touched by power.dll itself using its correct 32-bit kaomap primitives;
+- the trigger is already there: `DoControl(1)` on `dvfs_interface` → `GetClockFrequency`
   `0x800B15DC`.
 
-**READ-патч — виконано на апараті 2026-08-07.** Self-test запису в user-буфер
-пройшов (`DoControl(105) -> 0`, байти збіглися), після чого ROM-shadow шлях
-прийняв 16-байтний патч `dvfs_interface.ldd @0x80148410`. Патч прочитав:
+**READ patch — executed on the device 2026-08-07.** Self-test of writing to user buffer
+passed (`DoControl(105) -> 0`, bytes matched), after which the ROM-shadow path
+accepted the 16-byte patch `dvfs_interface.ldd @0x80148410`. The patch read:
 
 ```
 CM_CLKSEL1_PLL = 0x00056400  sys_clk=19.2 MHz, mult=86, div=4
@@ -1033,185 +1031,185 @@ CM_CLKSEL_MPU  = 0x00000002  mpu_div=2
 CM_CLKEN_PLL   = 0x0000000F  DPLL locked (low bits == 3)
 ```
 
-Отже `DPLL = 19.2 * 86 / 5 = 330.24 MHz`; із `core_sel=2` та `mpu_div=2`
-MPU також отримує 330.24 MHz. Зменшення MPU-дільника з 2 до 1 дало б близько
-660 MHz — неприйнятний стрибок, ця гілка закрита. READ-патч тільки читає;
-перезавантаження повертає оригінальний ROM-код.
+Hence `DPLL = 19.2 * 86 / 5 = 330.24 MHz`; with `core_sel=2` and `mpu_div=2`
+the MPU also receives 330.24 MHz. Reducing the MPU divider from 2 to 1 would give around
+660 MHz — an unacceptable jump, this branch is closed. The READ patch only reads;
+a reboot restores the original ROM code.
 
-**Переглянуто 2026-08-07 (findings §17): у прошивці Є SRAM-резидентна
-критична секція PRCM/SDRC.** `power.dll` на буті мапить 4 КБ фізичної
-`0x4029E000` (внутрішня SRAM OMAP2420) і копіює туди 324-байтову процедуру з
-`0x800A7F6C`; на глибокому idle вона виконується **з SRAM** і робить
-self-refresh SDRAM → bypass DPLL → полінг `CM_IDLEST_PLL` → WFI → relock →
-полінг → relock DLL. Тобто структура з `sram242x.S` підтверджена не переказом
-Linux, а кодом цього апарата. Заразом закрито параметр SDRC:
-`SDRC_RFR_CTRL = 0x0004DA01` (≈165 МГц), апарат на штатній OPP 330/660/165.
+**Revisited 2026-08-07 (findings §17): the firmware DOES have an SRAM-resident
+PRCM/SDRC critical section.** `power.dll` at boot maps 4 KB of physical
+`0x4029E000` (internal OMAP2420 SRAM) and copies a 324-byte routine from
+`0x800A7F6C` there; on deep idle it executes **from SRAM** and performs
+self-refresh SDRAM → bypass DPLL → polling `CM_IDLEST_PLL` → WFI → relock →
+polling → relock DLL. That is, the structure from `sram242x.S` is confirmed not by a retelling
+of Linux, but by the code of this device. At the same time, the SDRC parameter is settled:
+`SDRC_RFR_CTRL = 0x0004DA01` (≈165 MHz), device is at stock OPP 330/660/165.
 
-Хибними виявились два наші твердження: (а) що валідованого рантайм-шляху
-relock у прошивці немає; (б) що power.dll пише MMIO лише через kaomap — вона
-пише й прямими `str` за базою+зсувом, через що попередні скани все й проґавили.
+Two of our assertions proved false: (a) that there is no validated runtime
+relock path in the firmware; (b) that power.dll writes MMIO only via kaomap — it
+writes via direct `str` by base+offset as well, which is why earlier scans missed everything.
 
-**Новий блокер (точний):** копіювання в SRAM робиться **один раз на буті**, тож
-рантаймовий ROM-shadow патч `0x800A7F6C` б'є не по тій копії, яка виконується.
+**New blocker (exact):** copying to SRAM is done **once at boot**, so
+a runtime ROM-shadow patch of `0x800A7F6C` hits the wrong copy, not the one that executes.
 
-**WRITE-етап переоцінено 2026-08-07: на апараті не запускати.** Еталонний
-OMAP2420-код Linux виконує relock не як три прості записи: він працює із SRAM
-та попередньо завантаженим I-cache, переходить у fast-relock bypass, чекає
-`CM_IDLEST_PLL`, лише тоді змінює `CM_CLKSEL1_PLL` і фіксує `CLKCFG_CTRL`,
-потім relock/wait, а в цій самій критичній секції оновлює SDRC refresh і DLL.
-Деталі та статус доказу — findings §16.
+**WRITE phase re-evaluated 2026-08-07: do not run on the device.** Reference
+OMAP2420 Linux code performs relock not as three simple writes: it operates from SRAM
+and pre-loaded I-cache, transitions to fast-relock bypass, waits for
+`CM_IDLEST_PLL`, only then changes `CM_CLKSEL1_PLL` and commits `CLKCFG_CTRL`,
+then relock/wait, and in this same critical section updates SDRC refresh and DLL.
+Details and proof status — findings §16.
 
-Звідси прямий патч `power.dll` недостатній і небезпечний: його код може бути
-в ROM, але стек, дані й звернення до SDRAM під час зміни частоти не ізольовані.
-Навіть малий `mult=86 -> 87` (+1.16%) змінює CORE/L3/SDRAM, а офіційна таблиця
-OMAP2420 має 330 MHz як найшвидшу точку. До write-дотику потрібні всі чотири:
-1. ~~підтверджений для RM-320 SRAM/ICache-safe виконавчий шлях~~ — **знайдено**
-   в прошивці (findings §17), але патчити його ми поки не вміємо: копія в SRAM
-   робиться на буті;
-2. ~~точні поточні SDRC refresh~~ — **закрито**: `RFR_CTRL = 0x0004DA01`
-   (≈165 МГц), значення DLL `0x770E`. Лишаються нові значення під нову частоту;
-3. підтверджений запас напруги або керована Menelaus-послідовність;
-4. незалежний review точних ARM-байтів, timeout/rollback-поведінки та один
-   окремий runtime-тест. За відсутності будь-якого з пунктів WRITE не робити.
+Hence a direct patch of `power.dll` is insufficient and dangerous: its code may be
+in ROM, but the stack, data, and SDRAM accesses during a frequency change are not isolated.
+Even a small `mult=86 -> 87` (+1.16%) alters CORE/L3/SDRAM, whereas the official
+OMAP2420 table has 330 MHz as the fastest point. Before a write touch, all four are required:
+1. ~~confirmed for RM-320 SRAM/ICache-safe execution path~~ — **found**
+   in firmware (findings §17), but we do not yet know how to patch it: the copy in SRAM
+   is made at boot;
+2. ~~exact current SDRC refresh~~ — **closed**: `RFR_CTRL = 0x0004DA01`
+   (≈165 MHz), DLL value `0x770E`. New values for the new frequency remain;
+3. confirmed voltage headroom or controlled Menelaus sequence;
+4. independent review of exact ARM bytes, timeout/rollback behavior, and one
+   dedicated runtime test. In the absence of any of these items, do not perform WRITE.
 
-### Найближчий крок — READ-only, без WRITE (виведено з коду, findings §17)
+### Immediate Step — READ-Only, Without WRITE (Deduced from Code, findings §17)
 
-Знайдено ланцюг до лінійної адреси SRAM-копії. `power.dll @0x800A85E4` кладе
-вказівник на об'єкт power-down у глобал:
+The chain to the linear address of the SRAM copy was found. `power.dll @0x800A85E4` stores
+a pointer to the power-down object in a global:
 
 ```
-obj      = *(0xC80030CC)        ; глобал 0xC80030C8, поле +4
-sram_lin = *(obj + 16)          ; лінійна адреса відображення 4 КБ @фіз 0x4029E000
-chunk    = *(obj + 12)          ; сам HW-chunk
+obj      = *(0xC80030CC)        ; global 0xC80030C8, field +4
+sram_lin = *(obj + 16)          ; linear address of 4 KB mapping @phys 0x4029E000
+chunk    = *(obj + 12)          ; the HW chunk itself
 ```
 
-Це два читання довільної адреси ядра — рівно те, що вже вміє **перевірений**
-READ-патч (§15), тим самим механізмом і тим самим класом ризику. Нічого не
-пишемо. Мета — підтвердити, що SRAM справді відображено, і отримати адресу,
-за якою лежить виконувана копія процедури.
+These are two arbitrary kernel address reads — exactly what the **verified**
+READ patch (§15) can already do, using the same mechanism and with the same risk class. We write
+nothing. The goal is to confirm that SRAM is indeed mapped and to obtain the address
+where the executing copy of the routine lies.
 
-Якщо адреса підтвердиться, відкривається шлях, закритий раніше: патчити
-**SRAM-копію** замість ROM. Обмеження §10 п.2 (memmove пише 4×`strb`) там **не
-діє** — це звичайна память, а не MMIO.
+If the address is confirmed, a path closed earlier opens up: patching
+the **SRAM copy** instead of ROM. The limitation of §10 item 2 (memmove writes 4×`strb`) **does not
+apply** there — it is normal memory, not MMIO.
 
-Незакрите й обов'язкове до будь-якого WRITE: керованого користувацького тригера
-процедури немає (виконується лише на глибокому idle, глибина ≥ 2), тож ефект
-патча буде погано спостережуваним. Плюс напруга (Menelaus) і нові значення
-SDRC під нову частоту.
+Unresolved and mandatory prior to any WRITE: there is no controllable user trigger
+for the routine (executes only on deep idle, depth ≥ 2), so the effect
+of the patch will be poorly observable. Plus voltage (Menelaus) and new SDRC
+values for the new frequency.
 
-**Закрито READ-етапом:** формат клієнтського виклику, capability-набір наявного
-`ocprobe.mmp`, I-cache/ROM-shadow когерентність і фактичні значення PRCM.
-`patcher.ldd` завантажився та відкрився з наявними capabilities
+**Settled by the READ stage:** client call format, capability set of existing
+`ocprobe.mmp`, I-cache/ROM-shadow coherence, and actual PRCM values.
+`patcher.ldd` loaded and opened with existing capabilities
 `PowerMgmt WriteDeviceData ReadDeviceData ReadUserData WriteUserData ProtServ`;
-розширювати їх не потрібно. Артефакт запуску — `out/ocprobe.log`.
+no expansion needed. Run artifact — `out/ocprobe.log`.
 
-Вхідні файли: `out/rp/file0` = `patcher.ldd`, `file1` = `patcherShadow.ldd`,
-`file2` = `patcherS3.ldd` (для S60v3 актуальні перші два). Стиснення —
+Input files: `out/rp/file0` = `patcher.ldd`, `file1` = `patcherShadow.ldd`,
+`file2` = `patcherS3.ldd` (for S60v3, the first two are relevant). Compression —
 `KUidCompressionDeflate` (`0x101F7AFC`).
 
-## Застосунок на апараті (SIS)
+## On-Device Application (SIS)
 
-`ocgui.exe` — розгін і стрес-тести без ПК. Збірка й підпис:
+`ocgui.exe` — overclocking and stress tests without a PC. Build and sign:
 
 ```
 tools\build_sis.cmd            -> group\SymbianOverclock_sha1.sis
-tools\build_sis.cmd push <ip>  те саме + заливка в E:\Downloads
+tools\build_sis.cmd push <ip>  same + upload to E:\Downloads
 ```
 
-**v1.1 (2026-08-08): ручні дільники всіх підсистем.** Рядок `DIVIDERS` перемикає
-`AUTO` / `MANUAL`. В `AUTO` дільники підбираються самі (L3 якнайвище в межах
-+15%, DSS1 найближче до штатної). В `MANUAL` кожне з семи полів
-`CM_CLKSEL1_CORE` крутиться вліво/вправо окремо: L3, L4, DSS1, DSS2, VLYNQ, SSI,
-USB. Поруч зі значенням показано отриману частоту і **відхилення від штатної** -
-саме за ним і налаштовують. Перемикання в `MANUAL` бере за основу те, що
-підібрала автоматика, тож база одразу робоча.
+**v1.1 (2026-08-08): manual dividers for all subsystems.** The `DIVIDERS` row toggles
+`AUTO` / `MANUAL`. In `AUTO`, dividers are selected automatically (L3 as high as possible within
++15%, DSS1 closest to stock). In `MANUAL`, each of the seven fields of
+`CM_CLKSEL1_CORE` is adjusted left/right individually: L3, L4, DSS1, DSS2, VLYNQ, SSI,
+USB. Alongside the value, the resulting frequency and **deviation from stock** are shown —
+this is precisely what is used for tuning. Switching to `MANUAL` takes what the automation
+selected as a starting point, so the baseline is immediately working.
 
-Дозволені значення полів взяті з валідації в сеттерах `power.dll` (findings §21),
-тобто виставити недійсний для цього SoC дільник застосунок не дасть.
+Allowed field values are taken from validation in `power.dll` setters (findings §21),
+meaning the application will not allow setting a divider invalid for this SoC.
 
-**v1.2: дільник MPU.** Окремий рядок `MPUDIV` - це вже інший регістр,
-`CM_CLKSEL_MPU` [4:0]. Допустимі значення **1, 2, 4, 6, 8** (прошивка відкидає
-0, 3, 5, 7 - дільника 3 на цьому SoC немає). Показує CPU і CORE, які вийдуть.
+**v1.2: MPU divider.** A separate `MPUDIV` row — this is already a different register,
+`CM_CLKSEL_MPU` [4:0]. Valid values are **1, 2, 4, 6, 8** (firmware rejects
+0, 3, 5, 7 — divider 3 does not exist on this SoC). Shows resulting CPU and CORE.
 
-Навіщо: при `mpu_div=1` та сама частота ядра досягається **вдвічі нижчою CORE**.
-Це прямий спосіб перевірити, де насправді межа - в самому ARM чи в CORE як
-найвищій внутрішній частоті. Наприклад CPU ~422 МГц: або mult 111 з CORE 852
-(діл. 2), або mult 55 з CORE 422 (діл. 1). Якщо друге тримається краще - винна
-CORE, а не ядро.
+Why: with `mpu_div=1`, the same core frequency is achieved with **half the CORE frequency**.
+This is a direct way to verify where the limit actually lies — in the ARM itself or in CORE as
+the highest internal frequency. For example, CPU ~422 MHz: either mult 111 with CORE 852
+(div 2), or mult 55 with CORE 422 (div 1). If the second holds better — CORE is to blame,
+not the core.
 
-**v1.4 (2026-08-15): дільник шини памʼяті окремим рядком.** Рядок `BUSDIV` стоїть
-одразу під `MPUDIV` і редагує поле L3 у `CM_CLKSEL1_CORE`, тобто частоту, з якої
-тактується контролер SDRAM. Показує не сам дільник, а частоту шини й відхилення
-від штатної; позначка `auto` означає, що значення досі бере автопідбір і поїде
-разом із множником. Вліво/вправо задає своє значення, OK повертає на автопідбір.
+**v1.4 (2026-08-15): memory bus divider as a separate row.** The `BUSDIV` row is located
+directly beneath `MPUDIV` and edits the L3 field in `CM_CLKSEL1_CORE`, i.e., the frequency from which
+the SDRAM controller is clocked. It shows not the divider itself, but the bus frequency and deviation
+from stock; the `auto` label indicates that the value is still taken from autoselection and will track
+along with the multiplier. Left/right sets a custom value, OK returns to autoselection.
 
-Навіщо окремий рядок, коли те саме поле є в списку `MANUAL`: це єдиний дільник,
-яким розділяють «межа в ядрі» від «межа в шині». Виміряно (§26.13), що `BestMem`
-реагує на зміну шини майже повністю, а на зміну частоти ядра — лише на дві
-п'ятих; щоб цим користуватись, шину треба крутити окремо від множника, не
-заходячи в ручний режим і не зачіпаючи водночас дільник дисплея. Обидва контроли
-на одне поле тримаються в одному значенні, тож розійтися не можуть.
+Why a separate row when the same field is in the `MANUAL` list: this is the only divider
+used to separate "limit in the core" from "limit in the bus". Measured (§26.13) that `BestMem`
+responds to bus changes almost entirely, but to core frequency changes by only two-fifths;
+to leverage this, the bus needs to be adjusted independently of the multiplier without
+entering manual mode and without simultaneously affecting the display divider. Both controls
+for the same field maintain the same value, so they cannot diverge.
 
-Набір значень тут **вужчий** за той, що дозволяє прошивка: 1, 2, 4, 6, 8, 12, 16.
-Причина виміряна (§26.0) — валідатор `power.dll` пропускає значення, яких апарат
-не бере, а недійсне значення в одному полі відкидає **весь** запис у регістр.
-Ширший набір лишається в `MANUAL`, де є звірка читанням назад.
+The set of values here is **narrower** than what the firmware allows: 1, 2, 4, 6, 8, 12, 16.
+The reason was measured (§26.0) — the `power.dll` validator lets through values that the device
+does not accept, and an invalid value in a single field rejects the **entire** register write.
+The wider set remains in `MANUAL`, where verification by reading back exists.
 
-Рядок сам попереджає про напрямок, і попередження теж виміряні: шина **нижче**
-штатної тримається чисто, але повернення з неї вбило апарат три рази з трьох
-(§26.15), а шина **вище** штатної при незмінному множнику просто не перевірялась.
+The row itself warns about direction, and the warnings are also measured: a bus **below**
+stock holds cleanly, but returning from it killed the device three times out of three
+(§26.15), while a bus **above** stock with an unchanged multiplier simply was not tested.
 
-Список прокручується (рядків більше, ніж влазить на екран).
-Попередню версію збережено в `release/v1/` разом із джерелами.
+The list scrolls (there are more rows than fit on the screen).
+The previous version is saved in `release/v1/` along with sources.
 
-Керування джойстиком: вгору/вниз — вибір рядка, вліво/вправо — змінити значення
-вибраного рядка (множник, режим або дільник), OK — активувати рядок.
-Захист дворівневий і навмисний: повзунок лише готує значення, `APPLY SETTING`
-озброює, і **тільки окрема кнопка `CONFIRM OVERCLOCK`** виконує relock.
-Автозапуску немає: після перезавантаження нічого не застосовується.
+Joystick control: up/down — select row, left/right — change value
+of selected row (multiplier, mode, or divider), OK — activate row.
+Protection is two-level and intentional: the slider only prepares the value, `APPLY SETTING`
+arms it, and **only the separate `CONFIRM OVERCLOCK` button** executes the relock.
+There is no autostart: after a reboot, nothing is applied.
 
-Тести (кожен водночас бенчмарк і детектор тихих помилок — усі самоперевірні):
-ALU (LCG вперед і назад через модульно обернений множник), смуга пам'яті,
-цілісність SDRAM, кеш, і комбінований прогін із вердиктом «слабка ланка».
+Tests (each is both a benchmark and a silent error detector — all self-checking):
+ALU (LCG forward and backward via modular inverse multiplier), memory bandwidth,
+SDRAM integrity, cache, and a combined run with a "weakest link" verdict.
 
-`patcher.ldd` у пакет **не входить**: цей драйвер має kernel-side capabilities,
-яких самопідписний сертифікат не дає, і з ним не встановився б увесь пакет.
-Він мусить бути на апараті вже (`E:\sys\bin\patcher.ldd` + SHA-1 у
-`C:\sys\hash\patcher.ldd`); туди його кладе `build.cmd run ... "patcher ..."`.
-Якщо драйвера немає, застосунок це прямо каже і лишає доступними самі тести.
+`patcher.ldd` is **not included** in the package: this driver has kernel-side capabilities
+that a self-signed certificate does not grant, and with it the whole package would fail to install.
+It must already be on the device (`E:\sys\bin\patcher.ldd` + SHA-1 in
+`C:\sys\hash\patcher.ldd`); `build.cmd run ... "patcher ..."` places it there.
+If the driver is absent, the application explicitly says so and leaves only the tests available.
 
-Статус: SIS зібрано й підписано (`group\SymbianOverclock_sha1.sis`, версія 1.4.0).
-Оновлювати вже встановлений застосунок необовʼязково через інсталятор: демон
-кладе новий `ocgui.exe` прямо поверх `C:\sys\bin\ocgui.exe`, бо для виконуваних
-на C: не діє перевірка хеша знімного носія. Саме так залито збірку 1.4:
+Status: SIS built and signed (`group\SymbianOverclock_sha1.sis`, version 1.4.0).
+Updating an already installed application does not require using the installer: the daemon
+places a new `ocgui.exe` directly on top of `C:\sys\bin\ocgui.exe`, because executables
+on C: are not subject to removable media hash checks. This is exactly how build 1.4 was deployed:
 
 ```
 powershell -File %DAEMON%\tools\deploy_net.ps1 -Ip <ip> ^
   -PutFile %EPOCROOT%Epoc32\release\gcce\urel\ocgui.exe -Remote "C:\sys\bin\ocgui.exe"
 ```
 
-Перевірено на апараті рівно стільки: підмінений застосунок запускається (`APP
-0xE0001011` -> процес у списку), відпрацьовує `Prepare()` і чисто завершується
-по `ENDAPP`, тобто знімає патч ядра за собою. **Сам інтерфейс очима ще не
-бачений** — телефон був під автоблокуванням, і знімок екрана показав заставку, а
-не застосунок.
+Verified on the device only to this extent: the replaced application launches (`APP
+0xE0001011` -> process in list), executes `Prepare()`, and cleanly terminates
+upon `ENDAPP`, meaning it removes the kernel patch behind itself. **The UI itself has not yet been seen
+with eyes** — the phone was under auto-lock, and the screenshot showed the screensaver,
+not the application.
 
-## Режим "застосувати й залишити"
+## "Apply and Hold" Mode
 
 ```
-tools\build.cmd run 192.168.1.5 "patcher hold 96"    підняти й ЛИШИТИ
-tools\build.cmd run 192.168.1.5 "patcher hold 86"    повернути штатну
+tools\build.cmd run 192.168.1.5 "patcher hold 96"    raise and HOLD
+tools\build.cmd run 192.168.1.5 "patcher hold 86"    restore stock
 ```
 
-Обходить проблему переходу (findings §20): relock робиться безголово, коли
-дисплей неактивний, а далі апаратом просто користуються на новій частоті -
-небезпечне саме вікно зміни, а не стаціонарний режим.
+Circumvents the transition problem (findings §20): relock is performed headlessly when
+the display is inactive, and subsequently the device is simply used at the new frequency —
+it is specifically the change window that is dangerous, not the stationary mode.
 
-**Частота лишається, патч ядра - НІ.** Патч небезпечний для чужих викликів
-каналу, тому знімається завжди; після виходу процесу в ядрі не лишається нічого
-нашого. Скидає перезавантаження (у флеш не пишеться нічого) або `hold 86`.
+**Frequency remains, kernel patch does NOT.** The patch is dangerous to foreign channel
+calls, so it is always removed; after process exit, nothing of ours remains in the kernel.
+A reboot resets it (nothing is written to flash), or `hold 86`.
 
-Замір при застосуванні mult 96 (2026-08-08, на апараті):
+Measurement upon applying mult 96 (2026-08-08, on the device):
 
 ```
 stock  m86: DPLL=330240 CORE=660480 MPU=330240 BUS=165120 kHz
@@ -1220,174 +1218,174 @@ NOP 323 -> 351 MHz (+8.6%)   ALU 17.14 -> 18.60 Mitr/s (+8.5%)
 MEM 513 -> 572 MB/s (+11.5%)  SDRAM 1 MB: 0 bad words
 ```
 
-**Незакрите питання:** шина масштабувалась рівно як розраховано (+11.5% проти
-теоретичних +11.63%), а обидва процесорні прилади дали лише +8.5%. Розбіжність
-не з'ясована; перевірити читанням `CM_CLKSEL_MPU` і `CM_CLKSEL2_PLL` під
-навантаженням - можливо, губернатор рухає дільник MPU вгору при вищій CORE.
+**Open question:** the bus scaled exactly as calculated (+11.5% vs.
+theoretical +11.63%), while both processor instruments yielded only +8.5%. The discrepancy
+is unresolved; check by reading `CM_CLKSEL_MPU` and `CM_CLKSEL2_PLL` under
+load — possibly the governor moves the MPU divider upward at higher CORE.
 
-## Робочий цикл
+## Work Cycle
 
 ```
-tools\build.cmd                             тільки зібрати
-tools\build.cmd run 192.168.1.5             зібрати -> залити -> запустити -> забрати лог
-tools\build.cmd run 192.168.1.5 "power 7"   те саме з аргументами
+tools\build.cmd                             build only
+tools\build.cmd run 192.168.1.5             build -> upload -> run -> fetch log
+tools\build.cmd run 192.168.1.5 "power 7"   same with arguments
 ```
 
-Лог лягає в `out/ocprobe.log`. IP апарата — `192.168.1.5` (кешується демоном у
-`../SymbianDeployDaemon/tools/.daemon_ip`; без `-Ip` клієнт сканує підмережу).
+Log lands in `out/ocprobe.log`. Device IP is `192.168.1.5` (cached by the daemon in
+`../SymbianDeployDaemon/tools/.daemon_ip`; without `-Ip` the client scans the subnet).
 
-Розбір ROM-модулів:
+Analysis of ROM modules:
 
 ```
 tools\romtool.ps1 -Module power.dll -Disasm -Imports
 ```
 
-Кладе `.asm` у `out/asm/`, резольвить import-стуби по всіх модулях ROM.
+Places `.asm` in `out/asm/`, resolves import stubs across all ROM modules.
 
-## Правила безпеки, вироблені на практиці
+## Safety Rules Developed in Practice
 
-- Демон **однопотоковий** і чекає на вихід запущеного процесу. Зависання проби
-  блокує весь канал доставки. Апарат при цьому живий — TCP-рукостискання
-  проходить, відповіді немає.
-- Стан драйвера в ядрі переживає перезапуск демона. Чиститься лише
-  **перезавантаженням апарата**.
-- Нескасовні запити реальні: `TestPowerAPI` індекс 6 (ресурс 65) не
-  завершується ніколи, `Cancel` драйвер не має.
-- `TRequestStatus` для драйвера тримати **статичним**, не на стеку: пізнє
-  завершення інакше пише в чужий кадр.
-- Таймаут на `Req()` недостатній — блокуватись може вже `LoadLogicalDevice`
-  або `DoCreate`, а вони синхронні й таймауту не мають.
-- Усе, що може зависнути, вмикати **лише явним аргументом**. Звичайний прогін
-  має лишатись таким, після якого апарат гарантовано відповідає.
-- Ніяких записів у флеш. Усе рантаймове, ребут повертає як було.
+- The daemon is **single-threaded** and waits for the launched process to exit. A probe hang
+  blocks the entire delivery channel. The device remains alive in this state — TCP handshake
+  succeeds, but there is no response.
+- Driver state in the kernel survives daemon restart. It is cleared only by
+  **rebooting the device**.
+- Uncancellable requests are real: `TestPowerAPI` index 6 (resource 65) never
+  completes, and the driver has no `Cancel`.
+- Keep `TRequestStatus` for a driver **static**, not on the stack: late
+  completion otherwise writes into a foreign frame.
+- Timeout on `Req()` is insufficient — `LoadLogicalDevice`
+  or `DoCreate` can block as well, and they are synchronous and have no timeout.
+- Anything that can hang must be enabled **only by an explicit argument**. A normal run
+  must remain one after which the device is guaranteed to respond.
+- No writes to flash. Everything is runtime; a reboot restores state to how it was.
 
-## Прилад вимірювання
+## Measurement Instrument
 
-Абсолютна частота — ланцюг із 256 незалежних `add` (ARM1136 одноконвеєрний,
-такт на інструкцію), `ALWAYS_BUILD_AS_ARM` у `.mmp`. Дає 322–325 МГц при
-припущених 258 тактах на ітерацію; справжнє значення 330 МГц (фактичних тактів
-~263). Для звірки є другий, незалежний канал: `DoControl(1)` на
-`dvfs_interface` віддає відсоток від номіналу прямо з регістрів PRCM, крок
-3.3 МГц. **Після зміни частоти саме він буде арбітром** — на відміну від
-`HAL::ECPUSpeed`, який на цьому апараті просто бреше (стабільні 206438 kHz).
+Absolute frequency — a chain of 256 independent `add` instructions (ARM1136 is single-issue,
+one cycle per instruction), `ALWAYS_BUILD_AS_ARM` in `.mmp`. Yields 322–325 MHz under
+assumed 258 cycles per iteration; true value is 330 MHz (actual cycles
+~263). For cross-check there is a second, independent channel: `DoControl(1)` on
+`dvfs_interface` returns percentage of nominal directly from PRCM registers, in steps of
+3.3 MHz. **After a frequency change, it will serve as the arbiter** — unlike
+`HAL::ECPUSpeed`, which on this device simply lies (stable 206438 kHz).
 
-Базова лінія: ALU 17.05 Mitr/s, пам'ять ~510 MB/s.
+Baseline: ALU 17.05 Mitr/s, memory ~510 MB/s.
 
-## Граблі інструментів
+## Tooling Gotchas
 
-- PowerShell парсить 8-значний hex-літерал як `Int32` і мовчки робить його
-  від'ємним. Усі константи — через `[Convert]::ToUInt32($h,16)`.
-- ROM-образи мають `TRomImageHeader` (120 байтів), а не `E32ImageHeader`.
-- `dumpsis -x` розпаковує SIS; шлях **без кирилиці**, інакше «cannot open».
-- `petran`/`elftran` приймають лише PE/ELF на вході — готовий E32 ними не
-  розтиснути.
-- Symbian-deflate **не сумісний із zlib**; `DeflateStream` не бере. Розтискати
-  `tools/syminflate.js` (Node) — дослівний порт Symbian `TInflater`/`Huffman`
-  з elf2e32. У стиснутому E32 нестиснена частина = `oh->TotalSize()` ==
-  `iCodeOffset` (@0x64), deflate-потік починається саме там; довжина тіла =
-  `iUncompressedSize` (@0x7C). CLI сам бере обидва: `node tools/syminflate.js
-  <in> <out.img>` пише повний відновлений образ (заголовок + тіло).
-- Порт робити рідним Node, а не PowerShell: беззнакові 32-бітні зсуви (`reverse`,
-  `huff>>17`) на PS впали б у ту саму пастку Int32. У JS — через `>>>`.
-- Пастка порту `HuffmanSubTree`: у C++ `aLevel` (`TUint32**`) передається **за
-  значенням**, тож рівень мусить бути by-value параметром, а не спільним станом,
-  інакше перший рекурсивний виклик псує рівень для другого (симптом: дерева
-  будуються, але декодують сміття — вихід обривається на кілька байтів).
-- **Патч ядра мусить мати відкат, і відкат мусить бути перевірений.**
-  READ/EXEC-патч тіла `DoControl(1)` живе в ROM-shadow і **переживає наш
-  процес**. Канал `dvfs_interface` відкриває не лише наш код (`mmrmserver.dll`,
-  `fmradiotunercontrol.dll` — findings §15), тож лишений патч рано чи пізно
-  перезавантажує апарат. Три пов'язані правила, кожне куплене ребутом:
-  1. оригінальні слова — у `KDvfsOriginal` (`ocengine.cpp`), повертати завжди;
-  2. **перезапису байтів НЕ ДОСИТЬ** — це головні граблі всієї роботи
-     (findings §19). Патчер не робить `Cache::IMB`, тож пропатчена функція
-     лишається жити в I-cache і виконується далі. Знімати патч треба
-     `DoControl(100, &addr, &len)` — це `FreeShadowPage`: він викидає RAM-копію
-     і повертає відображення на ROM разом з обслуговуванням кешу.
-     `EndPatchSession()` робить обидва кроки в правильному порядку;
-  3. відкат **перевіряти, і саме після unshadow**: `DoControl(1, 0)` на штатному
-     коді віддає відсоток від номіналу (50 або 100), а на патчі — рівно 0.
-     Ненульове значення і є доказом. Прочитати відновлені байти напряму
-     неможливо: примітив читання це і є ті самі байти.
-  Патч тримати накладеним лише на час однієї операції, а не на весь сеанс.
-- **Мережева доступність — не доказ того, що апарат не перезавантажився.**
-  Він встигає піднятись між перевірками. Прямий доказ — `User::NTickCount()`
-  (обнуляється лише повним ребутом); пробник друкує `UPTIME:` першим рядком.
-  Заразом це відрізняє ребут ядра від перезапуску оболонки Symbian.
-- `signsis` **без `-s`** повертає 0 і робить НЕПІДПИСАНИЙ файл. Єдина надійна
-  перевірка — `signsis -o`, у виводі має бути issuer.
-- Symbian 9.2 не вміє розібрати сертифікат SHA-256 і звинувачує в цьому файл
-  («file is corrupted»). Обов'язково RSA + SHA-1.
-- `.pkg` мусить бути **ASCII і CRLF**: `makesis` мовчки псує UTF-8 і LF.
-- `EPOCROOT` без літери диска, складати з `D:`. Perl мусить бути < 5.22.
-- Кирилиця в `.cmd` ламає cmd — коментарі в батниках тримати ASCII.
+- PowerShell parses an 8-character hex literal as `Int32` and silently makes it
+  negative. All constants — via `[Convert]::ToUInt32($h,16)`.
+- ROM images have `TRomImageHeader` (120 bytes), not `E32ImageHeader`.
+- `dumpsis -x` unpacks SIS; path **without Cyrillic**, otherwise "cannot open".
+- `petran`/`elftran` accept only PE/ELF on input — they cannot decompress an already
+  built E32.
+- Symbian-deflate is **not compatible with zlib**; `DeflateStream` cannot handle it. Decompress with
+  `tools/syminflate.js` (Node) — a verbatim port of Symbian `TInflater`/`Huffman`
+  from elf2e32. In compressed E32, the uncompressed portion = `oh->TotalSize()` ==
+  `iCodeOffset` (@0x64), the deflate stream starts right there; body length =
+  `iUncompressedSize` (@0x7C). The CLI takes both itself: `node tools/syminflate.js
+  <in> <out.img>` writes the complete restored image (header + body).
+- Implement the port in native Node, not PowerShell: unsigned 32-bit shifts (`reverse`,
+  `huff>>17`) in PS would fall into the same Int32 trap. In JS — via `>>>`.
+- Trap in porting `HuffmanSubTree`: in C++, `aLevel` (`TUint32**`) is passed **by
+  value**, so the level must be a by-value parameter rather than shared state,
+  otherwise the first recursive call corrupts the level for the second (symptom: trees
+  are constructed, but decode garbage — output cuts short by a few bytes).
+- **A kernel patch must have a rollback, and the rollback must be verified.**
+  A READ/EXEC patch of the `DoControl(1)` body lives in ROM-shadow and **survives our
+  process**. The `dvfs_interface` channel is opened not only by our code (`mmrmserver.dll`,
+  `fmradiotunercontrol.dll` — findings §15), so a leftover patch sooner or later
+  reboots the device. Three related rules, each bought with a reboot:
+  1. original words — in `KDvfsOriginal` (`ocengine.cpp`), always restore;
+  2. **overwriting bytes IS NOT ENOUGH** — this is the main gotcha of the entire work
+     (findings §19). The patcher does not execute `Cache::IMB`, so the patched function
+     remains resident in I-cache and continues executing. The patch must be removed with
+     `DoControl(100, &addr, &len)` — this is `FreeShadowPage`: it discards the RAM copy
+     and restores mapping to ROM along with cache maintenance.
+     `EndPatchSession()` performs both steps in the proper order;
+  3. **verify** rollback, **specifically after unshadow**: `DoControl(1, 0)` on stock
+     code returns percentage of nominal (50 or 100), while on the patch — exactly 0.
+     A non-zero value is the proof. Reading restored bytes directly is
+     impossible: the read primitive is those exact same bytes.
+  Keep the patch applied only for the duration of a single operation, not for the entire session.
+- **Network availability is not proof that the device did not reboot.**
+  It has time to come up between checks. Direct proof — `User::NTickCount()`
+  (cleared only by a full reboot); the probe prints `UPTIME:` as the first line.
+  At the same time, this distinguishes a kernel reboot from a Symbian shell restart.
+- `signsis` **without `-s`** returns 0 and produces an UNSIGNED file. The only reliable
+  check is `signsis -o`; output must contain issuer.
+- Symbian 9.2 cannot parse a SHA-256 certificate and blames the file for it
+  ("file is corrupted"). RSA + SHA-1 is mandatory.
+- `.pkg` must be **ASCII and CRLF**: `makesis` silently corrupts UTF-8 and LF.
+- `EPOCROOT` without drive letter, combine with `D:`. Perl must be < 5.22.
+- Cyrillic characters in `.cmd` break cmd — keep comments in batch files ASCII.
 
-## 2026-09-12: E90 перевірено на апараті, апостроф виправлено (2.0.2)
+## 2026-09-12: E90 Verified on Hardware, Apostrophe Fixed (2.0.2)
 
-E90 вийшов на звʼязок по Bluetooth COM9, і три речі закрито заміром, а не
-міркуванням (findings §44).
+E90 connected via Bluetooth COM9, and three things were settled by measurement rather than
+reasoning (findings §44).
 
-Гілка Usbc у `CaptureOriginal` працює: оригінальне тіло `DoControl(69)` на E90
-геть інше, ніж на RM-320, тож стара константа відновлення була б сміттям у ядрі.
+The Usbc branch in `CaptureOriginal` works: the original body of `DoControl(69)` on the E90
+is completely different than on RM-320, so the old restoration constant would have been garbage in the kernel.
 
-Скарга «після виходу розгін скидається» на E90 пояснилась повністю: там лежала
-збірка на 80 936 байтів, старша за рядок `KEEP ON EXIT`. Сама ж частота, як
-показали два окремі процеси через пʼять хвилин простою, живе після смерті
-процесу й система її не чіпає. На апарат залито 2.0.2.
+The complaint that "overclock resets after exit" on the E90 was explained completely: an 80,936-byte
+build was sitting there, older than the `KEEP ON EXIT` row. The frequency itself, as
+demonstrated by two separate processes after five minutes of idle, survives process termination,
+and the system does not touch it. Build 2.0.2 was uploaded to the device.
 
-Нова команда пробника `font` растеризує символ і каже, чи є для нього гліф.
-На E90 `і`, `ї`, `є`, `ґ` є, а модифікаторний апостроф `U+02BC` відсутній у всіх
-гарнітурах — його замінено на ASCII у `src/strings.json`.
+New probe command `font` rasterizes a character and reports whether a glyph exists for it.
+On the E90, Ukrainian letters U+0456, U+0457, U+0454, U+0491 exist, while the modifier apostrophe
+`U+02BC` is absent across all typefaces — it was replaced with ASCII in `src/strings.json`.
 
-Відкрите: той самий `ocprobe font` на N95 8GB (демон на ньому не був запущений),
-і підтвердження від користувача, що на свіжій збірці розгін тримається після
-виходу.
+Open: the same `ocprobe font` on N95 8GB (daemon was not running on it),
+and confirmation from the user that on the fresh build the overclock holds after
+exit.
 
-## 2026-09-12 (пізніше): автоперенос тексту й довідка всіма мовами (2.0.3)
+## 2026-09-12 (Later): Automatic Text Wrapping and Help in All Languages (2.0.3)
 
-Ручних переносів у джерелі більше немає. `src/strings.json` тримає довідку
-абзацами, а `WrapText` у `src/ocgui.cpp` ріже їх по пробілах під поточну ширину
-вікна; та сама функція з `aGc == NULL` рахує рядки, і на цьому підрахунку
-тримається прокрутка довідки. Рядки списку свідомо лишились без переносу:
-прокрутка й позиція курсора спираються на фіксовану висоту рядка.
+There are no longer manual line breaks in the source. `src/strings.json` holds help
+as paragraphs, and `WrapText` in `src/ocgui.cpp` wraps them on spaces to match the current window
+width; the same function with `aGc == NULL` counts lines, and help scrolling
+relies on this count. List rows deliberately remained without wrapping:
+scrolling and cursor position rely on fixed row height.
 
-Довідку перекладено всіма 28 мовами збірки (чотири підагенти `agy`, по шість-сім
-мов на кожного, звірка структури й символів окремим проходом). Бінарник виріс зі
-102 до 221 КБ - це майже повністю таблиці тексту.
+Help has been translated into all 28 build languages (four `agy` subagents, six to seven
+languages each, verification of structure and characters in a separate pass). The binary grew from
+102 to 221 KB — this is almost entirely string tables.
 
-Обидва апарати оновлено до 2.0.3: N95 по WiFi, E90 по Bluetooth, обидва в
+Both devices updated to 2.0.3: N95 via WiFi, E90 via Bluetooth, both in
 `C:\sys\bin`.
 
-## 2026-09-12 (вечір): прилади виправлено, N93/N93i, нова довідка (2.1.0)
+## 2026-09-12 (Evening): Instruments Fixed, N93/N93i, New Help (2.1.0)
 
-Три зауваження власника закрито, кожне заміром, а не міркуванням (findings §46).
+Three remarks from the owner settled, each by measurement rather than reasoning (findings §46).
 
-Тест смуги пам'яті справді завищував, і рівно вдвічі: він рахував байти за
-припущенням про рядок кеша в 64 байти, а розгортка по кроку на апараті показала
-полицю вже з 32. Тепер читається кожне слово, тож припущення з обчислення
-зникло. Справжні числа при шині 165 МГц: читання 199 МБ/с, запис 403 МБ/с, кеш
-541 МБ/с.
+The memory bandwidth test indeed overestimated, and by exactly two times: it calculated bytes on the
+assumption of a 64-byte cache line, whereas a step sweep on hardware showed
+a plateau starting at 32. Now every word is read, so the assumption disappeared from
+the calculation. True numbers at 165 MHz bus: read 199 MB/s, write 403 MB/s, cache
+541 MB/s.
 
-Тест кеша міряв арифметику, а не кеш - на кожне слово припадали множення,
-додавання і звірка. Тепер це той самий цикл, що й у тесті пам'яті, лише робочий
-набір уміщається в L1, і два числа стали порівнянними.
+The cache test was measuring arithmetic rather than cache — every word incurred multiplication,
+addition, and verification. Now it is the same loop as in the memory test, only the working
+set fits into L1, and the two numbers have become comparable.
 
-Ціна операції тепер вимірюється, а не вгадується. `ocprobe alubench` дає
-1.04 такту на залежне додавання, 4.94 на множення, 5.96 на пару mul+add. Звідси
-й пояснення старого числа тесту АЛУ: 17.34 Mitr/s при стелі близько 55 - це
-лічильник циклу й перезавантаження констант, а не арифметика. У застосунок
-додано два прямі показники: CLOCK і MUL+ADD.
+Operation cost is now measured rather than guessed. `ocprobe alubench` yields
+1.04 cycles per dependent addition, 4.94 per multiplication, 5.96 per mul+add pair. Hence
+the explanation of the old ALU test figure: 17.34 Mitr/s against a ceiling around 55 — this is
+loop overhead and constant reloading, not arithmetic. Two direct indicators were added
+to the application: CLOCK and MUL+ADD.
 
-Профілі N93 (RM-55) і N93i (RM-156) додано в режимі пошуку адрес на апараті.
-Офлайнові константи для них неможливі в принципі: їхній витягнутий XIP - уламок,
-і зсув у файлі не дорівнює адресі (для E90 різниця виміряна: 0x2adb0). Сканер
-живого XIP звірено на N95 і E90, де правильні відповіді відомі незалежно, -
-обидві пари збіглися.
+Profiles for N93 (RM-55) and N93i (RM-156) were added in on-device address search mode.
+Offline constants for them are impossible in principle: their extracted XIP is a fragment,
+and file offset does not equal address (for E90 the difference was measured: 0x2adb0). The live
+XIP scanner was verified against N95 and E90, where the correct answers are known independently —
+both pairs matched.
 
-Довідку переписано з нуля: формальний виклад, пояснення термінів (тактова
-частота, опорна частота, ФАПЧ, множник, дільник), формула частоти, призначення
-кожного налаштування й кожного тесту. Прибрано все, що стосувалось 3D і
-внутрішніх подробиць дослідження. Перекладено всіма 28 мовами.
+Help was rewritten from scratch: formal exposition, explanation of terms (clock
+frequency, reference frequency, PLL, multiplier, divider), frequency formula, purpose
+of each setting and each test. Everything related to 3D and internal research details
+was removed. Translated into all 28 languages.
 
-Відкрите: N93/N93i на залізі ніхто не запускав; тести в GUI після виправлення
-на апараті очима не бачені.
+Open: no one has run N93/N93i on hardware; GUI tests after the fix
+have not yet been seen on the device with eyes.
