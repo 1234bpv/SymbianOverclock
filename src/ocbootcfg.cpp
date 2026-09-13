@@ -6,6 +6,7 @@
 
 _LIT(KBootFile, "C:\\private\\e0001011\\boot.dat");
 _LIT(KBootBad,  "C:\\private\\e0001011\\boot.bad");
+_LIT(KBootLog,  "C:\\private\\e0001011\\boot.log");
 
 // The record lives on C: on purpose. E: disappears in mass storage mode, and a
 // record that cannot be read is a record that cannot be switched off.
@@ -45,6 +46,48 @@ TUint32 OcBootHash(const TDesC& aText)
         h *= 16777619u;
         }
     return h;
+    }
+
+// One line per run, appended, next to the record. ocboot has no interface and
+// runs before anyone is watching, so without this the only evidence of what it
+// did is the record itself - which looks the same whether the clock was applied
+// or the driver never opened.
+void OcBootLog(const TDesC8& aLine)
+    {
+    RFs fs;
+    if (fs.Connect() != KErrNone)
+        return;
+    fs.MkDirAll(KBootLog);
+    RFile f;
+    TInt r = f.Open(fs, KBootLog, EFileWrite);
+    if (r == KErrNotFound)
+        r = f.Create(fs, KBootLog, EFileWrite);
+    if (r == KErrNone)
+        {
+        TInt pos = 0;
+        if (f.Seek(ESeekEnd, pos) == KErrNone)
+            {
+            // Keep it small: this file is never rotated by anything else.
+            if (pos > 8192)
+                {
+                f.SetSize(0);
+                pos = 0;
+                }
+            TTime now;
+            now.UniversalTime();
+            TDateTime d = now.DateTime();
+            TBuf8<64> stamp;
+            stamp.Format(_L8("%04d-%02d-%02d %02d:%02d:%02d "),
+                         d.Year(), d.Month() + 1, d.Day() + 1,
+                         d.Hour(), d.Minute(), d.Second());
+            f.Write(stamp);
+            f.Write(aLine);
+            f.Write(_L8("\r\n"));
+            f.Flush();
+            }
+        f.Close();
+        }
+    fs.Close();
     }
 
 TInt OcBootLoad(TOcBootRecord& aRec)

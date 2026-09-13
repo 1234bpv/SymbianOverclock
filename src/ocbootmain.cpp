@@ -105,11 +105,19 @@ static TInt TestRound()
     return errors;
     }
 
-static void Disable(TOcBootRecord& aRec, TUint32 aFlag)
+static void Finish(TOcBootRecord& aRec, TOcBootResult aResult, const TDesC8& aWhy)
+    {
+    aRec.iLastResult = (TUint32)aResult;
+    OcBootSave(aRec);
+    OcBootLog(aWhy);
+    }
+
+static void Disable(TOcBootRecord& aRec, TUint32 aFlag, TOcBootResult aResult,
+                    const TDesC8& aWhy)
     {
     aRec.iState = EOcBootOff;
     aRec.iFlags |= aFlag;
-    OcBootSave(aRec);
+    Finish(aRec, aResult, aWhy);
     }
 
 // Soak: the configuration was saved a moment ago and is live on the phone. If
@@ -132,13 +140,13 @@ static void Soak(TOcBootRecord& aRec)
     const TInt errors = TestRound();
     if (errors != 0)
         {
-        Disable(now, KOcBootFlagSoakBad);
+        Disable(now, KOcBootFlagSoakBad, EOcBootResSoakFailed, _L8("soak: tests failed"));
         return;
         }
     now.iState = EOcBootArmed;
     now.iFlags &= ~(KOcBootFlagFailed | KOcBootFlagSoakBad);
     NowSeconds(now.iApplyLo, now.iApplyHi);
-    OcBootSave(now);
+    Finish(now, EOcBootResSoakOk, _L8("soak: passed, record armed"));
     }
 
 static void BootApply(TOcBootRecord& aRec, TBool aDry)
@@ -149,7 +157,8 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
     // up stock, and the application reports what happened.
     if (aRec.iState == EOcBootApplied)
         {
-        Disable(aRec, KOcBootFlagFailed);
+        Disable(aRec, KOcBootFlagFailed, EOcBootResRefusedFailed,
+                _L8("boot: previous attempt did not finish, autostart off"));
         return;
         }
     if (aRec.iState != EOcBootArmed)
@@ -165,7 +174,8 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
     const TInt64 now = MAKE_TINT64(hi, lo);
     if (then > 0 && now > then && (now - then) < (TInt64)KOcBootMinSessionSec)
         {
-        Disable(aRec, KOcBootFlagFailed);
+        Disable(aRec, KOcBootFlagFailed, EOcBootResRefusedRecent,
+                _L8("boot: previous session too short after confirming, autostart off"));
         return;
         }
 
@@ -186,7 +196,7 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
         if (!prof)
             {
             aRec.iState = EOcBootArmed;
-            OcBootSave(aRec);
+            Finish(aRec, EOcBootResNoProfile, _L8("boot: no profile for this phone"));
             return;
             }
         COcEngine* engine = NULL;
@@ -194,7 +204,7 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
         if (err != KErrNone || !engine)
             {
             aRec.iState = EOcBootArmed;
-            OcBootSave(aRec);
+            Finish(aRec, EOcBootResNotReady, _L8("boot: engine could not be created"));
             return;
             }
         engine->SetProfile(*prof);
@@ -204,9 +214,12 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
             {
             // Nothing was written, so the record must not stay in the applied
             // state: the next boot would refuse a configuration that never ran.
+            TBuf8<64> why;
+            why.Format(_L8("boot: engine not ready, stopped at step %d"),
+                       (TInt)engine->FailedAt());
             delete engine;
             aRec.iState = EOcBootArmed;
-            OcBootSave(aRec);
+            Finish(aRec, EOcBootResNotReady, why);
             return;
             }
 
@@ -214,6 +227,10 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
         const TInt r = engine->ApplyRampWithCore((TInt)aRec.iMult, aRec.iCore,
                                                  aRec.iMpu, status);
         const TBool applied = engine->IsOverclocked();
+        // Read the multiplier back rather than trusting the return code: the
+        // whole project rule is that what the hardware says is the answer.
+        TInt liveAfter = 0;
+        engine->LiveMult(liveAfter);
         // The DSP divider is deliberately not applied here. A non-stock DSP
         // divider rebooted the phone twice out of two at idle (findings 24.5),
         // which is why even the application holds it only under a watchdog. It
@@ -221,10 +238,16 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
         // not because boot is allowed to set it.
         delete engine;                  // keeps the clocks, removes the patch
 
+        {
+        TBuf8<96> line;
+        line.Format(_L8("boot: apply m%d core %08x r=%d status=%u live=%d"),
+                    (TInt)aRec.iMult, aRec.iCore, r, status, liveAfter);
+        OcBootLog(line);
+        }
         if (r != KErrNone && !applied)
             {
             aRec.iState = EOcBootArmed;
-            OcBootSave(aRec);
+            Finish(aRec, EOcBootResApplyFailed, _L8("boot: apply failed, nothing held"));
             return;
             }
         }
@@ -237,14 +260,19 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
         return;                         // switched off from the application
     now2.iState = EOcBootArmed;
     NowSeconds(now2.iApplyLo, now2.iApplyHi);
-    OcBootSave(now2);
+    Finish(now2, EOcBootResConfirmed, _L8("boot: held for the whole period, confirmed"));
     }
 
 static void MainL()
     {
     TOcBootRecord rec;
-    if (OcBootLoad(rec) != KErrNone)
-        return;                         // no record, or one that failed a check
+    const TInt loaded = OcBootLoad(rec);
+    if (loaded != KErrNone)
+        {
+        if (loaded == KErrCorrupt)
+            OcBootLog(_L8("start: record failed its checks, renamed to boot.bad"));
+        return;
+        }
 
     TInt uid = 0;
     if (HAL::Get(HALData::EMachineUid, uid) != KErrNone ||

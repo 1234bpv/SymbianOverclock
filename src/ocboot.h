@@ -62,11 +62,28 @@ public:
     TUint32 iApplyHi;       // ... and high 32 bits
     TUint32 iHelpShown;     // hash of the version the help was last shown for
     TUint32 iFlags;
-    TUint32 iReserved[2];
+    TUint32 iLastResult;    // TOcBootResult of the last run
+    TUint32 iReserved;
     TUint32 iCrc;           // CRC32 over every field above
     };
 
 const TInt KOcBootRecordSize = 17 * 4;
+
+// Why the last run of ocboot ended as it did. Without this both a clean
+// confirmation and a failure to open the driver leave the record armed, and
+// nothing on the phone says which of the two happened.
+enum TOcBootResult
+    {
+    EOcBootResNone = 0,
+    EOcBootResConfirmed,      // applied and survived the hold
+    EOcBootResNoProfile,      // unknown phone
+    EOcBootResNotReady,       // engine could not be prepared; nothing written
+    EOcBootResApplyFailed,    // the write itself failed
+    EOcBootResRefusedFailed,  // previous boot did not finish
+    EOcBootResRefusedRecent,  // previous session ended right after confirming
+    EOcBootResSoakFailed,     // soak tests found errors
+    EOcBootResSoakOk          // soak passed, record promoted
+    };
 
 // Defaults for a phone that has never saved anything.
 const TUint32 KOcBootDefaultDelaySec = 45;
@@ -89,5 +106,8 @@ TInt OcBootSave(const TOcBootRecord& aRec);
 // Cheap hash of the version string, to tell whether the built-in help has been
 // shown for this build yet.
 TUint32 OcBootHash(const TDesC& aText);
+
+// Appends one line to boot.log beside the record.
+void OcBootLog(const TDesC8& aLine);
 
 #endif
