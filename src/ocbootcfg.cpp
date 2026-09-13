@@ -1,15 +1,30 @@
-// Reading and writing the autostart record. Shared by ocgui.exe and ocboot.exe;
-// both run under SECUREID 0xE0001011, so both see the same private directory.
+// Reading and writing the autostart record. Shared by ocgui.exe and ocboot.exe.
+//
+// A private directory would have been the natural home for it, but the two
+// executables cannot share one: the installer refuses the whole package when two
+// executables claim the same SID, and each SID gets its own private directory,
+// which nothing without AllFiles may open. So the record sits in the public area
+// instead, where both can reach it.
+//
+// That is a real loss and it is worth naming. Any process on the phone can now
+// rewrite this file, where a private directory would have kept it to us. What
+// stands between a forged record and a bad boot is the machine check, the CRC,
+// and the two loop detectors in ocbootmain.cpp, which between them cost one boot
+// at most. On a phone where the overclock itself needs an unlocked kernel driver
+// to be present, a process able to write here has easier things to do.
+//
+// The visible file has one genuine advantage: any file manager can delete it,
+// and deleting it switches autostart off without touching the application.
+//
+// On C: and not on E:, because E: disappears in mass storage mode, and a record
+// that cannot be read is a record that cannot be switched off.
 #include <e32std.h>
 #include <f32file.h>
 #include "ocboot.h"
 
-_LIT(KBootFile, "C:\\private\\e0001011\\boot.dat");
-_LIT(KBootBad,  "C:\\private\\e0001011\\boot.bad");
-_LIT(KBootLog,  "C:\\private\\e0001011\\boot.log");
-
-// The record lives on C: on purpose. E: disappears in mass storage mode, and a
-// record that cannot be read is a record that cannot be switched off.
+_LIT(KBootFile, "C:\\Data\\Overclock\\boot.dat");
+_LIT(KBootBad,  "C:\\Data\\Overclock\\boot.bad");
+_LIT(KBootLog,  "C:\\Data\\Overclock\\boot.log");
 
 void OcBootInit(TOcBootRecord& aRec)
     {

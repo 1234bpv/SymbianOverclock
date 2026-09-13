@@ -21,13 +21,22 @@ make the loop impossible". Everything else is secondary.
 
 ## The record, and the order in which it is written
 
-The configuration lives in `C:\private\e0001011\boot.dat`: magic, format
+The configuration lives in `C:\Data\Overclock\boot.dat`: magic, format
 version, the machine UID it was written on, a state, the multiplier, the whole
 `CM_CLKSEL1_CORE` and `CM_CLKSEL_MPU` values, the delay and hold periods, a
 timestamp, and a CRC32 over all of it. Anything that fails a check - a missing
 file, an unreadable disk, a wrong magic, a wrong version, a bad CRC, a machine
 UID from another phone - means nothing is applied, and the file is renamed to
 `boot.bad` so that it can be examined and can never be used.
+
+It lives in a public directory rather than a private one because the installer
+refuses a package in which two executables claim the same secure identifier
+(findings 49), so `ocboot.exe` has an identifier of its own and no longer shares
+a private directory with the application. Any process can therefore rewrite the
+record; what stands between a forged record and a bad boot is the machine check,
+the CRC and the two loop detectors below. The visible file also has a genuine
+advantage: deleting it with any file manager switches autostart off without
+touching the application.
 
 It lives on `C:` rather than `E:`, because `E:` disappears in mass storage mode,
 and a record that cannot be read is a record that cannot be switched off.

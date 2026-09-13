@@ -26,7 +26,7 @@
 ;
 ; ocboot.exe is the boot-time applier, and the resource installed into the
 ; Startup import directory is what makes the system run it. Neither does
-; anything by default: the record in \private\e0001011 starts out switched
+; anything by default: the record in c:\Data\Overclock starts out switched
 ; off, and ocboot reads it and exits before opening a single driver. A
 ; configuration only reaches that record after the user saves a live overclock
 ; that has passed three rounds of tests, and only becomes usable at boot after

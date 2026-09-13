@@ -4079,3 +4079,62 @@ them.
 Writing zero to `CM_CLKSEL1_CORE` when `aCoreReg == 0` does not occur on live
 paths — `ApplyMult` always supplies `CompensatedCore`, and `ApplyRampWithCore`
 when zero invokes `ApplyMult` specifically.
+
+## 49. Installation refused: a SIS may not contain two executables with one SID
+
+Version 2.3.0 added `ocboot.exe` to the package, and from that moment the
+package stopped installing on both phones. The installer says only "unable to
+install" (or "установка невозможна", depending on the phone language), which
+names no file and no check. Everything below was measured on the N95 on
+2026-09-13 and 2026-09-14; the E90 behaved the same way wherever it was tried.
+
+The first observation was that the same file installed when it was applied over
+an already installed copy of itself and refused when installed into a clean
+system. That ruled out the contents of any single file and pointed at a check
+that compares the package against what is already registered.
+
+Bisecting the package one line at a time gave the answer. Each probe below
+differs from its neighbour in exactly one thing, and every one of them was
+installed with the previous version removed first:
+
+```
+probe1  application only, no ocboot.exe                        installs
+probe4  application + startup resource, no ocboot.exe          installs
+probe3  application + ocboot.exe, SECUREID 0xE0001011          REFUSED
+probe5  application + ocboot.exe, SECUREID 0xE0001012          REFUSED
+probe8  application + ocboot.exe, SECUREID 0xE0001013          installs
+```
+
+`0xE0001011` is the secure identifier of `ocgui.exe` itself, so `probe3` asked
+the installer to register one SID for two files in the same package. The second
+value looked free but was not: `0xE0001012` belongs to `Hexen II GL` from this
+same tree, which is installed on this phone. The registry says so in plain
+text, and this is the cheapest way to find out who holds an identifier:
+
+```
+C:\sys\install\sisregistry\e0001012\00000000.reg
+   "Hexen II GL"  Hexen2Update   e:\sys\bin\hexen2ugl.exe
+```
+
+So the rule is that a secure identifier must be unique across the device, and
+the installer enforces it without saying which file failed. `0xE0001013` is used
+by nothing here, and with it the full package installs into a clean system.
+
+Two explanations that looked convincing were tested and turned out to be wrong.
+The first was a leftover `C:\sys\bin\ocboot.exe`, which the deploy daemon had
+put there during earlier testing and which belonged to no package; it was gone
+by the time `probe3` was tried, and `probe3` still failed. The second was that
+the phone might accept only one executable per package, which would have meant
+shipping `ocboot.exe` as a separate SIS; `probe8` installs two executables in
+one package and settles it. A separate package was in fact tried first and gave
+a third message, "update error", for an unrelated reason worth remembering: it
+had been given package UID `0xE0001012`, so the phone read it as an attempt to
+replace `Hexen II GL` with something from a different vendor.
+
+The consequence for the design is not cosmetic. `ocboot.exe` now has its own
+identifier, and therefore its own private directory, while the record it shares
+with the application lived in `C:\private\e0001011`. Nothing without `AllFiles`
+can read another executable's private directory, so the record moved to
+`C:\Data\Overclock\boot.dat`, where both can reach it. What that costs and what
+still protects the boot is written where the paths are defined, in
+`src/ocbootcfg.cpp`.

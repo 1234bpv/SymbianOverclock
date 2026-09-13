@@ -2,15 +2,21 @@
 // in the menu and is started only from the startup list, or by the application
 // with the "soak" argument.
 //
-// The same SECUREID as ocgui.exe, because both read and write the one record in
-// \private\e0001011. Capabilities are the same set as well: the applier opens
-// the same kernel channels and would otherwise fail exactly where the
-// application succeeds.
+// Its own UID3 and SECUREID, both unused on these phones. They cannot be shared
+// with ocgui.exe, however convenient a shared private directory would be: the
+// installer refuses the whole package when two executables claim one SID, and
+// says only "unable to install" (measured on the N95, findings 49). 0xE0001012
+// is taken on this phone as well - it belongs to Hexen II GL from this same
+// tree - so the next free number is used. This is also why the record lives in
+// a public directory rather than a private one; see ocbootcfg.cpp.
+//
+// Capabilities are the same set as ocgui.exe: the applier opens the same kernel
+// channels and would otherwise fail exactly where the application succeeds.
 
 TARGET          ocboot.exe
 TARGETTYPE      exe
-UID             0 0xE0001012
-SECUREID        0xE0001011
+UID             0 0xE0001013
+SECUREID        0xE0001013
 VENDORID        0
 
 CAPABILITY      PowerMgmt WriteDeviceData ReadDeviceData ReadUserData WriteUserData ProtServ CommDD

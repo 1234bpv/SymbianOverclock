@@ -30,6 +30,13 @@
   The work is done by ocboot.exe, a separate executable with no user interface,
   started from the system startup list. Deleting that one file switches
   autostart off without removing the application.
+- FIXED: with ocboot.exe in it the package would not install at all, on either
+  phone, and the installer said only "unable to install". A secure identifier
+  has to be unique across the device, and ocboot.exe had been given the same one
+  as ocgui.exe so that the two could share a private directory. It now has its
+  own, and the record they share moved to C:\Data\Overclock, which both can
+  reach. The full account, including the two explanations that turned out to be
+  wrong, is in findings 49.
 - NEW: the help opens by itself the first time a build is run, and can be
   skipped with the right soft key. It is keyed on the version rather than on a
   plain flag, because uninstalling does not reliably remove the private
