@@ -1,157 +1,181 @@
-# Зміни
+# Changelog
+
+## 2.2.1
+
+- FIXED: the DSP watchdog deleted its own timer from inside the timer callback,
+  leaving the active object working on freed memory once the callback returned.
+  It now cancels the timer and destroys it once, in the destructor.
+- FIXED: TEST combined did nothing. The row fell through to the default branch
+  of the dispatch switch and the combined run was never reached.
+- FIXED: a digit key on the MULT row of an unrecognised phone set the multiplier
+  to zero, below the allowed minimum, because the stock multiplier is not known
+  until the engine is ready.
+- FIXED: entering Prepare a second time - which happens when cycling through test
+  profiles on an unrecognised phone - opened the patcher channel again without
+  closing the previous handle.
+- FIXED: the memory bandwidth figure in ocprobe still used the disproved
+  64-byte cache line, so the probe reported roughly twice the truth while the
+  application already reported it correctly. Both now read every word.
+- FIXED: the view was not on the cleanup stack while AddToStackL could leave.
+- FIXED: a ROM size of exactly 0x10000 reported in kilobytes was read as bytes,
+  which would have limited the signature scan to the first 64 KB.
+- The failed reset-vector check on a Usbc host no longer reports itself as a
+  failure to open the driver.
+- All comments in the source, and the documentation intended for contributors,
+  are now in English.
 
 ## 2.2.0
 
-- Запобіжник шини прибрано. Дільник шини тепер іде в залізо таким, яким його
-  задав користувач: підбирати розгін усе одно доводиться на конкретному
-  апараті, а множник, який ніщо не обмежує, так само здатний перезавантажити
-  телефон. RESTORE STOCK, як і раніше, не повертає вже знижену шину до штатної -
-  це не обмеження вибору, а відмова від операції, яка вбиває апарат; ребут
-  повертає штатне тактування в будь-якому разі.
-- Новий рядок LANGUAGE: мова інтерфейсу вибирається вручну з двадцяти восьми,
-  за власною назвою мови, і вибір запам'ятовується між запусками.
-- Усі 28 мов тепер повні: доти службові рядки й повідомлення журналу лишались
-  англійськими всюди, крім української.
-- Рядок DSPDIV більше не пише незрозуміле «(у залізі /3)»: тепер там
-  «(зараз задано: /3)» і одиниця біля частоти.
-- Рядок CONFIRM посилається на кнопку її перекладеною назвою, а не англійською.
-- Довідка описує всі чотири дільники, а не лише шину й процесор.
+- Bus guard removed. The bus divider now goes to hardware exactly as set by
+  the user: overclocking must be tuned on the specific device anyway, and
+  an unconstrained multiplier is just as capable of rebooting the phone.
+  RESTORE STOCK still does not return an already lowered bus to stock — this is
+  not a restriction on choice, but refusal of an operation that crashes the device;
+  a reboot restores stock clocking in any case.
+- New LANGUAGE row: UI language is selected manually from twenty-eight,
+  by the language's native name, and the choice is persisted across launches.
+- All 28 languages are now complete: previously, system strings and log messages
+  remained English everywhere except Ukrainian.
+- DSPDIV row no longer displays confusing "(in hardware /3)": it now shows
+  "(now set: /3)" and a unit next to the frequency.
+- CONFIRM row refers to the button by its translated name rather than in English.
+- Built-in help describes all four dividers, not just the bus and CPU.
 
 ## 2.1.0
 
-- ВИПРАВЛЕНО: тест смуги пам'яті завищував результат рівно вдвічі. Він рахував
-  прочитані байти за припущенням, що рядок кеша має 64 байти; замір на апараті
-  показав 32 (findings 46.1). Тепер читається кожне слово, і припущення з
-  обчислення зникло взагалі.
-- ВИПРАВЛЕНО: тест кеша міряв не кеш, а арифметику - на кожне слово припадали
-  множення, додавання й звірка. Тепер це той самий цикл, що й у тесті пам'яті,
-  лише робочий набір уміщається в кеш першого рівня, тож два числа стали
-  порівнянними.
-- Тест ЦП додатково показує справжню частоту ядра (CLOCK) і вартість однієї
-  операції в тактах (MUL+ADD). Обидва числа міряються ланцюгами інструкцій,
-  вартість яких у тактах відома точно.
-- Профілі RM-55 (N93) і RM-156 (N93i), які шукають адреси на самому апараті
-  скануванням ROM за сигнатурами. На залізі не перевірені; існують, щоб власник
-  такого апарата міг спробувати. Сам механізм пошуку звірено на N95 і E90, де
-  правильні відповіді відомі незалежно.
-- Довідку переписано: формальний виклад із поясненням термінів, формули частоти
-  й призначення кожного налаштування та кожного тесту.
-- У пробнику нові команди membench, alubench, romfind і font.
+- FIXED: memory bandwidth benchmark overstated results by exactly 2x. It calculated
+  bytes read under the assumption that the cache line was 64 bytes; hardware measurement
+  showed 32 (findings 46.1). Now every word is read, and the assumption is eliminated
+  from the calculation entirely.
+- FIXED: cache benchmark measured arithmetic rather than cache — every word incurred
+  multiplication, addition, and verification. It is now the same loop as the memory
+  benchmark, except the working set fits into L1 cache, making the two numbers
+  comparable.
+- CPU benchmark additionally displays real core clock (CLOCK) and cost of a single
+  operation in cycles (MUL+ADD). Both numbers are measured by instruction chains
+  whose cycle costs are known exactly.
+- RM-55 (N93) and RM-156 (N93i) profiles that search for addresses on the device itself
+  via ROM signature scanning. Not verified on hardware; they exist so an owner
+  of such hardware can try. The search mechanism itself was verified on N95 and E90, where
+  correct answers are independently known.
+- Built-in help rewritten: formal presentation with terminology definitions, frequency formulas,
+  and explanation of each setting and each benchmark.
+- Probe tool has new commands: membench, alubench, romfind, and font.
 
 ## 2.0.5
 
-- Журнал прибитий до нижнього краю екрана, і місце під нього відкладається за
-  кількістю РЯДКІВ після переносу, а не за кількістю записів. Через це
-  результати тестів більше не опиняються за екраном.
-- Найновіший запис тепер згори журналу. Доти новий рядок ставав унизу й ставав
-  видимим лише тоді, коли його підпирав ще новіший.
+- Log pinned to the bottom of the screen, and space for it is allocated by
+  number of wrapped LINES rather than number of entries. Because of this,
+  benchmark results are no longer pushed offscreen.
+- Newest log entry is now at the top of the log. Previously, new lines were added at
+  the bottom and only became visible when pushed by an even newer line.
 
 ## 2.0.4
 
-- Підписи в списку опцій теж переносяться по ширині екрана. Разом з ними
-  перерахунок видимих рядків: висота рядка більше не стала, тож кількість
-  видимих опцій рахується додаванням, а не діленням висоти екрана.
+- Labels in the options list also wrap to screen width. Along with them,
+  visible row recalculation: row height is no longer constant, so the number
+  of visible options is calculated by accumulation rather than dividing screen height.
 
 ## 2.0.3
 
-- Текст переноситься по ширині екрана сам. Ручні переноси прибрано: довідка
-  лежить у джерелі суцільними абзацами, а ріже їх застосунок, тож вона однаково
-  читається і на 240 точках N95, і на ширшому екрані E90.
-- Прокрутка довідки рахує рядки після переносу, а не абзаци джерела.
-- Довідка перекладена всіма 28 мовами збірки.
-- Рядок списку лишається одним рядком і обрізається: на його фіксованій висоті
-  тримаються прокрутка й позиція курсора.
+- Text wraps to screen width automatically. Manual line breaks removed: help text
+  resides in source as solid paragraphs, wrapped by the application, so it is equally
+  readable on the 240-pixel N95 display and the wider E90 screen.
+- Help scrolling counts wrapped lines rather than source paragraphs.
+- Help translated into all 28 build languages.
+- List row remains single-line and is truncated: scrolling and cursor position
+  rely on its fixed height.
 
 ## 2.0.2
 
-- Апостроф у перекладі замінено на ASCII: символ U+02BC не має гліфа в жодному
-  шрифті апарата й виходив квадратиком (findings 44.3).
-- У пробник додано команду font: вона растеризує символ і каже, чи є для нього
-  гліф у кожній гарнітурі апарата.
-- E90 перевірено на апараті зі збіркою 2.0.1: знімання оригіналу тіла ядра з
-  живого ROM працює на носії Usbc, частота переживає вихід процесу.
+- Apostrophe in translations replaced with ASCII: U+02BC has no glyph in any
+  device font and rendered as a box (findings 44.3).
+- Added font command to probe tool: rasterizes a character and reports whether a glyph
+  exists for it in each device typeface.
+- E90 verified on hardware with build 2.0.1: capturing kernel body original from
+  live ROM works on Usbc carrier, frequency survives process exit.
 
 ## 2.0.1
 
-- Розгін більше не скидається при виході із застосунку. Новий рядок
-  KEEP ON EXIT, типово увімкнений; ребут повертає штатне тактування завжди.
-  Патч ядра, на відміну від частоти, знімається при виході безумовно.
+- Overclocking is no longer reset on application exit. New row
+  KEEP ON EXIT, enabled by default; reboot always restores stock clocks.
+  Kernel patch, unlike frequency, is unconditionally removed on exit.
 
-- Локалізація розширена до 28 мов: додано грецьку, фінську, данську,
-  норвезьку, словацьку, болгарську, хорватську, словенську, сербську,
-  естонську, латвійську, литовську й каталонську.
-- Регіональні варіанти мови апарата тепер ведуть до основної мови: австрійська
-  й швейцарська німецька до німецької, бразильська португальська до
-  португальської, кіпрська турецька до турецької і так далі. Доти такий апарат
-  мовчки отримував англійську, хоча переклад був.
+- Localization expanded to 28 languages: added Greek, Finnish, Danish,
+  Norwegian, Slovak, Bulgarian, Croatian, Slovenian, Serbian,
+  Estonian, Latvian, Lithuanian, and Catalan.
+- Regional device language variants now map to the primary language: Austrian
+  and Swiss German to German, Brazilian Portuguese to Portuguese,
+  Cypriot Turkish to Turkish, and so on. Previously, such devices
+  silently received English even though a translation existed.
 
-- ВИПРАВЛЕНО: відкат патча записував назад константу з RM-320, у якій три слова
-  з шести є зміщеннями переходів конкретної збірки. На чужій збірці такий відкат
-  лишив би драйвер зіпсованим до перезавантаження. Тепер штатні слова знімаються
-  з живого ROM апарата перед першим записом.
-- Перед патчем звіряються байти за адресою патча. Для тестового профілю
-  розбіжність означає відмову: у ядро не пишеться нічого.
-- ВИПРАВЛЕНО: рядок TEST PROFILE не працював узагалі - обробник стояв за
-  перевіркою готовності двигуна, а на невідомому апараті двигун не готовий саме
-  тому, що профілю ще немає.
-- Після вдалого підключення тестового профілю з екрана прибирається напис
-  UNKNOWN DEVICE, а хибний рядок NON-STOCK at start більше не з'являється.
-- Пошук глобала power-down перевіряє, що підказка з профілю лежить у ядрових
-  даних і вирівняна.
+- FIXED: patch rollback wrote back a constant from RM-320 in which three of
+  the six words are branch offsets of that specific build. On a different build, such
+  rollback would leave the driver corrupted until reboot. Stock words are now
+  read from the device's live ROM before the first write.
+- Bytes at the patch address are verified prior to patching. For a test profile,
+  a mismatch results in refusal: nothing is written to the kernel.
+- FIXED: TEST PROFILE row did not work at all — the handler sat behind
+  the engine readiness check, and on an unknown device the engine is not ready precisely
+  because there is no profile yet.
+- After successfully attaching a test profile, UNKNOWN DEVICE is cleared from the screen,
+  and the erroneous NON-STOCK at start row no longer appears.
+- Power-down global search validates that the hint from the profile resides in kernel
+  data and is aligned.
 
 ## 2.0.0
 
-- Локалізація на 15 мов: англійська, українська, російська, польська,
-  німецька, французька, іспанська, італійська, португальська, чеська,
-  нідерландська, шведська, турецька, румунська, угорська. Мова може бути
-  перекладена частково - відсутній рядок береться англійською.
-- Тестові профілі для Nokia N82 (RM-313) і N95 classic (RM-159). Автоматично
-  не добираються ніколи; вибір лише вручну й після двох попереджень.
-- Адреса глобала power-down тепер шукається на апараті зі звіркою копії SRAM,
-  а не береться з офлайнового здогаду. Механізм перевірено на двох апаратах
-  з відомими відповідями.
+- Localization into 15 languages: English, Ukrainian, Russian, Polish,
+  German, French, Spanish, Italian, Portuguese, Czech,
+  Dutch, Swedish, Turkish, Romanian, Hungarian. A language can be
+  partially translated — missing strings fall back to English.
+- Test profiles for Nokia N82 (RM-313) and N95 classic (RM-159). Never selected
+  automatically; manual selection only and after two warnings.
+- Power-down global address is now discovered on the device with SRAM copy verification,
+  rather than taken from offline conjecture. The mechanism was verified on two devices
+  with known answers.
 
 ## 1.9.0
 
-- ВИПРАВЛЕНО небезпечний шлях: на E90 адреса сеттера DSP невідома й
-  дорівнює нулю, а ApplyDspDiv її не перевіряв - натиснувши OK на рядку
-  DSPDIV, користувач виконав би перехід за нульовою адресою в режимі ядра.
-  Тепер профіль без сеттера DSP отримує відмову до будь-якої дії.
-- Закрито обхід гейта: ocprobe selftest рівня 2 накладав патч без перевірки
-  прошивки, беручи еталонний профіль за замовчуванням.
-- Тексти про запобіжник шини приведено у відповідність до заміру: смертельним
-  є ПОВЕРНЕННЯ зниженої шини до штатної, а підйом вище штатної на E90
-  зміряно й працює. Доти застосунок лякав тим, що спростовано.
+- FIXED dangerous code path: on E90 the DSP setter address is unknown and
+  equals zero, and ApplyDspDiv did not check it — pressing OK on the
+  DSPDIV row, the user would execute a branch to address zero in kernel mode.
+  A profile without a DSP setter now gets a refusal before any action.
+- Firmware gate bypass closed: ocprobe selftest level 2 applied the patch without
+  firmware check, using the reference profile by default.
+- Bus guard descriptions brought into agreement with measurement: FATAL is
+  RETURNING a lowered bus to stock, whereas raising above stock on E90
+  was measured and works. Previously, the application frightened with what had been disproven.
 
-- Локалізація: англійська й українська, мова береться з налаштувань апарата.
-  Джерело перекладу - `src/strings.json`, таблиці генерує
+- Localization: English and Ukrainian, language taken from device settings.
+  Translation source is `src/strings.json`, tables generated by
   `node tools/gen_strings.js`.
-- Вбудована інструкція: рядок `HELP` відкриває довідку на весь екран, гортання
-  вгору/вниз, вихід будь-якою іншою клавішею. Мережа не потрібна.
-- Гейт по прошивці: застосунок звіряє збірку прошивки апарата з тією, під яку
-  виведено адреси, і відмовляється патчити ядро при розбіжності. Саме він
-  виявив, що N95 8GB працює на 35.0.001, а профіль весь час називався 31.0.015.
-- Невідомий апарат тепер друкує машинний uid і версію прошивки - рівно те, з
-  чого починається новий профіль (`docs/PORTING.md`).
-- Релізні документи: README, LICENSE (MIT), цей файл, AGENTS.md.
+- Built-in help: `HELP` row opens fullscreen help, scrolling
+  up/down, exit with any other key. No network needed.
+- Firmware gate: application verifies device firmware build against the one addresses
+  were derived for, and refuses to patch kernel on mismatch. This gate
+  revealed that the N95 8GB runs 35.0.001, while the profile was called 31.0.015 all along.
+- Unknown device now prints machine UID and firmware version — exactly what
+  starts a new profile (`docs/PORTING.md`).
+- Release documentation: README, LICENSE (MIT), this file, AGENTS.md.
 
 ## 1.8.0
 
-- `BUS GUARD` став перемикачем. Заборона підйому шини лишається за
-  замовчуванням, але знімається явно - рядком у GUI або ключем `guard=0` у
-  пробника. Підставою для заборони лишається повернення шини з пониженого
-  стану, яке дало чотири перезавантаження з чотирьох.
+- `BUS GUARD` became a toggle. Bus raise prohibition remains by
+  default, but can be cleared explicitly — via GUI row or `guard=0` switch in
+  the probe tool. The basis for prohibition remains returning the bus from a lowered
+  state, which produced four reboots out of four.
 
 ## 1.7.0
 
-- Стелю множника піднято з 129 до 255. 129 було нашою межею повзунка, а не
-  апаратною: поле множника має десять біт.
-- Затиск шини тепер видно в інтерфейсі до застосування, а не лише в журналі
-  після нього.
+- Multiplier ceiling raised from 129 to 255. 129 was our slider limit, not
+  a hardware one: the multiplier field has ten bits.
+- Bus clamp is now visible in the interface before applying, not just in the log
+  afterwards.
 
 ## 1.6.0
 
-- Запобіжник шини перенесено в точку запису, тобто він накриває будь-яку зміну
-  розкладки, а не лише повернення до штатної.
-- Прилади звіряють результат із тим, що НАСПРАВДІ пішло в залізо, а не з тим,
-  що просили.
+- Bus guard moved to the write point, meaning it covers any layout change,
+  not just returning to stock.
+- Instruments verify the result against what ACTUALLY went to hardware, not what
+  was requested.

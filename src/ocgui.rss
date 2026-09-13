@@ -1,9 +1,9 @@
-// Ресурс застосунку AVKON. Без нього CEikApplication не стартує: фреймворк
-// відкриває <app_file>.rsc ще до створення AppUi. Порядок ресурсів фіксований -
-// 1 = підпис, 2 = типова назва документа, 3 = EIK_APP_INFO.
+// AVKON application resource. Without it CEikApplication will not start: the framework
+// opens <app_file>.rsc even before creating AppUi. Resource order is fixed -
+// 1 = signature, 2 = default document name, 3 = EIK_APP_INFO.
 //
-// Меню й CBA не описуємо навмисно: вікно повноекранне, все керування - з
-// джойстика, вихід - права софт-клавіша або Esc (обробляє сам контрол).
+// Menu and CBA are intentionally omitted: the window is fullscreen, all controls are via
+// joystick, exit is via right softkey or Esc (handled by the control itself).
 
 NAME OCTL
 

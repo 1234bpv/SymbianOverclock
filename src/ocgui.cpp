@@ -1,21 +1,21 @@
-// SymbianOverclock: розгін і стрес-тести прямо на апараті.
+// SymbianOverclock: overclock and stress tests directly on the device.
 //
-// Керування (джойстик):
-//   вгору/вниз    - вибір рядка
-//   вліво/вправо  - на рядку MULT рухає повзунок (крок 1; з утриманням - швидше),
-//                   на MPUDIV і BUSDIV перебирає допустимі дільники
-//   OK на BUSDIV  - знімає ручне значення, повертає дільник на автопідбір
-//   OK/select     - активує вибраний рядок
-//   права софт-клавіша або Esc - вихід (перед виходом штатна частота
-//                   ПОВЕРТАЄТЬСЯ автоматично)
+// Controls (joystick):
+//   up/down       - row selection
+//   left/right    - on the MULT row moves the slider (step 1; holding accelerates),
+//                   on MPUDIV and BUSDIV cycles through allowed dividers
+//   OK on BUSDIV  - clears the manual value, returns divider to auto-selection
+//   OK/select     - activates the selected row
+//   right softkey or Esc - exit (before exit the stock frequency
+//                   IS RESTORED automatically)
 //
-// Захист від випадкового розгону навмисний і дворівневий: повзунок лише
-// ГОТУЄ значення, "APPLY SETTING" його озброює, і тільки окрема кнопка
-// "CONFIRM OVERCLOCK" виконує relock. Після перезавантаження нічого не
-// застосовується само - застосунок не ставить жодного startup-запису.
+// Protection against accidental overclocking is intentional and two-tiered: the slider only
+// PREPARES the value, "APPLY SETTING" arms it, and only a separate button
+// "CONFIRM OVERCLOCK" performs relock. After reboot nothing is
+// applied automatically - the application creates no startup entries.
 //
-// Рядки логу навмисно ASCII: GCCE 3.4.3 і 8-бітні дескриптори не варті ризику
-// з кирилицею в літералах.
+// Log strings are intentionally ASCII: GCCE 3.4.3 and 8-bit descriptors are not worth the risk
+// of Cyrillic in literals.
 
 #include <e32base.h>
 #include <e32std.h>
@@ -39,34 +39,34 @@
 #include "ocengine.h"
 #include "ocstr.h"
 
-// Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 2.2.0");
+// Build version. On the device it is otherwise impossible to tell which one is installed.
+_LIT(KAppVersion, "SymbianOverclock 2.2.1");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
-// --- прилади: кожен водночас і стрес-тест, і бенчмарк -----------------------
+// --- instruments: each is both a stress test and a benchmark ----------------
 //
-// Головна вимога до всіх: САМОПЕРЕВІРКА. На розгоні цікава не швидкість, а
-// момент, коли підсистема починає тихо помилятися, і побачити це можна лише
-// тестом із відомою відповіддю. Тому:
-//   * ALU крутить LCG вперед, а потім рівно стільки ж кроків назад через
-//     модульно обернений множник - будь-яка одинична помилка ламає повернення
-//     до початкового значення;
-//   * пам'ять і кеш пишуть псевдовипадковий візерунок і звіряють його назад.
-// Ані перший, ані другі не потребують еталона, знятого на іншій частоті.
+// Main requirement for all: SELF-VERIFICATION. Under overclocking, what matters is not speed, but
+// the moment when a subsystem begins to silently fail, and this can only be observed
+// with a test having a known answer. Therefore:
+//   * ALU runs LCG forward, and then exactly the same number of steps backward via
+//     the modular inverse multiplier - any single bit error breaks the return
+//     to the initial value;
+//   * memory and cache write a pseudorandom pattern and verify it back.
+// Neither the former nor the latter require a reference taken at another frequency.
 
 const TUint32 KLcgA = 1664525u;
 const TUint32 KLcgC = 1013904223u;
 
 struct TTestResult
     {
-    TUint32 iValue;        // пропускна здатність, у сотих одиниці
-    TInt    iErrors;       // -1 = тест не виконувався
+    TUint32 iValue;        // throughput, in hundredths of a unit
+    TInt    iErrors;       // -1 = test was not executed
     };
 
-// Модульно обернений KLcgA за модулем 2^32 (ітерація Ньютона; для непарного
-// множника завжди існує). Рахуємо, а не зашиваємо: константа, вписана руками,
-// перетворила б тест правильності на тест моєї арифметики.
+// Modular inverse of KLcgA modulo 2^32 (Newton iteration; for an odd
+// multiplier it always exists). Computed rather than hardcoded: a hand-written constant
+// would turn a correctness test into a test of my arithmetic.
 static TUint32 LcgInverse()
     {
     TUint32 inv = 1;
@@ -85,10 +85,10 @@ static TUint32 ElapsedUs(TUint32 aStart, TUint32 aEnd)
     return (TUint32)(((TUint64)d * 1000000u) / gFcFreq);
     }
 
-// Ланцюг незалежних додавань: 256 інструкцій по одному такту плюс лічильник і
-// перехід. Кількість тактів на ітерацію відома точно, тож час ділиться на неї
-// й дає АБСОЛЮТНУ частоту ядра - незалежно від того, що повідомляє система.
-// Саме тому тут асемблер: у C компілятор має право переписати цикл як завгодно.
+// Chain of independent additions: 256 one-cycle instructions plus counter and
+// branch. The number of cycles per iteration is known exactly, so time is divided by it
+// and yields the ABSOLUTE core frequency - regardless of what the system reports.
+// This is why assembly is used here: in C the compiler is allowed to rewrite the loop arbitrarily.
 const TUint32 KNopCyclesPerIter = 258;      // 256 add + subs + bne
 
 static void SpinNop(TUint32 aIter)
@@ -103,9 +103,9 @@ static void SpinNop(TUint32 aIter)
         : "+r" (aIter) : : "r3", "cc");
     }
 
-// Ядро LCG асемблером: 32 пари множення й додавання на ітерацію, тобто рівно
-// 64 операції. Потрібне, щоб показати ціну операції в тактах: у C-варіанті цю
-// цифру з'їдають лічильник циклу і перезавантаження констант.
+// LCG core in assembly: 32 pairs of multiplication and addition per iteration, i.e. exactly
+// 64 operations. Needed to show the operation cost in cycles: in the C variant this
+// figure is swallowed by the loop counter and constant reloads.
 static void SpinLcgAsm(TUint32 aIter)
     {
     __asm__ __volatile__(
@@ -121,7 +121,7 @@ static void SpinLcgAsm(TUint32 aIter)
         : "+r" (aIter) : : "r3", "r4", "r5", "cc");
     }
 
-// Абсолютна частота ядра в МГц.
+// Absolute core frequency in MHz.
 static TUint32 MeasureCoreMhz()
     {
     const TUint32 kIter = 400000;
@@ -132,7 +132,7 @@ static TUint32 MeasureCoreMhz()
     return us ? (TUint32)(((TUint64)kIter * KNopCyclesPerIter) / us) : 0;
     }
 
-// Ціна однієї операції ядра LCG у сотих такту.
+// Cost of one LCG core operation in hundredths of a cycle.
 static TUint32 MeasureLcgCycles100(TUint32 aMhz)
     {
     const TUint32 kIter = 100000;
@@ -145,7 +145,7 @@ static TUint32 MeasureLcgCycles100(TUint32 aMhz)
     return (TUint32)(((TUint64)psPer * aMhz) / 10000u);
     }
 
-// ALU: вперед і назад. Повертає Mitr/s у сотих і кількість помилок (0 або 1).
+// ALU: forward and backward. Returns Mitr/s in hundredths and error count (0 or 1).
 static TTestResult TestAlu(TUint32 aIter)
     {
     TTestResult r;
@@ -167,17 +167,17 @@ static TTestResult TestAlu(TUint32 aIter)
     return r;
     }
 
-// Смуга пам'яті: суцільне читання буфера, більшого за кеш.
+// Memory bandwidth: sequential read of a buffer larger than cache.
 //
-// ВИПРАВЛЕНО 2026-09-12. Доти тут був обхід кроком у 64 байти, а прочитані
-// байти рахувались як "читань x 64", тобто за припущенням, що рядок кешу має
-// 64 байти. Розгортка по кроку на апараті (findings 46.1) показала полицю вже
-// з кроку 32 байти, тобто рядок удвічі коротший, і число виходило рівно
-// вдвічі завищеним.
+// FIXED 2026-09-12. Previously there was a traversal with a 64-byte step, and read
+// bytes were counted as "reads x 64", i.e. assuming a cache line of
+// 64 bytes. Stepping sweep on the device (findings 46.1) showed a plateau already
+// at a 32-byte step, meaning the line is twice as short, and the number came out exactly
+// twice as high.
 //
-// Тепер припущення немає взагалі: читається КОЖНЕ слово, і в байти йде розмір
-// буфера. Цикл розгорнутий на вісім, бо в згорнутому вигляді замір упирався
-// не в пам'ять, а у власні лічильник і перехід.
+// Now there is no assumption at all: EVERY word is read, and the buffer size goes into
+// bytes. The loop is unrolled by eight, because in rolled form the measurement hit
+// its own loop counter and branch rather than memory.
 static TTestResult TestMemBandwidth(TUint32* aBuf, TInt aWords, TInt aPasses)
     {
     TTestResult r;
@@ -193,13 +193,13 @@ static TTestResult TestMemBandwidth(TUint32* aBuf, TInt aWords, TInt aPasses)
     TUint32 t1 = User::FastCounter();
     TUint32 us = ElapsedUs(t0, t1);
     const TUint64 bytes = (TUint64)n * 4u * (TUint64)aPasses;
-    r.iValue = us ? (TUint32)((bytes * 100u) / us) : 0;   // МБ/с у сотих
-    r.iErrors = (acc == 0) ? 1 : 0;     // нуль неможливий: візерунок ненульовий
+    r.iValue = us ? (TUint32)((bytes * 100u) / us) : 0;   // MB/s in hundredths
+    r.iErrors = (acc == 0) ? 1 : 0;     // zero is impossible: pattern is non-zero
     return r;
     }
 
-// Цілісність SDRAM: пишемо візерунок, читаємо назад, рахуємо розбіжні слова.
-// Саме цей тест ловить головний ризик розгону шини - тихе псування даних.
+// SDRAM integrity: write a pattern, read back, count mismatched words.
+// This test specifically catches the primary risk of bus overclocking - silent data corruption.
 static TTestResult TestMemIntegrity(TUint32* aBuf, TInt aWords)
     {
     TTestResult r;
@@ -221,30 +221,30 @@ static TTestResult TestMemIntegrity(TUint32* aBuf, TInt aWords)
         }
     TUint32 t1 = User::FastCounter();
     TUint32 us = ElapsedUs(t0, t1);
-    TUint32 bytes = (TUint32)aWords * 4u * 2u;          // запис + читання
+    TUint32 bytes = (TUint32)aWords * 4u * 2u;          // write + read
     r.iValue = us ? (TUint32)(((TUint64)bytes * 100u) / us) : 0;
     r.iErrors = bad;
     return r;
     }
 
-// Кеш: смуга читання з L1 при робочому наборі 4 КБ (L1 на ARM1136 - 16 КБ).
+// Cache: L1 read bandwidth with a working set of 4 KB (L1 on ARM1136 is 16 KB).
 //
-// ВИПРАВЛЕНО 2026-09-12. Доти тут крутився генератор LCG із записом і звіркою,
-// а результат подавався як МБ/с кеша. Насправді це міряло арифметику: на одне
-// слово припадало множення (5 тактів затримки), додавання і ще звірка, тож
-// число говорило про АЛУ, а не про кеш, і з тестом пам'яті не порівнювалось.
+// FIXED 2026-09-12. Previously an LCG generator ran here with writes and verification,
+// and the result was reported as cache MB/s. In reality this measured arithmetic: for one
+// word there was a multiplication (5 cycles of latency), addition, and verification, so
+// the number reflected the ALU rather than the cache, and could not be compared with the memory test.
 //
-// Тепер тут рівно те саме, що в тесті пам'яті, з єдиною відмінністю - робочий
-// набір влазить у L1. Через це два числа стали порівнянними, і їхнє
-// відношення показує, у скільки разів кеш швидший за зовнішню пам'ять.
-// Правильність окремо не перевіряється: для цього є TEST sdram integrity.
+// Now it does exactly the same thing as the memory test, with the sole difference that the working
+// set fits into L1. This makes the two numbers comparable, and their
+// ratio shows how many times faster cache is than external memory.
+// Correctness is not checked separately: TEST sdram integrity exists for that.
 static TTestResult TestCache(TUint32* aBuf, TInt aRounds)
     {
     TTestResult r;
-    const TInt kWords = 1024;                            // 4 КБ
+    const TInt kWords = 1024;                            // 4 KB
     TUint32 acc = 0;
     TInt i;
-    for (i = 0; i < kWords; ++i)                         // розігрів: набити рядки
+    for (i = 0; i < kWords; ++i)                         // warm-up: fill cache lines
         acc += aBuf[i];
     TUint32 t0 = User::FastCounter();
     for (TInt p = 0; p < aRounds; ++p)
@@ -261,15 +261,15 @@ static TTestResult TestCache(TUint32* aBuf, TInt aRounds)
     return r;
     }
 
-// Наступне/попереднє значення дільника шини.
+// Next/previous bus divider value.
 //
-// Набір навмисно ВУЖЧИЙ за той, що дозволяє валідатор прошивки: беремо
-// KAutoL3Allowed (1, 2, 4, 6, 8, 12, 16). Причина виміряна, а не з обережності:
-// `dssdiv=7` проходить валідацію power.dll і при цьому НЕ лягає в регістр, ба
-// більше - недійсне значення в одному полі відкидає ВЕСЬ запис у
-// CM_CLKSEL1_CORE (findings §26.0). У рядок, який крутять пальцем, пускати такі
-// значення нема сенсу: користувач побачив би "застосовано", а в залізі не
-// змінилося б нічого. Ширший набір лишається в MANUAL, де є звірка читанням.
+// The set is intentionally NARROWER than what the firmware validator allows: we use
+// KAutoL3Allowed (1, 2, 4, 6, 8, 12, 16). The reason is measured, not out of caution:
+// `dssdiv=7` passes power.dll validation and yet does NOT make it into the register, nay
+// more - an invalid value in one field rejects the ENTIRE write to
+// CM_CLKSEL1_CORE (findings §26.0). Allowing such values into a row adjusted by
+// finger makes no sense: the user would see "applied", but nothing would change
+// in hardware. The wider set remains in MANUAL, where verification by reading is available.
 static TInt L3DivStep(TInt aValue, TInt aDir)
     {
     for (TInt v = aValue + aDir; v >= 1 && v <= 31; v += aDir)
@@ -280,39 +280,39 @@ static TInt L3DivStep(TInt aValue, TInt aDir)
     return aValue;
     }
 
-// --- контрол ----------------------------------------------------------------
+// --- control ----------------------------------------------------------------
 
-// Рядки списку. Дільники йдуть окремими рядками, тож усе разом на екран уже не
-// влазить - список прокручується (див. EnsureVisible/Draw).
+// List rows. Dividers are separate rows, so everything together no longer fits
+// on screen - the list scrolls (see EnsureVisible/Draw).
 //
-// Дільник шини памʼяті (поле L3) має ОКРЕМИЙ рядок нагорі, хоч і живе в тому
-// самому CM_CLKSEL1_CORE, що й решта полів у списку нижче. Причина не в
-// зручності: це єдиний дільник, яким міряють, де насправді межа - в ядрі чи в
-// шині. Виміряно (findings §26.13), що BestMem реагує на зміну шини майже
-// повністю (l3=8 дає -45%), а на зміну частоти ядра - лише на дві п'ятих. Щоб
-// цим користуватись, шину треба крутити окремо від множника, не заходячи в
-// MANUAL і не чіпаючи водночас дисплей.
+// Memory bus divider (L3 field) has a SEPARATE row at the top, even though it lives
+// in the same CM_CLKSEL1_CORE as the remaining fields in the list below. The reason is not
+// convenience: this is the only divider used to measure where the limit actually lies - in the core or in the
+// bus. It is measured (findings §26.13) that BestMem responds to bus change almost
+// completely (l3=8 yields -45%), and to core frequency change - only by two fifths. To
+// use this, the bus must be adjusted separately from the multiplier, without entering
+// MANUAL and without touching the display at the same time.
 enum TRowId
     {
-    ERowSlider = 0,      // множник DPLL
-    ERowMpu,             // дільник MPU (окремий регістр CM_CLKSEL_MPU)
-    ERowL3,              // дільник шини памʼяті - поле L3 у CM_CLKSEL1_CORE
-    ERowDsp,             // дільник домену DSP (окремий регістр CM_CLKSEL_DSP)
-    ERowMode,            // AUTO / MANUAL для дільників CLKSEL1_CORE
-    ERowDivFirst,        // 7 рядків дільників CM_CLKSEL1_CORE
+    ERowSlider = 0,      // DPLL multiplier
+    ERowMpu,             // MPU divider (separate register CM_CLKSEL_MPU)
+    ERowL3,              // memory bus divider - L3 field in CM_CLKSEL1_CORE
+    ERowDsp,             // DSP domain divider (separate register CM_CLKSEL_DSP)
+    ERowMode,            // AUTO / MANUAL for CLKSEL1_CORE dividers
+    ERowDivFirst,        // 7 divider rows of CM_CLKSEL1_CORE
     ERowDivLast = ERowDivFirst + ECoreFieldCount - 1,
     ERowApply,
     ERowConfirm,
     ERowRestore,
-    ERowKeep,            // чи лишати розгін після виходу із застосунку
-    ERowLang,            // мова інтерфейсу
+    ERowKeep,            // whether to keep overclock after exiting the application
+    ERowLang,            // interface language
     ERowTestAlu,
     ERowTestMem,
     ERowTestIntegrity,
     ERowTestCache,
     ERowTestCombined,
-    ERowHelp,            // вбудована інструкція
-    ERowTestProfile,     // ручний вибір неперевіреного профілю
+    ERowHelp,            // built-in instructions
+    ERowTestProfile,     // manual selection of untested profile
     ERowCount
     };
 
@@ -341,7 +341,7 @@ private:
     TInt VisibleRows() const;
     TInt RowLines(TInt aRow) const;
     TInt LogLines() const;
-    // Значення CM_CLKSEL1_CORE, яке піде на апарат: або автопідбір, або ручне.
+    // CM_CLKSEL1_CORE value that will go to the device: either auto-selection or manual.
     TUint32 EffectiveCore() const;
     TUint32 BusKhz() const;
     void WarnBus(TInt aDiv);
@@ -349,12 +349,12 @@ private:
     void SyncManualFromAuto();
     void RunTest(TRowId aRow);
     void RunCombined();
-    // Автоповернення дільника DSP. Виміряно (findings §24.5): нештатний дільник,
-    // лишений у системі надовго, валить апарат у ребут навіть без жодного
-    // навантаження на DSP, а витримка з гарантованим поверненням проходить
-    // чисто. Тому дільник тут не «стоїть, поки не приберуть», а живе рівно
-    // відведене вікно і повертається сам, навіть якщо застосунок просто лишили
-    // відкритим.
+    // DSP divider auto-revert. Measured (findings §24.5): a non-stock divider,
+    // left in the system for long, crashes the device into a reboot even without any
+    // load on the DSP, whereas a dwell with guaranteed reversion succeeds
+    // cleanly. Therefore the divider does not "stay until removed" here, but lives for exactly
+    // the allocated window and reverts on its own, even if the application is simply left
+    // open.
     static TInt DspRevertTick(TAny* aSelf);
     void CancelDspRevert();
     void RestoreDspNow(const TDesC& aWhy);
@@ -368,18 +368,18 @@ private:
 private:
     COcEngine* iEngine;
     TInt   iRow;
-    TInt   iTop;             // перший видимий рядок (список прокручується)
-    TInt   iMult;            // значення повзунка
-    TBool  iManual;          // дільники задає користувач, а не автопідбір
-    TUint32 iCoreReg;        // редагований CM_CLKSEL1_CORE у ручному режимі
-    TInt   iMpuDiv;          // редагований дільник MPU (1,2,4,6,8)
-    TInt   iL3Div;           // дільник шини; 0 = лишити на автопідборі
-    TInt   iLiveL3;          // дільник шини, який СТОЇТЬ у залізі (0 = не читали)
-    TBool  iKeep;            // розгін лишається після виходу
-    TInt   iDspDiv;          // редагований дільник DSP (окремий від iArmed шлях)
-    CPeriodic* iDspTimer;    // сторож автоповернення дільника DSP
-    TInt   iDspLeftSec;      // скільки секунд лишилось до автоповернення
-    TBool  iArmed;           // "APPLY SETTING" натиснуто, чекаємо підтвердження
+    TInt   iTop;             // first visible row (list scrolls)
+    TInt   iMult;            // slider value
+    TBool  iManual;          // dividers set by user, not auto-selection
+    TUint32 iCoreReg;        // edited CM_CLKSEL1_CORE in manual mode
+    TInt   iMpuDiv;          // edited MPU divider (1,2,4,6,8)
+    TInt   iL3Div;           // bus divider; 0 = leave on auto-selection
+    TInt   iLiveL3;          // bus divider CURRENTLY in hardware (0 = not read)
+    TBool  iKeep;            // overclock remains after exit
+    TInt   iDspDiv;          // edited DSP divider (path separate from iArmed)
+    CPeriodic* iDspTimer;    // watchdog for DSP divider auto-revert
+    TInt   iDspLeftSec;      // seconds remaining until auto-revert
+    TBool  iArmed;           // "APPLY SETTING" pressed, awaiting confirmation
     TInt   iArmedMult;
     TUint32 iArmedCore;
     TUint32 iArmedMpu;
@@ -388,10 +388,10 @@ private:
     TUint32* iBuf;
     TInt   iBufWords;
     TBuf<80> iStatus;
-    TBool  iKnownDevice;     // профіль добрано автоматично
-    TInt   iTestProfile;     // вибраний тестовий профіль; -1 = жоден
-    TBool  iHelp;            // ETrue = показуємо сторінку довідки
-    TInt   iHelpTop;         // з якого рядка довідки малюємо
+    TBool  iKnownDevice;     // profile matched automatically
+    TInt   iTestProfile;     // selected test profile; -1 = none
+    TBool  iHelp;            // ETrue = showing help page
+    TInt   iHelpTop;         // line of help to draw from
     };
 
 COcView::COcView()
@@ -412,13 +412,13 @@ COcView* COcView::NewL(const TRect& aRect)
     return self;
     }
 
-// Визначені нижче, поруч із рештою роботи з файлом налаштування.
+// Defined below, alongside the rest of the settings file routines.
 static void LoadLanguage();
 
 void COcView::ConstructL(const TRect& aRect)
     {
-    // Мову беремо один раз і до першого видимого рядка: інакше частина
-    // журналу лишилась би англійською, а частина - ні.
+    // Language is loaded once and before the first visible line: otherwise part
+    // of the log would remain in English, and part would not.
     OcStrInit();
     LoadLanguage();
     CreateWindowL();
@@ -429,15 +429,15 @@ void COcView::ConstructL(const TRect& aRect)
         gFcFreq = (TUint32)fc;
 
     iEngine = COcEngine::NewL();
-    // Розгін лишається після виходу: користувач застосував його свідомо, і
-    // знімати це за нього лише тому, що він закрив вікно, безпідставно.
-    // Патч ядра при цьому знімається завжди - він, на відміну від частоти,
-    // є міною на потім. Ребут повертає штатне тактування в будь-якому разі.
+    // Overclock remains after exit: user applied it consciously, and
+    // clearing it on their behalf simply because they closed the window is unjustified.
+    // Kernel patch is always removed in doing so - unlike frequency,
+    // it is a landmine for later. Reboot restores stock clocking in any case.
     iEngine->KeepOnExit(iKeep);
 
-    // Профіль апарата добираємо самі: командного рядка тут немає, а чужий
-    // профіль означав би патч чужих адрес у ядро. Невідомий апарат - чесна
-    // відмова ДО будь-якого дотику до ядра, а не здогад.
+    // Device profile is matched automatically: there is no command line here, and a foreign
+    // profile would mean patching foreign addresses into the kernel. Unknown device is an honest
+    // refusal BEFORE any touch to the kernel, not a guess.
     const TOcProfile* prof = ProfileForThisDevice();
     if (!prof)
         {
@@ -447,9 +447,9 @@ void COcView::ConstructL(const TRect& aRect)
         AddLog(iStatus);
         AddLogF(OcStr(EStrNoProfileUid),
                 (TUint32)uid);
-        // Невідомий апарат - це не глухий кут, а початок портування, і рівно
-        // ці два рядки потрібні, щоб зробити для нього профіль. Тому вони
-        // видимі просто на екрані, а не сховані в збірці для розробника.
+        // Unknown device is not a dead end, but the beginning of porting, and exactly
+        // these two lines are needed to build a profile for it. Therefore they
+        // are visible right on screen, not hidden in a developer build.
         {
         TBuf<KSysUtilVersionTextLength> sw;
         if (SysUtil::GetSWVersion(sw) == KErrNone)
@@ -462,7 +462,7 @@ void COcView::ConstructL(const TRect& aRect)
         AddLog(OcStr(EStrUnknownSeeDocs));
         }
         iMult = 86;
-        ActivateL();       // вікно мусить лишитись живим, щоб відмову було видно
+        ActivateL();       // window must remain alive so the refusal is visible
         return;
         }
     iKnownDevice = ETrue;
@@ -470,8 +470,8 @@ void COcView::ConstructL(const TRect& aRect)
     {
     TBuf<32> pid;
     pid.Copy(TPtrC8((const TUint8*)prof->iId));
-    // Двома рядками: разом назва з версією й ідентифікатор профілю не
-    // влазять у ширину екрана N95 (зауваження з апарата, 2026-09-12).
+    // Two lines: name with version and profile ID together do not
+    // fit within the N95 screen width (device remark, 2026-09-12).
     AddLog(KAppVersion);
     AddLogF(_L("profile: %S"), &pid);
     }
@@ -479,9 +479,9 @@ void COcView::ConstructL(const TRect& aRect)
     TInt r = iEngine->Prepare();
     if (r == KErrNone)
         {
-        // Повзунок ставимо на ФАКТИЧНИЙ множник апарата, а опорна точка
-        // (StockCore/StockMpu) - стала. Якщо застали апарат розігнаним, це видно
-        // в лозі окремим рядком, а не мовчки стає новою нормою.
+        // Slider is set to the ACTUAL multiplier of the device, whereas the reference point
+        // (StockCore/StockMpu) is constant. If device is found already overclocked, this is shown
+        // in the log as a separate line, rather than silently becoming the new normal.
         iMult = iEngine->BootMult();
         iArmedMult = iMult;
         iCoreReg = iEngine->StockCore();
@@ -501,8 +501,8 @@ void COcView::ConstructL(const TRect& aRect)
         iStatus.Format(_L("NOT READY (%d) at: %S"), r,
                        &COcEngine::StepName(iEngine->FailedAt()));
         AddLog(iStatus);
-        // Розбіжність прошивки - не поломка, а свідома відмова, і сплутати
-        // її з "драйвер не став" не можна: лікується вона зовсім іншим.
+        // Firmware mismatch is not a breakdown, but an intentional refusal, and confusing
+        // it with "driver failed to load" is unacceptable: it is cured by something completely different.
         if (iEngine->FailedAt() == EOcStepFirmware)
             {
             TPtrC fw(iEngine->Firmware());
@@ -524,23 +524,26 @@ COcView::~COcView()
     delete iEngine;
     }
 
-// Стеля, на яку взагалі дозволено відпускати нештатний дільник DSP.
+// Ceiling for how long a non-stock DSP divider is allowed to run at all.
 //
-// Це НЕ «перевірено безпечний час»: безпечного часу тут немає. Виміряно
-// (findings §24.6), що домен на CORE/2 живий рівно доти, доки на C55x нічого не
-// виконується, і валить апарат, щойно DSP піднімають - хоч нашим дочірнім
-// процесом, хоч штатним аудіо через десять хвилин. Тому сторож не «пересиджує
-// небезпеку», а лише обмежує вікно, в яке така подія може влучити.
+// This is NOT "proven safe time": there is no safe time here. It is measured
+// (findings §24.6) that domain at CORE/2 remains alive only as long as nothing is executing
+// on C55x, and crashes the device as soon as DSP is brought up - whether by our child
+// process, or by stock audio ten minutes later. Therefore watchdog does not "wait out
+// danger", but merely limits the window into which such an event can strike.
 const TInt KDspHoldSec = 120;
 
+// Stops the watchdog without destroying it.
+//
+// The timer must NOT be deleted here. This runs from DspRevertTick, which is
+// the timer's own callback: deleting the CPeriodic from inside its callback
+// leaves CActive::RunL working on freed memory once the callback returns.
+// The object is cheap to keep and is destroyed once, in the destructor; a
+// cancelled CPeriodic can simply be started again.
 void COcView::CancelDspRevert()
     {
     if (iDspTimer)
-        {
         iDspTimer->Cancel();
-        delete iDspTimer;
-        iDspTimer = NULL;
-        }
     iDspLeftSec = 0;
     }
 
@@ -561,31 +564,31 @@ TInt COcView::DspRevertTick(TAny* aSelf)
     COcView* self = (COcView*)aSelf;
     if (--self->iDspLeftSec > 0)
         {
-        self->Repaint();            // видно, скільки лишилось
+        self->Repaint();            // shows how much is remaining
         return 0;
         }
     self->RestoreDspNow(OcStr(EStrReasonTimeout));
     return 0;
     }
 
-// Дві зміни переживають наш процес, і поводяться з ними по-різному.
+// Two changes outlive our process, and are treated differently.
 //
-// Підмінене тіло функції ядра знімається ЗАВЖДИ. Лишити його - означає
-// поставити міну: будь-який інший клієнт dvfs_interface, що викличе
-// DoControl(1) з ненульовим a1, розіменує довільну адресу в режимі ядра.
+// Replaced kernel function body is removed ALWAYS. Leaving it means
+// setting a landmine: any other dvfs_interface client calling
+// DoControl(1) with non-zero a1 will dereference an arbitrary address in kernel mode.
 //
-// Частота, дільник шини й дільник DSP - навпаки, лишаються, якщо користувач
-// того хоче (рядок KEEP ON EXIT, типово увімкнений). Закрите вікно не є
-// підставою скасовувати те, що людина застосувала свідомо; штатне тактування
-// повертає ребут. Заразом це прибирає єдину справді небезпечну операцію зі
-// шляху виходу: повернення зниженої шини до штатної вбило апарат чотири рази
-// з чотирьох, а тепер вихід його просто не робить.
-// Ім'я файлу, у якому лежить вибрана мова. Приватний каталог застосунку на C:,
-// тобто звичайний файл даних - до прошивки й до розгону він не має стосунку.
+// Frequency, bus divider, and DSP divider - on the contrary, remain if the user
+// so desires (KEEP ON EXIT row, enabled by default). Closing the window is no
+// reason to cancel what the user applied consciously; stock clocking
+// is restored by reboot. At the same time this removes the only genuinely dangerous operation from
+// the exit path: reverting a lowered bus back to stock killed the device four times
+// out of four, whereas exit now simply does not perform it.
+// Name of the file containing selected language. Application private directory on C:,
+// i.e. a regular data file - it has nothing to do with firmware or overclocking.
 _LIT(KLangFile, "C:\\private\\e0001011\\lang.txt");
 
-// Читає збережену мову. Помилка на будь-якому кроці означає "нічого не
-// збережено", і тоді лишається та мова, яку обрав OcStrInit за мовою апарата.
+// Reads saved language. Error at any step means "nothing saved",
+// in which case language chosen by OcStrInit based on device language remains.
 static void LoadLanguage()
     {
     RFs fs;
@@ -607,8 +610,8 @@ static void LoadLanguage()
     fs.Close();
     }
 
-// Зберігає вибрану мову. Мовчить про помилки свідомо: незбережений вибір -
-// це незручність, а не привід зупиняти роботу застосунку.
+// Saves selected language. Silently ignores errors intentionally: unsaved selection
+// is an inconvenience, not a reason to halt application operation.
 static void SaveLanguage(TInt aIndex)
     {
     RFs fs;
@@ -626,14 +629,14 @@ static void SaveLanguage(TInt aIndex)
     fs.Close();
     }
 
-// Перемикає мову інтерфейсу. Індекс замикається по колу всередині OcStr, тож
-// сюди можна передавати будь-яке число.
+// Switches interface language. Index wraps around circularly within OcStr, so
+// any number can be passed here.
 void COcView::SetLanguage(TInt aIndex)
     {
     OcStrSetLanguage(aIndex);
     SaveLanguage(OcStrLanguageIndex());
-    // Журнал лишається таким, яким його записали: рядки в ньому вже готовий
-    // текст, а не ідентифікатори, і заднім числом вони не перекладаються.
+    // Log remains as recorded: strings in it are already finished
+    // text, not identifiers, and are not translated retroactively.
     AddLog(OcStrActiveLanguageName());
     }
 
@@ -659,11 +662,11 @@ TUint32* COcView::Buffer()
     {
     if (!iBuf)
         {
-        iBufWords = 512 * 1024;                 // 2 МБ - явно повз кеш
+        iBufWords = 512 * 1024;                 // 2 MB - well beyond cache
         iBuf = (TUint32*)User::Alloc(iBufWords * sizeof(TUint32));
         if (!iBuf)
             {
-            iBufWords = 64 * 1024;              // 256 КБ - запасний варіант
+            iBufWords = 64 * 1024;              // 256 KB - fallback option
             iBuf = (TUint32*)User::Alloc(iBufWords * sizeof(TUint32));
             }
         if (iBuf)
@@ -695,8 +698,8 @@ void COcView::AddLogF(TRefByValue<const TDesC> aFmt, ...)
     AddLog(buf);
     }
 
-// Тести блокують цикл подій, тож перемальовуємо явно й проштовхуємо чергу
-// вікон - інакше екран завмирає на весь прогін.
+// Tests block the event loop, so repaint explicitly and flush the window
+// server queue - otherwise screen freezes for the entire run.
 void COcView::Repaint()
     {
     DrawNow();
@@ -717,11 +720,11 @@ _LIT(KNameMem, "MEM");
 _LIT(KNameInt, "SDRAM");
 _LIT(KNameCache, "CACHE");
 
-// У ручному режимі йде відредагований регістр, в авто - підібраний двигуном.
-// Понад це: щойно користувач торкнувся рядка BUSDIV, його значення перекриває
-// поле L3 в обох режимах. Заради цього рядок і винесено нагору - щоб шину можна
-// було задати, не заходячи в MANUAL і не чіпаючи дільник дисплея, який в авто
-// лишається компенсованим.
+// In manual mode edited register is used, in auto - one chosen by engine.
+// Beyond that: as soon as the user touches the BUSDIV row, its value overrides
+// the L3 field in both modes. For this reason the row is placed at the top - so the bus can
+// be specified without entering MANUAL and without touching the display divider, which in auto
+// remains compensated.
 TUint32 COcView::EffectiveCore() const
     {
     if (!iEngine || !iEngine->IsReady())
@@ -732,7 +735,7 @@ TUint32 COcView::EffectiveCore() const
     return core;
     }
 
-// Частота шини при вибраному множнику й ПОТОЧНОМУ дільнику L3, у кГц.
+// Bus frequency with selected multiplier and CURRENT L3 divider, in kHz.
 TUint32 COcView::BusKhz() const
     {
     if (!iEngine || !iEngine->IsReady())
@@ -743,7 +746,7 @@ TUint32 COcView::BusKhz() const
     return v ? c.CoreKhz() / (TUint32)v : 0;
     }
 
-// Попередження про напрямок зміни шини. Обидва - виміряні, не гіпотетичні.
+// Warning about direction of bus change. Both are measured, not hypothetical.
 void COcView::WarnBus(TInt aDiv)
     {
     if (!iEngine || !iEngine->IsReady())
@@ -751,10 +754,10 @@ void COcView::WarnBus(TInt aDiv)
     const TInt stock = iEngine->StockClocks().iL3Div;
     if (aDiv > stock)
         {
-        // Найдорожчий відомий факт цього рядка: сама шина на /8 тримається
-        // чисто (два прогони, нуль зіпсованих слів у SDRAM), а ось ПОВЕРНЕННЯ
-        // з неї валило апарат три рази з трьох - і повним relock, і легким
-        // переписом дільників (findings §26.12-26.14).
+        // Most costly known fact of this row: bus itself at /8 holds
+        // cleanly (two runs, zero corrupted words in SDRAM), but REVERTING
+        // from it crashed the device three times out of three - both via full relock and lightweight
+        // divider rewrite (findings §26.12-26.14).
         AddLog(OcStr(EStrWarnBusBelow));
         AddLog(OcStr(EStrWarnBusReturn));
         }
@@ -764,8 +767,8 @@ void COcView::WarnBus(TInt aDiv)
         }
     }
 
-// Перемикаючись у ручний режим, стартуємо не з нуля, а з того, що підібрала
-// автоматика для поточного множника: так у користувача одразу робоча база.
+// When switching to manual mode, start not from scratch, but from what
+// automatic selection picked for the current multiplier: giving user an immediate working baseline.
 void COcView::SyncManualFromAuto()
     {
     if (iEngine && iEngine->IsReady())
@@ -776,7 +779,7 @@ static TInt WrapText(CWindowGc* aGc, const CFont* aFont, const TDesC& aText,
                      TInt aX, TInt& aY, TInt aLh, TInt aYMax, TInt aWidth,
                      TInt& aSkip);
 
-// Скільки екранних рядків займає підпис списку після переносу.
+// How many screen lines list label occupies after wrapping.
 TInt COcView::RowLines(TInt aRow) const
     {
     const CFont* font = CEikonEnv::Static()->AnnotationFont();
@@ -790,10 +793,10 @@ TInt COcView::RowLines(TInt aRow) const
     return WrapText(NULL, font, line, 0, y, 1, 0, w, skip);
     }
 
-// Скільки екранних рядків займе журнал після переносу. Рядок журналу до
-// 64 символів, тобто на вузькому екрані він регулярно стає двома, і саме
-// через це результати тестів опинялись за нижнім краєм: місце під журнал
-// відкладалось по кількості записів, а не по кількості рядків.
+// How many screen lines log will occupy after wrapping. Log line has up to
+// 64 characters, meaning on a narrow screen it routinely becomes two, and because of this
+// test results ended up beyond the bottom edge: space for the log was
+// allocated by entry count rather than line count.
 TInt COcView::LogLines() const
     {
     const CFont* font = CEikonEnv::Static()->AnnotationFont();
@@ -804,19 +807,19 @@ TInt COcView::LogLines() const
     TInt n = 0;
     for (TInt i = 0; i < iLogCount; ++i)
         n += WrapText(NULL, font, iLog[i], 0, y, 1, 0, w, skip);
-    // Журналу віддаємо щонайбільше половину екрана: решта потрібна списку.
+    // Allocate at most half the screen to the log: the rest is needed by the list.
     const TInt cap = (Rect().Height() / lh) / 2;
     return n > cap ? cap : n;
     }
 
-// Скільки РЯДКІВ СПИСКУ вміщається, рахуючи від iTop. Після того, як підписи
-// стали переноситись, висота рядка вже не стала, тож ділення висоти екрана
-// на висоту рядка дало б завелике число, і курсор ішов би за край.
+// How many LIST ROWS fit, counting from iTop. After labels
+// started wrapping, row height is no longer constant, so dividing screen height
+// by row height would yield too large a number, and cursor would go beyond the edge.
 TInt COcView::VisibleRows() const
     {
     const CFont* font = CEikonEnv::Static()->AnnotationFont();
     const TInt lh = font->HeightInPixels() + 1;
-    // 3 рядки шапки + рядок статусу + лог
+    // 3 header lines + status line + log
     TInt avail = Rect().Height() / lh - 4 - LogLines();
     if (avail < 3)
         avail = 3;
@@ -833,8 +836,8 @@ TInt COcView::VisibleRows() const
     return rows > 0 ? rows : 1;
     }
 
-// Аргумент лишився для сумісності виклику: скільки рядків видно, тепер
-// залежить від самого iTop, тож питаємо це заново на кожному кроці.
+// Argument remains for call compatibility: how many rows are visible now
+// depends on iTop itself, so query it anew at each step.
 void COcView::EnsureVisible(TInt /*aVisibleRows*/)
     {
     if (iRow < iTop)
@@ -845,9 +848,9 @@ void COcView::EnsureVisible(TInt /*aVisibleRows*/)
         iTop = 0;
     }
 
-// Один рядок списку в готовому вигляді. Для дільників показуємо не лише
-// значення, а й отриману частоту і відхилення від штатної - саме за цим
-// відхиленням і налаштовують.
+// One list row in finished form. For dividers we show not only
+// the value, but also resulting frequency and deviation from stock - it is this
+// deviation that guides tuning.
 void COcView::RowLabel(TInt aRow, TDes& aOut) const
     {
     aOut.Zero();
@@ -869,8 +872,8 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         }
     if (aRow == ERowMpu)
         {
-        // CPU = CORE / mpu_div. Дільник 1 дає ту саму частоту ядра при вдвічі
-        // нижчій CORE - це і є перевірка, чи межа в ARM, чи в CORE.
+        // CPU = CORE / mpu_div. Divider 1 gives the same core frequency at twice
+        // lower CORE - this is the test for whether the limit is in ARM or in CORE.
         TOcClocks c;
         if (ready)
             {
@@ -885,9 +888,9 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         }
     if (aRow == ERowL3)
         {
-        // Показуємо не сам дільник, а частоту шини й відхилення від штатної:
-        // налаштовують саме за ним. Позначка auto означає, що значення бере
-        // автопідбір і воно поїде разом із множником.
+        // We show bus frequency and deviation from stock rather than the divider itself:
+        // tuning is guided by it. The auto mark means value is taken by
+        // auto-selection and will move along with the multiplier.
         const TInt v = ready ? CoreFieldValue(EffectiveCore(), ECoreL3)
                              : (iL3Div ? iL3Div : 4);
         if (!ready)
@@ -895,11 +898,11 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
             aOut.Format(_L(" BUSDIV /%d"), v);
             return;
             }
-        // Затиск шини показуємо ДО застосування, а не лише в лозі після
-        // нього. Менший дільник за живий - це підйом шини, і двигун його
-        // не пропустить (findings §38.2). Рядок мусить називати те
-        // значення, яке справді піде в залізо, інакше інтерфейс бреше про
-        // власну роботу, і виглядає це рівно як "дільник не працює".
+        // Bus clamping is shown BEFORE application, not only in log after
+        // it. Divider smaller than live one means bus increase, and engine
+        // will not permit it (findings §38.2). Row must show the
+        // value that will actually go into hardware, otherwise UI lies about
+        // its own operation, looking exactly like "divider does not work".
         const TUint32 got = BusKhz();
         const TUint32 want = iEngine->StockClocks().L3Khz();
         const TInt d = want ? (TInt)(((TInt64)got - want) * 1000 / want) : 0;
@@ -913,9 +916,9 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         }
     if (aRow == ERowTestProfile)
         {
-        // Тестовий профіль потрібен лише там, де апарат не впізнано. На
-        // відомому апараті пропонувати неперевірені адреси нема сенсу й
-        // шкідливо: доведений профіль завжди кращий.
+        // Test profile is only needed where device is unrecognized. On
+        // a known device offering untested addresses makes no sense and
+        // is harmful: a proven profile is always better.
         if (iKnownDevice)
             {
             aOut.Copy(OcStr(EStrTestProfileKnown));
@@ -945,9 +948,9 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         }
     if (aRow == ERowDsp)
         {
-        // DSP тактується від CORE, тож його частота залежить і від множника,
-        // і від цього дільника. Показуємо результат для ВИБРАНОГО множника,
-        // як і в решті рядків, плюс те, що стоїть у залізі просто зараз.
+        // DSP is clocked from CORE, so its frequency depends on both the multiplier
+        // and this divider. We show the result for the SELECTED multiplier,
+        // as in remaining rows, plus what is in hardware right now.
         if (!ready)
             {
             aOut.Format(_L(" DSPDIV /%d"), iDspDiv);
@@ -982,22 +985,22 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         TBuf<8> nm; nm.Copy(n8);
 
         if (f.iBase < 0 || !ready)
-            {                                  // не дільник: лише сире значення
+            {                                  // not a divider: raw value only
             aOut.Format(_L(" %S = %d"), &nm, v);
             return;
             }
-        // Частота цього домену при ВИБРАНОМУ множнику й цьому дільнику.
+        // Frequency of this domain at SELECTED multiplier and this divider.
         TOcClocks c;
         iEngine->ClocksFor(iMult, c);
         TUint32 base = c.CoreKhz();
-        if (f.iBase == 1)                      // L4 ділиться від L3, не від CORE
+        if (f.iBase == 1)                      // L4 divides from L3, not from CORE
             {
             TInt l3 = CoreFieldValue(core, ECoreL3);
             base = l3 ? c.CoreKhz() / (TUint32)l3 : 0;
             }
         TUint32 got = v ? base / (TUint32)v : 0;
 
-        // Штатна частота цього ж домену - точка відліку для налаштування.
+        // Stock frequency of this same domain - reference point for tuning.
         const TOcClocks& st = iEngine->StockClocks();
         TUint32 sbase = st.CoreKhz();
         TInt sv = CoreFieldValue(iEngine->StockCore(), id);
@@ -1031,8 +1034,8 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
 
 void COcView::RunTest(TRowId aRow)
     {
-    // Тести блокують цикл подій на секунди. Без цього рядка екран просто
-    // завмирає, і виглядає це так, ніби кнопка не спрацювала.
+    // Tests block the event loop for seconds. Without this line the screen simply
+    // freezes, making it look as though the button failed to act.
     iStatus.Copy(OcStr(EStrRunning));
     Repaint();
     TUint32* buf = Buffer();
@@ -1045,9 +1048,9 @@ void COcView::RunTest(TRowId aRow)
         {
         case ERowTestAlu:
             {
-            // Три різні числа, бо вони відповідають на різні питання:
-            // частота - на "скільки тактів за секунду", такти на операцію -
-            // на "скільки коштує робота", Mitr/s - на "чи збігся результат".
+            // Three different numbers, because they answer different questions:
+            // frequency - "how many cycles per second", cycles per operation -
+            // "how much work costs", Mitr/s - "did the result match".
             const TUint32 mhz = MeasureCoreMhz();
             AddLogF(_L("CLOCK %u MHz"), mhz);
             if (mhz)
@@ -1077,15 +1080,21 @@ void COcView::RunTest(TRowId aRow)
             ReportResult(KNameCache, r, KUnitMbs);
             break;
             }
+        case ERowTestCombined:
+            // Without this branch the row did nothing at all: the switch fell
+            // through to default and RunCombined was never reached.
+            RunCombined();
+            break;
+
         default:
             break;
         }
     iStatus.Zero();
     }
 
-// Комбінований прогін: усі підсистеми поспіль, кілька кіл, із підсумком по
-// кожній. Саме він відповідає на питання "де слабка ланка": під розгоном
-// першою почне давати err>0 та підсистема, яка не витримує.
+// Combined run: all subsystems sequentially, several rounds, with summary for
+// each. It specifically answers the question "where is the weak link": under overclocking
+// the subsystem that cannot keep up will be the first to yield err>0.
 void COcView::RunCombined()
     {
     TUint32* buf = Buffer();
@@ -1134,9 +1143,9 @@ void COcView::RunCombined()
         AddLog(OcStr(EStrVerdictWeakCpu));
     }
 
-// Пробне підключення неперевіреного профілю. Живе окремим методом, бо
-// викликається до перевірки готовності двигуна - на невідомому апараті він
-// саме тому й не готовий, що профілю ще немає.
+// Trial connection of untested profile. Lives in a separate method because
+// it is called prior to engine readiness check - on an unknown device it is
+// not ready precisely because there is no profile yet.
 void COcView::ActivateTestProfile()
     {
     if (iKnownDevice || !iEngine)
@@ -1154,8 +1163,8 @@ void COcView::ActivateTestProfile()
     const TInt pr = iEngine->Prepare();
     if (pr == KErrNone)
         {
-        // Статус досі каже "невідомий апарат" - після вдалого підключення це
-        // вже неправда, і лишати його поверх робочого екрана не можна.
+        // Status still says "unknown device" - after successful connection this
+        // is no longer true, and it cannot be left on top of the working screen.
         iStatus.Zero();
         AddLog(OcStr(EStrTestProfileOk));
         if (iEngine->FoundGlobal())
@@ -1187,9 +1196,9 @@ void COcView::Activate(TRowId aRow)
         Repaint();
         return;
         }
-    // Тестовий профіль обробляємо до перевірки IsReady(): двигун не готовий
-    // саме на невідомому апараті, а цей рядок існує рівно для такого апарата.
-    // Якщо лишити його після перевірки, він ніколи не спрацює.
+    // Handle test profile before IsReady() check: engine is not ready
+    // specifically on an unknown device, and this row exists precisely for such a device.
+    // Leaving it after the check would make it never execute.
     if (aRow == ERowTestProfile && !iKnownDevice)
         {
         ActivateTestProfile();
@@ -1199,7 +1208,7 @@ void COcView::Activate(TRowId aRow)
         {
         if (aRow >= ERowTestAlu && aRow != ERowHelp && aRow != ERowTestProfile)
             {
-            RunTest(aRow);          // тести працюють і без патчера
+            RunTest(aRow);          // tests work without patcher as well
             return;
             }
         AddLog(OcStr(EStrEngineDisabled));
@@ -1220,10 +1229,10 @@ void COcView::Activate(TRowId aRow)
             break;
 
         case ERowKeep:
-            // Частота переживає процес сама по собі - це не наша послуга, а
-            // властивість заліза. Питання лише в тому, чи знімає її деструктор,
-            // і відповідь на нього тепер за користувачем. Ребут повертає штатне
-            // тактування в будь-якому разі, тож незворотного тут немає.
+            // Frequency outlives the process on its own - this is not our service, but
+            // a hardware property. The only question is whether destructor clears it,
+            // and the answer to that is now up to the user. Reboot restores stock
+            // clocking in any case, so there is nothing irreversible here.
             iKeep = !iKeep;
             iEngine->KeepOnExit(iKeep);
             AddLog(OcStr(iKeep ? EStrKeepRowOn : EStrKeepRowOff));
@@ -1232,17 +1241,17 @@ void COcView::Activate(TRowId aRow)
             break;
 
         case ERowLang:
-            // OK гортає мову так само, як стрілки: у списку з двадцяти восьми
-            // позицій шукати потрібну зручніше обома способами.
+            // OK cycles language just like the arrow keys: in a list of twenty-eight
+            // entries searching for the right one is convenient either way.
             SetLanguage(OcStrLanguageIndex() + 1);
             break;
 
         case ERowL3:
-            // OK нічого не застосовує - лише знімає ручне значення й повертає
-            // поле на автопідбір. Застосування, як і в решті полів CLKSEL1_CORE,
-            // іде тільки через APPLY + CONFIRM: цей дільник міняється в тому
-            // самому записі, що й множник, і окремого швидкого шляху, як у DSP,
-            // для нього немає.
+            // OK applies nothing - only clears manual value and returns
+            // field to auto-selection. Application, as with remaining CLKSEL1_CORE fields,
+            // proceeds only via APPLY + CONFIRM: this divider changes in the
+            // same write as multiplier, and has no separate fast path like DSP does.
+            // for it.
             if (iL3Div)
                 {
                 iL3Div = 0;
@@ -1257,10 +1266,10 @@ void COcView::Activate(TRowId aRow)
 
         case ERowDsp:
             {
-            // Застосовується одразу, без arm/confirm. Причина: зміна ізольована
-            // в домені DSP - ні CORE, ні SDRAM, ні дисплей не зачіпаються, тож
-            // немає вікна, в якому апарат міг би зависнути «на льоту», як при
-            // relock DPLL. Ребут повертає штатний дільник у будь-якому разі.
+            // Applied immediately, without arm/confirm. Reason: change is isolated
+            // within the DSP domain - neither CORE, nor SDRAM, nor display are affected, so
+            // there is no window in which the device could hang "on the fly", as with
+            // DPLL relock. Reboot restores stock divider in any case.
             if (iDspDiv == iEngine->DspDiv())
                 {
                 AddLog(OcStr(EStrDspAlreadySet));
@@ -1270,8 +1279,8 @@ void COcView::Activate(TRowId aRow)
             TInt r = iEngine->ApplyDspDiv(iDspDiv, rc);
             if (r == KErrNotSupported)
                 {
-                // Профіль без адреси сеттера. Кажемо чому, бо інакше це
-                // виглядає як поламаний пункт меню.
+                // Profile without setter address. Explain why, because otherwise it
+                // looks like a broken menu item.
                 AddLog(OcStr(EStrDspNoSetter));
                 AddLog(OcStr(EStrDspNoSetterWhy));
                 break;
@@ -1291,7 +1300,7 @@ void COcView::Activate(TRowId aRow)
                 AddLogF(_L("dsp: latch failed (rc=%d)"), rc);
                 break;
                 }
-            // Читаємо назад: своєму запису не віримо - правило проєкту.
+            // Read back: do not trust our own write - project rule.
             TInt live = 0;
             iEngine->LiveDspDiv(live);
             AddLogF(_L("dsp: /%d applied, live /%d"), iDspDiv, live);
@@ -1300,20 +1309,22 @@ void COcView::Activate(TRowId aRow)
                 AddLog(OcStr(EStrDspMismatch));
                 break;
                 }
-            // Повернення до штатного - без сторожа: воно безпечне й остаточне.
+            // Return to stock - without watchdog: it is safe and permanent.
             if (!iEngine->IsDspChanged())
                 {
                 CancelDspRevert();
                 break;
                 }
-            // Нештатний дільник відпускаємо лише під сторожа. Лишити його
-            // назавжди не можна: виміряно два ребути з двох, причому один - у
-            // повному простої, без жодного навантаження на DSP (findings §24.5).
+            // Non-stock divider is released only under watchdog. Leaving it
+            // forever is not allowed: measured two reboots out of two, one being
+            // at complete idle, without any load on the DSP (findings §24.5).
             CancelDspRevert();
-            TRAPD(terr, iDspTimer = CPeriodic::NewL(CActive::EPriorityStandard));
+            TInt terr = KErrNone;
+            if (!iDspTimer)
+                TRAP(terr, iDspTimer = CPeriodic::NewL(CActive::EPriorityStandard));
             if (terr != KErrNone || !iDspTimer)
                 {
-                // Немає сторожа - немає й права тримати нештатний дільник.
+                // No watchdog - no right to hold non-stock divider.
                 AddLog(OcStr(EStrDspNoTimer));
                 TInt rc2 = 0;
                 iEngine->RestoreDspDiv(rc2);
@@ -1327,8 +1338,8 @@ void COcView::Activate(TRowId aRow)
                     KDspHoldSec);
             if (iDspDiv < iEngine->StockDspDiv())
                 {
-                // Не «може бути», а виміряно: 330 МГц валить апарат, щойно на
-                // C55x щось запускається - аудіо, камера, будь-що.
+                // Not "could be", but measured: 330 MHz crashes the device as soon as
+                // anything starts on C55x - audio, camera, whatever.
                 AddLog(OcStr(EStrWarnDspAbove));
                 AddLog(OcStr(EStrWarnDspUseMult));
                 }
@@ -1336,8 +1347,8 @@ void COcView::Activate(TRowId aRow)
             }
 
         case ERowApply:
-            // Лише озброює. Частоту НЕ чіпає: це та сама "окрема опція
-            // застосування", після якої потрібне окреме підтвердження.
+            // Only arms. Does NOT touch frequency: this is the same "separate application
+            // option", followed by requiring separate confirmation.
             iArmedMult = iMult;
             iArmedCore = EffectiveCore();
             iArmedMpu = (iEngine->StockMpu() & ~KMpuDivMask) |
@@ -1366,18 +1377,21 @@ void COcView::Activate(TRowId aRow)
             TUint32 st = 0;
             iStatus.Format(OcStr(EStrApplying), iArmedMult);
             Repaint();
-            // Дати вікну намалюватись і на мить затихнути перед переходом.
+            // Allow window to draw and settle for a moment before the transition.
             User::After(150000);
             TInt r = iEngine->ApplyRampWithCore(iArmedMult, iArmedCore,
                                                 iArmedMpu, st);
             iStatus.Zero();
             {
-            // Чи ВЗЯВСЯ запис дільників. Апаратура відкидає весь запис у
-            // CM_CLKSEL1_CORE, якщо хоч одне поле недійсне, і мовчки; доти
-            // застосунок звітував про намір, а не про результат (findings 38).
-            // Порівнюємо з тим, що двигун НАСПРАВДІ віддав у залізо: поле l3 він
-            // затискає живим значенням, бо підйом шини смертельний (findings 38.2).
+            // Whether divider write TOOK EFFECT. Hardware silently rejects entire write to
+            // CM_CLKSEL1_CORE if any single field is invalid; previously
+            // the application reported intent rather than result (findings 38).
+            // Compare against what engine ACTUALLY submitted to hardware: it clamps
+            // l3 field to the live value, because raising the bus is fatal (findings 38.2).
             const TUint32 wroteCore = iEngine->LastCoreWritten();
+            // Kept as an assertion rather than as a clamp report: the engine
+            // no longer alters the register it is given, so a difference here
+            // would mean a write went astray.
             if (wroteCore != iArmedCore)
                 AddLogF(OcStr(EStrBusClamped),
                         (TInt)(wroteCore & KCoreL3Mask));
@@ -1406,8 +1420,8 @@ void COcView::Activate(TRowId aRow)
                 }
             if (st != 0)
                 {
-                // Блоб уже сам відкатився на попереднє значення всередині
-                // критичної секції, тож тут лишається тільки повідомити.
+                // Blob already rolled back to previous value on its own within
+                // the critical section, so here we only report it.
                 AddLog(OcStr(EStrRelockFailed));
                 }
             iArmed = EFalse;
@@ -1421,8 +1435,8 @@ void COcView::Activate(TRowId aRow)
             TInt live = 0;
             iEngine->LiveMult(live);
             AddLogF(_L("restored: r=%d live m%d"), r, live);
-            // Шину назад не піднімаємо: чотири смерті з чотирьох на двох апаратах
-            // (findings 38.2). Знижена шина безпечна, ребут повертає штатну.
+            // We do not raise the bus back: four deaths out of four across two devices
+            // (findings 38.2). Lowered bus is safe, reboot restores stock.
             if (iEngine->RestoreNeedsReboot())
                 AddLog(OcStr(EStrBusLeftLowered));
             {
@@ -1430,13 +1444,13 @@ void COcView::Activate(TRowId aRow)
             if (iEngine->LiveCore(lc) == KErrNone)
                 iLiveL3 = (TInt)(lc & KCoreL3Mask);
             }
-            // Дільник DSP - у тому ж «повернути все як було»: інакше довелося б
-            // памʼятати, що RESTORE STOCK стосується не всього.
+            // DSP divider - in the same "return everything to stock": otherwise one would have to
+            // remember that RESTORE STOCK does not apply to everything.
             RestoreDspNow(OcStr(EStrReasonRestore));
             iMult = iEngine->StockMult();
             iCoreReg = iEngine->StockCore();
             iMpuDiv = iEngine->StockClocks().iMpuDiv;
-            iL3Div = 0;                       // разом з усім іншим - на автопідбір
+            iL3Div = 0;                       // along with everything else - to auto-selection
             iDspDiv = iEngine->StockDspDiv();
             iArmed = EFalse;
             break;
@@ -1445,8 +1459,8 @@ void COcView::Activate(TRowId aRow)
         default:
             if (aRow >= ERowDivFirst && aRow <= ERowDivLast)
                 {
-                // На рядку дільника OK нічого не застосовує - значення
-                // крутиться вліво/вправо. Так менше шансів зачепити випадково.
+                // On divider row OK applies nothing - value
+                // cycles left/right. Reduces chance of accidental trigger.
                 AddLog(OcStr(EStrHintArrowsDiv));
                 }
             else
@@ -1504,8 +1518,8 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
                     {
                     iMult = m;
                     iArmed = EFalse;
-                    // В авто-режимі дільники перераховуються самі; у ручному
-                    // лишаються як є - у цьому й сенс ручного.
+                    // In auto mode dividers recalculate on their own; in manual
+                    // they remain as is - that is the whole point of manual.
                     }
                 }
             else if (iRow == ERowMpu)
@@ -1519,17 +1533,17 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
                 }
             else if (iRow == ERowL3)
                 {
-                // Крутимо від ТОГО, що зараз показано, а не від збереженого:
-                // поки дільник на автопідборі, показане значення прийшло від
-                // CompensatedCore, і крок мусить іти саме від нього.
+                // Adjust from WHAT is currently shown, not from saved value:
+                // while divider is on auto-selection, shown value came from
+                // CompensatedCore, and step must proceed from it.
                 const TInt cur = CoreFieldValue(EffectiveCore(), ECoreL3);
                 const TInt nv = L3DivStep(cur, dir);
                 if (nv != cur)
                     {
                     iL3Div = nv;
-                    // Дзеркалимо в ручний регістр, щоб рядок L3 у списку нижче
-                    // показував те саме: два контроли на одне поле, які
-                    // розійшлись би, - це готова пастка.
+                    // Mirror into manual register so L3 row in list below
+                    // shows the same: two controls for one field that
+                    // diverge would be an outright trap.
                     iCoreReg = CoreFieldSet(iCoreReg, ECoreL3, nv);
                     iArmed = EFalse;
                     WarnBus(nv);
@@ -1550,9 +1564,9 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
                 }
             else if (iRow == ERowDsp)
                 {
-                // Крутиться вільно, у залізо нічого не йде: застосування - лише
-                // по OK на цьому ж рядку. iArmed не чіпаємо - шлях DSP окремий
-                // від arm/confirm для частоти ядра.
+                // Cycles freely, nothing goes into hardware: application only
+                // on OK on this same row. Leave iArmed untouched - DSP path is separate
+                // from arm/confirm for core frequency.
                 iDspDiv = DspDivStep(iDspDiv, dir);
                 }
             else if (iRow == ERowMode)
@@ -1576,9 +1590,9 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
                     if (nv != v)
                         {
                         iCoreReg = CoreFieldSet(iCoreReg, id, nv);
-                        // Те саме поле, що й рядок BUSDIV нагорі: тримаємо їх
-                        // в одному значенні, інакше верхній рядок мовчки
-                        // перекрив би щойно введене тут.
+                        // Same field as BUSDIV row at the top: keep them
+                        // at the same value, otherwise top row would silently
+                        // override what was just entered here.
                         if (id == ECoreL3)
                             {
                             iL3Div = nv;
@@ -1602,12 +1616,19 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
             return EKeyWasConsumed;
 
         default:
-            // Цифри 1..9 на рядку MULT - швидкий стрибок на кратні 5% від штатного.
+            // Digits 1..9 on MULT row - fast jump to multiples of 5% from stock.
             if (iRow == ERowSlider && aKeyEvent.iCode >= '0' && aKeyEvent.iCode <= '9')
                 {
-                TInt stock = iEngine ? iEngine->StockMult() : 86;
+                // StockMult() is zero until the engine is ready, and zero here
+                // used to propagate straight into iMult, below the allowed
+                // minimum. Fall back to the value both supported phones share.
+                TInt stock = iEngine ? iEngine->StockMult() : 0;
+                if (stock <= 0)
+                    stock = 86;
                 TInt pct = (aKeyEvent.iCode - '0') * 5;
                 TInt m = stock + (stock * pct) / 100;
+                if (m < KOcMultMin)
+                    m = KOcMultMin;
                 iMult = (m > KOcMultMax) ? KOcMultMax : m;
                 iArmed = EFalse;
                 }
@@ -1620,12 +1641,12 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
     return EKeyWasConsumed;
     }
 
-// Малює рядок, обрізаний по ширині вікна.
+// Draws string clipped to window width.
 //
-// Без цього довгий рядок просто йшов за край екрана, і кінець тексту ставав
-// невидимим - саме так зникала назва з версією на N95 (зауваження з апарата,
-// 2026-09-12). Обрізаємо по символах, а не по пікселях: половина символу
-// виглядала б як дефект малювання.
+// Without this a long line simply went beyond screen edge, and end of text became
+// invisible - this was exactly how the name with version vanished on N95 (device remark,
+// 2026-09-12). We clip by characters rather than pixels: half a glyph
+// would look like a rendering artifact.
 static void DrawClipped(CWindowGc& aGc, const CFont* aFont, const TDesC& aText,
                         const TPoint& aPt, TInt aWidth)
     {
@@ -1640,18 +1661,18 @@ static void DrawClipped(CWindowGc& aGc, const CFont* aFont, const TDesC& aText,
     aGc.DrawText(aText.Left(n), aPt);
     }
 
-// Друкує текст, переносячи його по ширині вікна.
+// Prints text, wrapping it across window width.
 //
-// Ручні переноси в джерелі не годяться: ширина екрана відома лише на апараті,
-// і те, що влізло на 240 точках N95, обрізається на вужчому апараті й лишає
-// порожнє поле на ширшому. Тому текст у src/strings.json лежить абзацами, а
-// ріже його ось ця функція - по пробілах, і лише коли слово не влазить цілком,
-// посередині слова.
+// Manual wraps in source do not work: screen width is known only on device,
+// and what fit across 240 pixels of N95 gets clipped on narrower device and leaves
+// empty space on wider one. Therefore text in src/strings.json resides in paragraphs, and
+// this function breaks it - at spaces, and only when a word does not fit entirely,
+// in the middle of a word.
 //
-// Одна функція робить дві роботи: з aGc == NULL вона нічого не малює, а тільки
-// рахує рядки. Це потрібно для прокрутки довідки, межі якої без переносу
-// невідомі. aSkip - скільки готових рядків пропустити (верх прокрутки).
-// Повертає, скільки рядків текст займає всього.
+// A single function does two jobs: with aGc == NULL it draws nothing, only
+// counts lines. This is needed for help scrolling, whose boundaries without wrapping
+// are unknown. aSkip - how many formatted lines to skip (scroll top).
+// Returns total number of lines text occupies.
 static TInt WrapText(CWindowGc* aGc, const CFont* aFont, const TDesC& aText,
                      TInt aX, TInt& aY, TInt aLh, TInt aYMax, TInt aWidth,
                      TInt& aSkip)
@@ -1666,7 +1687,7 @@ static TInt WrapText(CWindowGc* aGc, const CFont* aFont, const TDesC& aText,
             {
             if (len != 0)
                 break;
-            seg.Set(KNullDesC);          // порожній абзац - порожній рядок
+            seg.Set(KNullDesC);          // empty paragraph - empty line
             }
         else
             {
@@ -1699,8 +1720,8 @@ static TInt WrapText(CWindowGc* aGc, const CFont* aFont, const TDesC& aText,
     return lines;
     }
 
-// Довідка на весь екран. Тим самим дрібним шрифтом, що й решта: рядки в
-// src/strings.json уже нарізані під цю ширину, тож переносу тут немає.
+// Full-screen help. In the same small font as the rest: strings in
+// src/strings.json are already broken for this width, so there is no wrapping here.
 void COcView::DrawHelp(CWindowGc& aGc, const TRect& aRect) const
     {
     const CFont* font = CEikonEnv::Static()->AnnotationFont();
@@ -1721,8 +1742,8 @@ void COcView::DrawHelp(CWindowGc& aGc, const TRect& aRect) const
     aGc.DiscardFont();
     }
 
-// Скільки рядків довідка займає ПІСЛЯ переносу. Залежить від ширини вікна,
-// тож рахується щоразу, а не запам'ятовується.
+// How many lines help occupies AFTER wrapping. Depends on window width,
+// so calculated each time rather than remembered.
 TInt COcView::HelpTotalLines() const
     {
     const CFont* font = CEikonEnv::Static()->AnnotationFont();
@@ -1759,17 +1780,17 @@ void COcView::Draw(const TRect& /*aRect*/) const
         return;
         }
 
-    // Дрібний шрифт і явне обрізання: з NormalFont вміст не влазив, і рядки
-    // логу малювались за краєм екрана (виглядало як "тести не працюють").
+    // Small font and explicit clipping: with NormalFont content did not fit, and log
+    // lines were drawn beyond screen edge (looking like "tests do not work").
     const CFont* font = CEikonEnv::Static()->AnnotationFont();
     gc.UseFont(font);
     const TInt lh = font->HeightInPixels() + 1;
     const TInt x = r.iTl.iX + 2;
     const TInt w = r.Width() - 4;
-    TInt noSkip = 0;                        // WrapText не пропускає нічого
-    // Журнал прибитий до нижнього краю: спершу рахуємо, скільки він займе,
-    // і лише решту віддаємо шапці зі списком. Інакше довгий список видавлює
-    // результати тестів за екран саме тоді, коли вони щойно з'явились.
+    TInt noSkip = 0;                        // WrapText skips nothing
+    // Log is anchored to the bottom edge: first compute how much it will take,
+    // and allocate only the remainder to header with list. Otherwise long list pushes
+    // test results off screen right when they just appeared.
     const TInt logH = LogLines();
     const TInt logY = r.iBr.iY - 2 - (logH > 0 ? (logH - 1) * lh : 0);
     const TInt yMax = (logH > 0) ? logY - lh : r.iBr.iY - lh;
@@ -1779,7 +1800,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
 
     const TBool ready = (iEngine && iEngine->IsReady());
 
-    // --- шапка: штатний стан і те, що вийде після застосування ---
+    // --- header: stock state and what will result after application ---
     if (ready)
         {
         const TOcClocks& st = iEngine->StockClocks();
@@ -1812,7 +1833,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
         y += lh;
         }
 
-    // --- прокрутний список ---
+    // --- scrollable list ---
     const TInt vis = VisibleRows();
     TInt last = iTop + vis;
     if (last > ERowCount)
@@ -1824,7 +1845,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
         line.Format(_L("%c%S"), (iRow == row) ? '>' : ' ', &label);
         WrapText(&gc, font, line, x, y, lh, yMax, w, noSkip);
         }
-    // Позначка, що список довший за екран.
+    // Marker indicating list is longer than screen.
     if (last < ERowCount && y < yMax)
         {
         line.Format(OcStr(EStrMoreRows), ERowCount - last);
@@ -1835,9 +1856,9 @@ void COcView::Draw(const TRect& /*aRect*/) const
         {
         WrapText(&gc, font, iStatus, x, y, lh, yMax, w, noSkip);
         }
-    // Згори журналу - НАЙНОВІШИЙ запис. Доти новий рядок ставав унизу, тобто
-    // найдалі від ока й першим за краєм екрана, і ставав видимим лише тоді,
-    // коли його підпирав ще новіший.
+    // Top of log shows NEWEST entry. Previously new line went to the bottom, i.e.
+    // farthest from eye and first beyond screen edge, becoming visible only
+    // when pushed by an even newer one.
     if (logH > 0)
         {
         TInt ly = logY;
@@ -1849,7 +1870,7 @@ void COcView::Draw(const TRect& /*aRect*/) const
     gc.DiscardFont();
     }
 
-// --- каркас застосунку ------------------------------------------------------
+// --- application framework --------------------------------------------------
 
 class COcAppUi : public CAknAppUi
     {
@@ -1864,19 +1885,24 @@ private:
 
 void COcAppUi::ConstructL()
     {
-    // ENoScreenFurniture прибирає і статусну стрічку, і панель софт-клавіш, тож
-    // застосунок займає весь екран в обох орієнтаціях. Разом із ним rect треба
-    // брати з ApplicationRect(), а не ClientRect(): останній повертає область
-    // ПІД furniture, якого тепер немає.
+    // ENoScreenFurniture removes both status pane and softkey pane, so
+    // application occupies entire screen in both orientations. Along with it rect must
+    // be taken from ApplicationRect() rather than ClientRect(): the latter returns the area
+    // UNDER furniture, which is now absent.
     BaseConstructL(CAknAppUi::ENoAppResourceFile | CAknAppUi::EAknEnableSkin |
                    CAknAppUi::ENoScreenFurniture);
     iView = COcView::NewL(ApplicationRect());
+    // AddToStackL can leave when memory is short. Without the cleanup stack the
+    // view - and with it the engine and its open kernel channels - would simply
+    // be lost.
+    CleanupStack::PushL(iView);
     AddToStackL(iView);
+    CleanupStack::Pop(iView);
     }
 
-// Поворот екрана міняє геометрію, і без цього застосунок лишався б із
-// вертикальним прямокутником у ландшафтному режимі - саме тому результати
-// читались нормально лише в одній орієнтації.
+// Screen rotation changes geometry, and without this application would remain with
+// a vertical rectangle in landscape mode - exactly why results were readable
+// normally only in one orientation.
 void COcAppUi::HandleResourceChangeL(TInt aType)
     {
     CAknAppUi::HandleResourceChangeL(aType);
@@ -1891,7 +1917,7 @@ COcAppUi::~COcAppUi()
     {
     if (iView)
         {
-        // Порядок важливий: спершу знімаємо розгін, потім руйнуємо контрол.
+        // Order matters: first remove overclock, then destroy control.
         TRAP_IGNORE(iView->ShutdownL());
         RemoveFromStack(iView);
         delete iView;

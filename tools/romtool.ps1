@@ -1,10 +1,10 @@
-# Розбір ROM-образів Symbian: заголовок, дизасемблювання, резольв import-стубів.
+# Parsing Symbian ROM images: header, disassembly, import stub resolution.
 #
-# ROM-образ = TRomImageHeader (120 байтів) + код. Це НЕ E32ImageHeader.
-# Усі 32-бітні константи беруться через [Convert]::ToUInt32(hex,16): PowerShell
-# парсить 8-значний hex-літерал як Int32 і мовчки робить його від'ємним.
+# ROM image = TRomImageHeader (120 bytes) + code. This is NOT E32ImageHeader.
+# All 32-bit constants are obtained via [Convert]::ToUInt32(hex,16): PowerShell
+# parses an 8-character hex literal as Int32 and silently makes it negative.
 param(
-    [Parameter(Mandatory = $true)][string]$Module,   # ім'я файлу в sys\bin
+    [Parameter(Mandatory = $true)][string]$Module,   # filename in sys\bin
     [switch]$Disasm,
     [switch]$Imports
 )
@@ -31,7 +31,7 @@ if ($Disasm) {
 }
 
 if ($Imports) {
-    # карта модулів для резольву цілей
+    # module map for resolving targets
     $map = New-Object System.Collections.ArrayList
     Get-ChildItem $ROM -File | ForEach-Object {
         try {
@@ -44,13 +44,13 @@ if ($Imports) {
             [void]$map.Add([pscustomobject]@{ Name = $_.Name; Lo = $l; Hi = [uint32]($l + $s) })
         } catch { }
     }
-    Write-Host "  import-стуби:"
+    Write-Host "  import stubs:"
     for ($i = 0; $i -le $b.Length - 8; $i += 4) {
         if ([BitConverter]::ToUInt32($b, $i) -ne $STUB) { continue }
         $t  = [BitConverter]::ToUInt32($b, $i + 4)
         $va = [uint32]($ca + $i - $HDR)
         $m  = $map | Where-Object { $t -ge $_.Lo -and $t -lt $_.Hi } | Select-Object -First 1
-        $own = if ($m) { "{0} +0x{1:X}" -f $m.Name, ($t - $m.Lo) } else { "<не резольвиться>" }
+        $own = if ($m) { "{0} +0x{1:X}" -f $m.Name, ($t - $m.Lo) } else { "<does not resolve>" }
         Write-Host ("    stub@0x{0:X8} -> 0x{1:X8}  {2}" -f $va, $t, $own)
     }
 }

@@ -1,16 +1,16 @@
-// Пробник DVFS для Symbian 9.2 / OMAP 2420 (еталон - Nokia N95 8GB).
+// DVFS probe for Symbian 9.2 / OMAP 2420 (reference device: Nokia N95 8GB).
 //
-// Нічого не змінює. Три задачі:
-//   1. зняти те, що система сама повідомляє про частоту (HAL);
-//   2. виміряти РЕАЛЬНУ швидкодію ядра і пам'яті - незалежний прилад, яким
-//      потім доводитимемо, що зміна частоти справжня, а не намальована;
-//   3. з'ясувати, чи видно kernel-side драйвер DVFS із користувацького боку.
+// Changes nothing. Three tasks:
+//   1. capture what the system itself reports about frequency (HAL);
+//   2. measure REAL core and memory performance - an independent instrument
+//      that will later prove the frequency change is real, not fabricated;
+//   3. determine if the kernel-side DVFS driver is visible from user space.
 //
-// Пункт 2 тут ключовий: усі відомі "розгони" Symbian провалилися саме на
-// тому, що міряли напис, а не роботу.
+// Item 2 is key here: all known Symbian "overclocks" failed precisely
+// because they measured the label, not the actual work.
 //
-// Рядки логу навмисно ASCII: GCCE 3.4.3 і 8-бітні дескриптори не варті ризику
-// з кирилицею в літералах.
+// Log strings are intentionally ASCII: GCCE 3.4.3 and 8-bit descriptors are not worth the risk
+// of Cyrillic in literals.
 
 #include <e32base.h>
 #include <e32std.h>
@@ -26,19 +26,19 @@
 
 _LIT(KLogFile, "E:\\ocprobe.log");
 _LIT(KLddFile, "dvfs_interface.ldd");
-// Зареєстроване ім'я взято з переліку TFindLogicalDevice на живому апараті.
-// Рядок "DVFSInterfaceDriver" усередині .ldd - це назва фабрики, не каналу;
-// спроба відкритись по ній дає KErrNotFound.
+// Registered name is taken from TFindLogicalDevice enumeration on a live device.
+// The string "DVFSInterfaceDriver" inside .ldd is the factory name, not the channel;
+// attempting to open using it yields KErrNotFound.
 _LIT(KLddName, "dvfs_interface");
 _LIT(KLddNameAlt, "DVFSInterfaceDriver");
 
-// Тестовий драйвер силового API. Лежить у Z:\sys\bin, штатно не завантажений.
+// Power API test driver. Located in Z:\sys\bin, not loaded by default.
 _LIT(KPwrFile, "d_powerapi.ldd");
 _LIT(KPwrName, "TestPowerAPI");
 
-// RomPatcher+ драйвер. У ROM його НЕМАЄ - демон заливає file0 у E:\sys\bin
-// перед прогоном. Iм'я каналу - з рядка всередині .ldd, звірено з диспетчером
-// DoControl (func 100..105, findings 14). func 105 = одиничний запис:
+// RomPatcher+ driver. It is NOT in ROM - the daemon pushes file0 to E:\sys\bin
+// before the run. Channel name is from the string inside .ldd, verified against the
+// DoControl dispatcher (func 100..105, findings 14). func 105 = single write:
 //   DoControl(105, &addr, &desc) -> memmove(dest=addr, src=desc.Ptr(), len=desc.Length())
 _LIT(KPatcherFile, "patcher.ldd");
 _LIT(KPatcherName, "RomPatcherPlus.Driver");
@@ -64,11 +64,11 @@ static void LogF(TRefByValue<const TDesC8> aFmt, ...)
     Log(buf);
     }
 
-// --- прилад -----------------------------------------------------------------
+// --- instrument -------------------------------------------------------------
 
-// Цикл із залежністю по даних: кожна ітерація чекає результату попередньої,
-// тож час масштабується з тактовою частотою ядра, а не з шириною конвеєра
-// і не з пам'яттю (робочий набір - один регістр, влазить у будь-який кеш).
+// Loop with data dependency: each iteration waits for the result of the previous one,
+// so execution time scales with the core clock frequency, rather than pipeline width
+// or memory (working set is a single register, fits in any cache).
 static TUint32 SpinAlu(TUint32 aIter)
     {
     TUint32 x = 0x12345678u;
@@ -80,22 +80,34 @@ static TUint32 SpinAlu(TUint32 aIter)
     return x;
     }
 
-// Обхід буфера, більшого за кеш: впирається в L3/SDRAM. На OMAP2 частота ядра
-// і частота шини змінюються разом, тож цей замір відрізнить одне від одного.
+// Traversing a buffer larger than cache: bounded by L3/SDRAM. On OMAP2, core frequency
+// and bus frequency change together, so this measurement distinguishes between the two.
+// Reads EVERY word, so the byte count comes from the buffer size and no cache
+// line length has to be assumed.
+//
+// FIXED 2026-09-13. This used to step 64 bytes and count "reads x 64", which
+// assumed a 64-byte cache line. A stride sweep on the device puts the plateau
+// at 32 bytes (findings 46.1), so every figure it produced was exactly twice
+// the truth. The loop is unrolled by eight because the rolled version is bound
+// by its own counter and branch rather than by memory.
 static TUint32 SpinMem(TUint32 *aBuf, TInt aWords, TInt aPasses)
     {
     TUint32 acc = 0;
+    const TInt n = aWords & ~7;
     for (TInt p = 0; p < aPasses; ++p)
-        for (TInt i = 0; i < aWords; i += 16)   // крок = рядок кешу (64 Б)
-            acc += aBuf[i];
+        for (TInt i = 0; i < n; i += 8)
+            {
+            acc += aBuf[i]   + aBuf[i+1] + aBuf[i+2] + aBuf[i+3];
+            acc += aBuf[i+4] + aBuf[i+5] + aBuf[i+6] + aBuf[i+7];
+            }
     return acc;
     }
 
-// АБСОЛЮТНИЙ замір частоти. 256 незалежних додавань поспіль: ARM1136 -
-// одноконвеєрний, кожне таке додавання коштує рівно такт, залежностей між ними
-// немає, промахів I-cache теж (1 КБ коду при 16 КБ кешу). Тож такт ділиться на
-// час напряму - на відміну від циклу з множенням, де тактів на ітерацію ми
-// точно не знаємо і 206 від 332 МГц не відрізнимо.
+// ABSOLUTE frequency measurement. 256 independent additions in a row: ARM1136 is
+// single-issue, each such addition costs exactly one cycle, there are no dependencies
+// between them, and no I-cache misses (1 KB of code within a 16 KB cache). Thus cycles divide
+// directly by time - unlike a multiplication loop where cycles per iteration
+// are not known precisely and 206 cannot be distinguished from 332 MHz.
 const TUint32 KNopCyclesPerIter = 258;   // 256 add + subs + bne
 
 static void SpinNop(TUint32 aIter)
@@ -110,25 +122,25 @@ static void SpinNop(TUint32 aIter)
         : "+r" (aIter) : : "r3", "cc");
     }
 
-// Мікросекунди між двома відліками швидкого лічильника.
+// Microseconds between two fast counter readings.
 static TUint32 ElapsedUs(TUint32 aStart, TUint32 aEnd)
     {
-    TUint32 d = aEnd - aStart;      // беззнакове віднімання переживає обгортання
+    TUint32 d = aEnd - aStart;      // unsigned subtraction survives wrapping
     if (gFcFreq == 0)
         return 0;
     return (TUint32)(((TUint64)d * 1000000u) / gFcFreq);
     }
 
-// --- канал драйвера ---------------------------------------------------------
+// --- driver channel ---------------------------------------------------------
 
-// Розкладка взята з дизасемблера dvfs_interface.ldd (HandleMsg @0x80148698):
-//   iValue == 0x80000000 -> закриття каналу
-//   iValue <  0          -> DoRequest, номер = ~iValue
+// Layout taken from disassembly of dvfs_interface.ldd (HandleMsg @0x80148698):
+//   iValue == 0x80000000 -> channel close
+//   iValue <  0          -> DoRequest, request number = ~iValue
 //   iValue >= 0          -> DoControl
-// DoRequest(0, status, a1, a2) веде в SetPerformance @0x80148460, де рішення
-// ухвалюється ВИКЛЮЧНО за a2: cmp r2,#50, більше - резервувати, менше або
-// дорівнює - звільнити. a1 не читається. Рівень зашитий константою (mov r0,#66),
-// тож довільної частоти цей інтерфейс не приймає.
+// DoRequest(0, status, a1, a2) leads to SetPerformance @0x80148460, where the decision
+// is made EXCLUSIVELY based on a2: cmp r2,#50, greater - reserve, less than or
+// equal - release. a1 is not read. The level is hardcoded as a constant (mov r0,#66),
+// so this interface does not accept arbitrary frequencies.
 class RDvfs : public RBusLogicalChannel
     {
 public:
@@ -136,19 +148,19 @@ public:
         {
         return DoCreate(aName, aVer, KNullUnit, NULL, NULL, EOwnerProcess);
         }
-    // DoControl(1, ...) @0x80148410 робить GetClockFrequency(MPU) і ділить на
-    // 3300000, тобто віддає відсоток від номіналу. Решта опкодів повертають 0.
+    // DoControl(1, ...) @0x80148410 calls GetClockFrequency(MPU) and divides by
+    // 3300000, returning the percentage of nominal. Remaining opcodes return 0.
     TInt PerfPercent() { return DoControl(1, (TAny *)0); }
-    // DoControl захищений у RBusLogicalChannel, тож відкриваємо його явно.
+    // DoControl is protected in RBusLogicalChannel, so expose it explicitly.
     TInt Ctl(TInt aFunc) { return DoControl(aFunc, (TAny *)0); }
-    // Після READ-патчу DoControl(1) повертає r0 з ldr [a1]. TInt тут лише
-    // транспорт: викликач одразу приводить результат до TUint32.
+    // After the READ patch, DoControl(1) returns r0 from ldr [a1]. TInt here is only
+    // transport: the caller immediately casts the result to TUint32.
     TInt ReadRaw(TUint32 aAddress) { return DoControl(1, (TAny *)aAddress); }
-    // Після EXEC-патчу те саме DoControl(1) стає "bx r1", тобто викликом коду
-    // за адресою a1 у режимі ядра. Окрема назва - щоб на місці виклику було
-    // видно, який саме патч зараз накладено.
+    // After the EXEC patch, the same DoControl(1) becomes "bx r1", i.e., calling code
+    // at address a1 in kernel mode. A distinct name so the call site makes it
+    // obvious which patch is currently applied.
     TInt Call(TUint32 aAddress) { return DoControl(1, (TAny *)aAddress); }
-    // Драйвер завершує запит через Kern::RequestComplete, тож чекаємо на статус.
+    // The driver completes the request via Kern::RequestComplete, so wait for the status.
     TInt SetPerformance(TInt aValue)
         {
         TRequestStatus s;
@@ -158,15 +170,15 @@ public:
         }
     };
 
-// Розкладка з дизасемблера d_powerapi.ldd (HandleMsg @0x80148FB8):
-//   r0 = ~iValue           -> номер запиту, тобто піддія (0 = зайняти,
-//                             1 = прочитати стан, 3 = перелічити)
-//   r1 = msg[32] = a1      -> індекс у таблиці переходів, 0..12
-//   результат повертається через Kern::RequestComplete у TRequestStatus
-// Індекси: 1..6 -> ресурси 1..5, 6 -> 65, 7 -> 66 (продуктивність CPU),
+// Layout from disassembly of d_powerapi.ldd (HandleMsg @0x80148FB8):
+//   r0 = ~iValue           -> request number, i.e., sub-action (0 = acquire,
+//                             1 = read state, 3 = enumerate)
+//   r1 = msg[32] = a1      -> jump table index, 0..12
+//   result is returned via Kern::RequestComplete into TRequestStatus
+// Indices: 1..6 -> resources 1..5, 6 -> 65, 7 -> 66 (CPU performance),
 //          8 -> 67, 9 -> 69, 10 -> 70.
-// Статичний, а не на стеку: якщо запит не завершиться і ми підемо далі, драйвер
-// колись напише за цією адресою. Стекова змінна на той час уже чужа пам'ять.
+// Static, not on the stack: if a request does not complete and execution continues, the driver
+// will eventually write to this address. A stack variable by that time would already be foreign memory.
 static TRequestStatus gPwrStatus;
 
 class RPwr : public RBusLogicalChannel
@@ -176,9 +188,9 @@ public:
         {
         return DoCreate(KPwrName, aVer, KNullUnit, NULL, NULL, EOwnerProcess);
         }
-    // Повертає KErrTimedOut, якщо драйвер не відповів за aMs. Скасувати запит
-    // нічим - Cancel драйвер не має, - тож після таймауту викликач мусить
-    // припинити роботу з каналом, а не слати наступний запит.
+    // Returns KErrTimedOut if the driver does not respond within aMs. There is no way
+    // to cancel the request - the driver lacks Cancel, - so after a timeout the caller must
+    // stop using the channel rather than sending another request.
     TInt Req(TInt aSubOp, TInt aIndex, TInt aMs)
         {
         gPwrStatus = KRequestPending;
@@ -186,7 +198,7 @@ public:
 
         RTimer timer;
         if (timer.CreateLocal() != KErrNone)
-            {                                   // без таймера краще не ризикувати
+            {                                   // better not risk running without a timer
             return KErrGeneral;
             }
         TRequestStatus ts;
@@ -205,12 +217,12 @@ public:
         }
     };
 
-// Лише читання: піддія 1 по ОДНОМУ індексу за прогін.
+// Read-only: sub-action 1 for ONE index per run.
 //
-// Перебір усіх індексів поспіль обійшовся зависанням: index=6 (ресурс 65) не
-// завершує запит ніколи. Скасувати його нічим - Cancel драйвер не має, - тож
-// єдиний надійний спосіб іти далі це новий процес на кожен індекс: висячий
-// запит помирає разом із процесом, а не тягнеться в наступну спробу.
+// Iterating through all indices consecutively resulted in a hang: index=6 (resource 65)
+// never completes the request. There is no way to cancel it - the driver lacks Cancel, - so
+// the only reliable way to proceed is a new process per index: the hanging
+// request dies with the process instead of lingering into the next attempt.
 static void ProbePowerApi(TInt aIndex)
     {
     LogF(_L8("--- TestPowerAPI: index %d (read-only) ---"), aIndex);
@@ -233,25 +245,25 @@ static void ProbePowerApi(TInt aIndex)
     if (v == KErrTimedOut)
         {
         Log(_L8("  request never completed - channel left open on purpose"));
-        return;                         // канал НЕ закриваємо: запит ще висить
+        return;                         // do NOT close channel: request is still pending
         }
 
     ch.Close();
     Log(_L8("channel closed"));
     }
 
-// --- розгін через спільний двигун -------------------------------------------
+// --- overclock via shared engine -------------------------------------------
 //
-// Уся делікатна частина - READ/EXEC-патчі, ланцюг до SRAM-копії і блоб relock -
-// живе в ocengine.cpp і використовується спільно із застосунком ocgui. Двох
-// копій цієї послідовності бути не може: розійшовшись, вони вішають апарат.
-// Тут лишається тільки сценарій заміру.
+// All delicate logic - READ/EXEC patches, chain to SRAM copy, and relock blob -
+// lives in ocengine.cpp and is shared with the ocgui application. Having two
+// copies of this sequence is unacceptable: diverging, they hang the device.
+// Only the measurement scenario remains here.
 
-static TUint32 MeasureMhz();          // визначено нижче, у секції приладу
+static TUint32 MeasureMhz();          // defined below, in the instrument section
 
-// Одиночний замір шумить на кілька відсотків: заважають переривання й чужі
-// потоки. Але завада може тільки СПОВІЛЬНИТИ прогін, ніколи не пришвидшити,
-// тож найкращий із серії - найчистіший, а не "везіння".
+// A single measurement has several percent jitter: interrupts and foreign
+// threads interfere. But interference can only SLOW DOWN a run, never speed it up,
+// so the best of a series is the cleanest, not "luck".
 static TUint32 BestMhz(TInt aRuns)
     {
     TUint32 best = 0;
@@ -284,7 +296,7 @@ static TUint32 BestAlu(TInt aRuns, TUint32 aIter)
 
 static TUint32 BestMem(TInt aRuns)
     {
-    const TInt kWords = 512 * 1024;               // 2 МБ - явно повз кеш
+    const TInt kWords = 512 * 1024;               // 2 MB - clearly bypasses cache
     TUint32 *buf = (TUint32 *)User::Alloc(kWords * sizeof(TUint32));
     if (!buf)
         return 0;
@@ -298,8 +310,8 @@ static TUint32 BestMem(TInt aRuns)
         TUint32 sink = SpinMem(buf, kWords, 8);
         TUint32 t1 = User::FastCounter();
         TUint32 us = ElapsedUs(t0, t1);
-        TUint32 lines = (TUint32)(kWords / 16) * 8u;
-        TUint32 mbs = us ? (TUint32)(((TUint64)lines * 64u) / us) : 0;
+        const TUint64 bytes = (TUint64)(kWords & ~7) * 4u * 8u;
+        TUint32 mbs = us ? (TUint32)(bytes / us) : 0;
         if (sink == 0)
             mbs ^= 1;
         if (mbs > best)
@@ -340,14 +352,14 @@ static void LogClocks(const TDesC8 &aTag, const TOcClocks &aC)
          aC.Dss1Khz(), aC.iL3Div, aC.iDss1Div);
     }
 
-// Показує, ЩО саме буде записано в CM_CLKSEL1_CORE і які частоти з цього
-// вийдуть. Головне тут - DSS1: його зсув і ламав відрисовку (findings §21).
+// Shows EXACTLY what will be written to CM_CLKSEL1_CORE and what frequencies
+// will result. The main thing here is DSS1: shifting it broke rendering (findings §21).
 static void LogCompensation(COcEngine *aE, TInt aMult)
     {
     TUint32 newCore = aE->CompensatedCore(aMult);
     TOcClocks c;
     aE->ClocksFor(aMult, c);
-    // Перерахувати з НОВИМИ дільниками.
+    // Recalculate with NEW dividers.
     TOcClocks comp = c;
     comp.iL3Div = (TInt)(newCore & KCoreL3Mask);
     comp.iDss1Div = (TInt)((newCore & KCoreDss1Mask) >> KCoreDss1Shift);
@@ -362,8 +374,8 @@ static void LogCompensation(COcEngine *aE, TInt aMult)
          dp / 10, (dp < 0 ? -dp : dp) % 10, lp / 10, (lp < 0 ? -lp : lp) % 10);
     }
 
-// Знімок усіх чотирьох регістрів розкладки за ОДНЕ накладання READ-патчу:
-// інакше поля знімались би в різні моменти, а губернатор рухає їх у рантаймі.
+// Snapshot of all four layout registers in ONE application of the READ patch:
+// otherwise the fields would be sampled at different times, while the governor moves them at runtime.
 struct TClockSnap
     {
     TUint32 iSel1;
@@ -373,12 +385,12 @@ struct TClockSnap
     TUint32 iRfr;      // SDRC_RFR_CTRL0
     };
 
-// SDRC_RFR_CTRL0 знімається разом із рештою навмисно. Його поле ARCV рахує
-// такти L3, тож при незмінному ARCV повільніша шина розтягує інтервал
-// авторефрешу в реальному часі (§26.1a). Питання, чи рухає прошивка ARCV при
-// переході OPP, лишалось відкритим саме тому, що ми читали цей регістр лише
-// між прогонами, а не в момент, коли губернатор стоїть на нижчій OPP. Тепер
-// він у тому ж знімку, що й CM_CLKSEL2_PLL, тобто відповідь буде видно прямо.
+// SDRC_RFR_CTRL0 is sampled together with the rest intentionally. Its ARCV field counts
+// L3 clock cycles, so with an unchanged ARCV, a slower bus stretches the auto-refresh
+// interval in real time (§26.1a). The question of whether firmware adjusts ARCV on an
+// OPP transition remained open precisely because we only read this register between
+// runs, rather than when the governor sits at a lower OPP. Now
+// it is in the same snapshot as CM_CLKSEL2_PLL, so the answer is directly visible.
 static TInt SnapClocks(COcEngine *aE, TClockSnap &aOut)
     {
     const TUint32 regs[5] =
@@ -394,20 +406,20 @@ static TInt SnapClocks(COcEngine *aE, TClockSnap &aOut)
     return r;
     }
 
-// Дві частоти з цього знімка - MPU і L3 - і є те, заради чого все затіяно, тож
-// друкуємо і сирі слова, і розшифровку. CORE тут рахується з МИТТЄВОГО
-// CM_CLKSEL2_PLL, а він ходить між 1 і 2 під губернатором (findings §12, §18):
-// відлік із sel2=1 означає лише, що знімок упіймав нижчу OPP, а не що розкладку
-// зняли.
+// The two frequencies from this snapshot - MPU and L3 - are what this is all about,
+// so we print both raw words and decoded values. CORE here is calculated from the INSTANTANEOUS
+// CM_CLKSEL2_PLL, which toggles between 1 and 2 under the governor (findings §12, §18):
+// a reading with sel2=1 merely means the snapshot caught a lower OPP, not that the layout
+// was removed.
 static void LogSnap(const TDesC8 &aTag, const TClockSnap &aS)
     {
     TOcClocks c;
     c.Decode(aS.iSel1, aS.iSel2, aS.iMpu, aS.iCore);
     LogF(_L8("  %S: PLL=%08x SEL2=%08x MPU=%08x CORE=%08x RFR=%08x"),
          &aTag, aS.iSel1, aS.iSel2, aS.iMpu, aS.iCore, aS.iRfr);
-    // Інтервал авторефрешу в наносекундах: ARCV тактів шини. Друкуємо саме
-    // час, а не сире поле: питання стоїть про те, чи вкладаємось у вікно
-    // утримання заряду, а не про вміст регістра.
+    // Auto-refresh interval in nanoseconds: ARCV bus cycles. We print the actual
+    // time rather than the raw field: the question is whether we fit within the charge
+    // retention window, not what the register holds.
     const TUint32 arcv = (aS.iRfr >> 8) & 0xffffu;
     const TUint32 busKhz = c.L3Khz();
     const TUint32 refrNs = busKhz ? (TUint32)(((TUint64)arcv * 1000000u) / busKhz) : 0;
@@ -418,9 +430,9 @@ static void LogSnap(const TDesC8 &aTag, const TClockSnap &aS)
          &aTag, arcv, refrNs);
     }
 
-// Розкладка тримається, поки не зсунулись ані множник, ані обидва дільники.
-// CM_CLKSEL2_PLL свідомо НЕ порівнюємо: його рух - штатна робота губернатора, а
-// не втрата нашої конфігурації.
+// Layout holds as long as neither the multiplier nor either of the two dividers has shifted.
+// We intentionally do NOT compare CM_CLKSEL2_PLL: its movement is normal governor operation,
+// not a loss of our configuration.
 static TBool SameLayout(const TClockSnap &aA, const TClockSnap &aB)
     {
     return ((aA.iSel1 >> 12) & 0x3ff) == ((aB.iSel1 >> 12) & 0x3ff) &&
@@ -429,10 +441,10 @@ static TBool SameLayout(const TClockSnap &aA, const TClockSnap &aB)
            (aB.iCore & (KCoreL3Mask | KCoreDss1Mask));
     }
 
-// Обраний профіль апарата. Вмикається в E32Main за наявності слова "e90" в
-// команді. За замовчуванням RM-320. Двигун бере адреси з профілю, тож помилковий
-// профіль на чужому апараті - це не просто хибні числа, а патч у чуже ядро; тому
-// вибір явний і єдиний.
+// Selected device profile. Enabled in E32Main when the word "e90" is present in
+// the command. Defaults to RM-320. The engine takes addresses from the profile, so a wrong
+// profile on another device is not just incorrect numbers, but patching into a foreign kernel; therefore
+// the selection is explicit and unique.
 static TBool gUseE90Profile = EFalse;
 
 static COcEngine *PrepareEngine()
@@ -444,10 +456,10 @@ static COcEngine *PrepareEngine()
         LogF(_L8("engine alloc failed: %d"), err);
         return NULL;
         }
-    // Профіль добираємо за апаратом. Слово "e90" лишається ЯВНИМ перевизначенням
-    // для перевірок, але типовою поведінкою є автовибір: інакше той самий
-    // "patcher oc 111", запущений на E90 без цього слова, узяв би адреси RM-320
-    // і пропатчив би їх у чуже ядро.
+    // Profile is selected according to device. The word "e90" remains an EXPLICIT override
+    // for verification, but default behavior is auto-selection: otherwise the same
+    // "patcher oc 111" launched on E90 without this word would take RM-320 addresses
+    // and patch them into a foreign kernel.
     const TOcProfile* prof = gUseE90Profile ? &KProfileE90 : ProfileForThisDevice();
     if (!prof)
         {
@@ -481,10 +493,10 @@ static COcEngine *PrepareEngine()
          e->OrigCount(), e->OrigWord(0), e->OrigWord(1), e->OrigWord(2),
          e->OrigWord(3), e->OrigWord(4), e->OrigWord(5));
     LogClocks(_L8("stock"), e->StockClocks());
-    // Опорна точка стала (KStockClkSel1Core), тож розбіжність із нею мусить
-    // бути видно з логу відразу. Раніше цей випадок мовчки ставав новою нормою:
-    // цикл "підняти - опустити" щоразу зсував dssdiv на крок і звітував при
-    // цьому, що дисплей не зачеплено.
+    // The reference point is fixed (KStockClkSel1Core), so any deviation from it must
+    // be immediately visible in the log. Previously, this case quietly became the new norm:
+    // a "raise - lower" cycle shifted dssdiv by one step each time while reporting
+    // that the display was untouched.
     if (e->BootedNonStock())
         LogF(_L8("  NOT STOCK AT START: m=%d CLKSEL1_CORE=%08x CLKSEL_MPU=%08x"
                  "  (stock: m=%d %08x %08x)"),
@@ -494,8 +506,8 @@ static COcEngine *PrepareEngine()
     return e;
     }
 
-// Безголова перевірка двигуна: та сама послідовність, що її виконує застосунок,
-// але без інтерфейсу. Нічого не змінює.
+// Headless engine verification: the same sequence executed by the application,
+// but without a UI. Changes nothing.
 static void ProbeEngine()
     {
     Log(_L8("--- engine self-check (read only) ---"));
@@ -516,9 +528,9 @@ static void ProbeEngine()
         TPtrC8 nm((const TUint8 *)names[i]);
         LogF(_L8("  %S @%08x = %08x"), &nm, regs[i], v);
         }
-    // Найважливіший рядок цього прогону: чи знято патч. Ненульовий відсоток
-    // означає, що в ядрі знову штатний код і після виходу процесу міни не
-    // лишається. Перезапису байтів для цього не досить - потрібен unshadow.
+    // Most important line of this run: whether the patch is removed. Nonzero percentage
+    // means stock code is back in the kernel and no landmine remains after process
+    // exit. Overwriting bytes is not enough for this - unshadow is required.
     e->EndPatchSession();
     TInt pct = e->VerifyRestored();
     LogF(_L8("  restore check: stock DoControl(1,0) -> %d  (nonzero = original code back)"),
@@ -527,12 +539,12 @@ static void ProbeEngine()
     Log(_L8("engine self-check done"));
     }
 
-// Тестовий блоб ARM-коду для виконання в режимі ядра.
-// Складається з двох інструкцій і константи в літерному пулі:
-//   0x00: ldr r0, [pc, #0]   ; вантажить константу за адресою PC+8 = 0x08 (0xe59f0000)
-//   0x04: bx  lr             ; повернення (0xe12fff1e)
-//   0x08: .word 0x5a5a0001   ; константа (0x5a5a0001)
-// На ARM1136 (ARMv6) інструкції movw/movt відсутні, тому константа береться з пулу.
+// Test ARM code blob for execution in kernel mode.
+// Consists of two instructions and a constant in the literal pool:
+//   0x00: ldr r0, [pc, #0]   ; loads constant at address PC+8 = 0x08 (0xe59f0000)
+//   0x04: bx  lr             ; return (0xe12fff1e)
+//   0x08: .word 0x5a5a0001   ; constant (0x5a5a0001)
+// On ARM1136 (ARMv6), movw/movt instructions are absent, so constant is fetched from the pool.
 static void ProbeBlobTest()
     {
     Log(_L8("--- custom kernel blob test ---"));
@@ -542,7 +554,7 @@ static void ProbeBlobTest()
 
     static const TUint8 kTestBlob[] =
         {
-        0x00, 0x00, 0x9f, 0xe5,   // ldr r0, [pc, #0] ; вантажить @PC+8
+        0x00, 0x00, 0x9f, 0xe5,   // ldr r0, [pc, #0] ; loads @PC+8
         0x1e, 0xff, 0x2f, 0xe1,   // bx  lr
         0x01, 0x00, 0x5a, 0x5a    // .word 0x5a5a0001
         };
@@ -558,7 +570,7 @@ static void ProbeBlobTest()
     else
         LogF(_L8("  MISMATCH: expected 0x%08x, got 0x%08x (r=%d)"), expected, result, r);
 
-    // Зняття патчу та перевірка відновлення коду ядра
+    // Remove patch and verify kernel code restoration
     e->EndPatchSession();
     TInt pct = e->VerifyRestored();
     LogF(_L8("  restore check: stock DoControl(1,0) -> %d  (nonzero = original code back)"),
@@ -568,18 +580,18 @@ static void ProbeBlobTest()
     Log(_L8("custom blob test done"));
     }
 
-// Лічильники продуктивності ARM1136 (CP15 c15 c12). Питання, на яке відповідає
-// цей прогін: чи взагалі рахують ці регістри на цьому апараті, чи прошивка
-// тримає PMU вимкненим і запис у PMCR нічого не робить.
+// ARM1136 performance counters (CP15 c15 c12). The question answered by
+// this run: do these registers count at all on this device, or does firmware
+// keep PMU disabled and writing to PMCR does nothing.
 //
-// Два блоби. Перший пише конфігурацію в PMCR: біт 0 - увімкнути, 1 - скинути
-// PMN0/PMN1, 2 - скинути CCNT, 3 - ділити CCNT на 64 (без дільника лічильник
-// циклів переповнюється за десяток секунд), [19:12] - подія PMN0, [27:20] -
-// подія PMN1. Другий читає всі три лічильники; повернути в r0 можна лише одне
-// слово, тому решта лягає в літерний пул самого блоба, тобто в SRAM, звідки її
-// потім видно READ-патчем.
+// Two blobs. The first writes configuration to PMCR: bit 0 - enable, 1 - reset
+// PMN0/PMN1, 2 - reset CCNT, 3 - divide CCNT by 64 (without divider, cycle counter
+// overflows in ten seconds), [19:12] - PMN0 event, [27:20] -
+// PMN1 event. The second reads all three counters; only one word can be returned
+// in r0, so the rest is placed in the blob's own literal pool, i.e., in SRAM, where it
+// is later visible via the READ patch.
 //
-// Події ARM1136: 0x07 - виконані інструкції, 0x0b - промах кешу даних.
+// ARM1136 events: 0x07 - instructions executed, 0x0b - data cache miss.
 static void ProbePmuTest()
     {
     Log(_L8("--- ARM1136 performance counters ---"));
@@ -596,9 +608,9 @@ static void ProbePmuTest()
         0x1e, 0xff, 0x2f, 0xe1,
         0x00, 0x00, 0x00, 0x00
         };
-    // Обидва лічильники на ту саму подію 0x07 (виконані інструкції): якщо
-    // підписи в блобі правильні, обидва числа мають збігтися. Розбіжність
-    // означала б, що поля evtCount0 і evtCount1 підписані навпаки.
+    // Both counters are set to the same event 0x07 (instructions executed): if
+    // the labels in the blob are correct, both numbers must match. A discrepancy
+    // would mean that fields evtCount0 and evtCount1 are mapped in reverse.
     const TUint32 cfg = (0x07u << 20) | (0x07u << 12) | 0x0fu;
     setup[16] = (TUint8)(cfg & 0xff);
     setup[17] = (TUint8)((cfg >> 8) & 0xff);
@@ -630,7 +642,7 @@ static void ProbePmuTest()
     LogF(_L8("  first read -> r=%d ccnt=%u"), r, (TUint32)res);
     const TUint32 first = (TUint32)res;
 
-    // Щось порахувати, щоб між двома знімками була видима робота.
+    // Compute something so there is visible work between the two snapshots.
     volatile TUint32 acc = 0;
     for (TInt i = 0; i < 2000000; i++)
         acc += (TUint32)i;
@@ -640,7 +652,7 @@ static void ProbePmuTest()
     LogF(_L8("  second read -> r=%d ccnt=%u delta=%u"),
          r, (TUint32)res, (TUint32)res - first);
 
-    // Решта знімка лежить у пулі блоба, тобто в SRAM за зсувом 28 байтів.
+    // The rest of the snapshot resides in the blob pool, i.e., in SRAM at offset 28 bytes.
     const TUint32 base = e->SramAddress() + 0x800u + 28u;
     const TUint32 addr[3] = { base, base + 4, base + 8 };
     TUint32 out[3] = { 0, 0, 0 };
@@ -659,18 +671,18 @@ static void ProbePmuTest()
     }
 
 
-// Домен DSP: ТІЛЬКИ читання, жодного запису в PRCM. Завдання - docs/TASK_DSP_CLOCK.md.
+// DSP domain: READ-ONLY, no writes to PRCM. Task - docs/TASK_DSP_CLOCK.md.
 //
-// Питання, на яке відповідає цей прогін: у якому полі CM_CLKSEL_DSP стоїть
-// дільник C55x і чи справді він 6 (тобто DSP на 110 МГц замість штатних 220).
+// The question answered by this run: in which field of CM_CLKSEL_DSP is the
+// C55x divider located and is it really 6 (i.e., DSP at 110 MHz instead of nominal 220).
 //
-// Чому саме сире значення. Розкладка полів виведена з двох сеттерів у
-// ehwaomap.pdd, і жоден із них не чіпає низького поля, тож із самого реверсу
-// сеттерів не видно, яке поле тактує ядро C55x. Зате видно з power.dll: ord60
-// @0x800B1644 маскує рівно 0xF і ділить на це CORE - саме це число драйвер
-// ehwaomap.pdd кладе в символ _BRIDGEINIT_DSP_FREQ, і саме його бімодальність
-// (110000/220000) спостерігав сусідній проєкт. Тобто рахуємо тут те саме, що
-// й прошивка, і звіряємось із її ж числом.
+// Why raw value specifically. Field layout was derived from two setters in
+// ehwaomap.pdd, neither of which touches the low field, so reversing the
+// setters alone does not show which field clocks the C55x core. But it is visible in power.dll: ord60
+// @0x800B1644 masks exactly 0xF and divides CORE by this value - this is the number driver
+// ehwaomap.pdd stores into symbol _BRIDGEINIT_DSP_FREQ, and its bimodality
+// (110000/220000) was observed by the sibling project. Thus we compute here the same thing as
+// firmware and verify against its own number.
 static void ProbeDsp(TInt aSamples)
     {
     Log(_L8("--- DSP clock domain probe (READ ONLY, no PRCM writes) ---"));
@@ -683,8 +695,8 @@ static void ProbeDsp(TInt aSamples)
     const char *names[] =
         { "CM_FCLKEN_DSP", "CM_ICLKEN_DSP", "CM_IDLEST_DSP", "CM_CLKSEL_DSP" };
     TUint32 v[4] = { 0, 0, 0, 0 };
-    // Усі чотири - за одне накладання патчу: і вікно одне, і знімок узгоджений
-    // (стан домену й дільник прочитані практично одночасно).
+    // All four within a single patch application: a single window, and a consistent snapshot
+    // (domain state and divider are read virtually simultaneously).
     TInt r = e->ReadRegs(regs, v, 4);
     if (r != KErrNone)
         {
@@ -699,8 +711,8 @@ static void ProbeDsp(TInt aSamples)
         }
 
     const TUint32 sel = v[3];
-    const TInt fwDiv = (TInt)(sel & KDspFwDivMask);          // [3:0] - як бачить ord60
-    const TInt dsDiv = (TInt)(sel & KDspDivMask);            // [4:0] - як у даташиті
+    const TInt fwDiv = (TInt)(sel & KDspFwDivMask);          // [3:0] - as seen by ord60
+    const TInt dsDiv = (TInt)(sel & KDspDivMask);            // [4:0] - as in datasheet
     const TInt ifDiv = (TInt)((sel & KDspIfMask) >> 5);
     const TInt bit7  = (TInt)((sel & KDspBit7Mask) >> 7);
     const TInt iva   = (TInt)((sel & KDspIvaMask) >> 8);
@@ -715,11 +727,11 @@ static void ProbeDsp(TInt aSamples)
     else
         Log(_L8("  firmware math: [3:0] is zero -> ord60 returns 0 (domain divider not set)"));
 
-    // Кілька знімків: спостережене число бімодальне, тож одне читання може
-    // застати домен у будь-якому з двох станів і збити з висновку. Кожен
-    // знімок - окреме коротке вікно патча; тримати патч накладеним усі кілька
-    // секунд було б гірше, бо загальний час, коли в ядрі лежить міна для
-    // чужого DoControl(1), вийшов би на порядки більший.
+    // Multiple samples: observed value is bimodal, so a single read could
+    // catch the domain in either state and mislead conclusions. Each
+    // sample is a separate short patch window; keeping the patch applied for several
+    // seconds would be worse because total time with a landmine in kernel for
+    // foreign DoControl(1) calls would become orders of magnitude larger.
     if (aSamples > 1)
         {
         LogF(_L8("  sampling CM_CLKSEL_DSP %dx, 250 ms apart:"), aSamples);
@@ -746,8 +758,8 @@ static void ProbeDsp(TInt aSamples)
             LogF(_L8("    %08x -> [3:0]=%d"), seen[k], (TInt)(seen[k] & KDspFwDivMask));
         }
 
-    // Висновок формулюємо тут, а не потім по логу: число без тлумачення надто
-    // легко прочитати навпаки.
+    // Verdict is formulated here, rather than later from the log: a number without interpretation
+    // is too easy to read backwards.
     if (fwDiv == 6)
         Log(_L8("  VERDICT: divider is 6 -> DSP runs at half rate. Step 2 (6->3) is justified."));
     else if (fwDiv == 3)
@@ -765,27 +777,27 @@ static void ProbeDsp(TInt aSamples)
     Log(_L8("DSP probe done"));
     }
 
-// Зміна дільника DSP. Викликається ТІЛЬКИ явним аргументом.
+// Changing the DSP divider. Called ONLY with an explicit argument.
 //
-// Ризик локалізований у домені DSP: CORE, SDRAM, дисплей і USB не зачіпаються,
-// латч PRCM_CLKCFG_CTRL не потрібен. У найгіршому разі до перезавантаження
-// ламається аудіо - DSP/BIOS у вже завантаженому базовому образі налаштував
-// свої таймери на стару частоту.
+// Risk is localized to the DSP domain: CORE, SDRAM, display, and USB are unaffected;
+// PRCM_CLKCFG_CTRL latch is not needed. In the worst case, audio breaks until
+// reboot - DSP/BIOS in the already loaded base image configured
+// its timers for the old frequency.
 //
-// Дільник НЕ лишаємо: прогін закінчується поверненням штатного. Щоб лишити,
-// є окрема команда "patcher dsphold".
-// Режим витримки. Три варіанти існують не для зручності, а щоб РОЗРІЗНИТИ
-// причини ребуту при нештатному дільнику (findings 24.5):
-//   ESoakPoll  - прокидаємось раз на 5 с. Система не встигає в глибокий
-//                простій. Саме так проходила єдина чиста витримка на 120 с;
-//   ESoakQuiet - один довгий User::After, жодних прокидань. Дільник тримає
-//                НАШ процес, але системі ніщо не заважає піти в retention.
-//                Якщо падає тут, а при ESoakPoll ні - справа в простої, а не
-//                в тому, кому належить дільник;
-//   ESoakRun   - усередині вікна запускаємо дочірній процес (бенчмарк DSP).
-//                Дільник увесь час тримаємо ми й гарантовано повертаємо, тож
-//                це єдиний спосіб зміряти DSP під навантаженням, не лишаючи
-//                нештатний дільник у системі.
+// We do NOT leave the divider: the run finishes by restoring stock. To keep it,
+// there is a separate command "patcher dsphold".
+// Soak mode. Three variants exist not for convenience, but to DISTINGUISH
+// reasons for reboot with a non-stock divider (findings 24.5):
+//   ESoakPoll  - wake up once every 5 s. System does not manage to enter deep
+//                idle. This is exactly how the only clean 120 s soak succeeded;
+//   ESoakQuiet - single long User::After, no wakeups. The divider is held by
+//                OUR process, but nothing prevents the system from entering retention.
+//                If it crashes here, but not under ESoakPoll - the issue is idle, not
+//                who owns the divider;
+//   ESoakRun   - inside the window we launch a child process (DSP benchmark).
+//                We hold the divider the entire time and are guaranteed to restore it, so
+//                this is the only way to measure DSP under load without leaving
+//                a non-stock divider in the system.
 enum TSoakMode
     {
     ESoakPoll = 0,
@@ -793,9 +805,9 @@ enum TSoakMode
     ESoakRun
     };
 
-// Запускає процес і чекає на нього, але НЕ довше за стелю. Без стелі зависла
-// дитина тримала б і наш процес, а з ним - і нештатний дільник, тобто рівно
-// той стан, якого ми уникаємо.
+// Launches a process and waits for it, but NOT longer than the cap. Without a cap, a hung
+// child would also hold our process, and with it - the non-stock divider, which is exactly
+// the condition we avoid.
 static TInt RunChild(const TDesC& aExe, const TDesC& aArgs, TInt aCapSec)
     {
     RProcess p;
@@ -831,8 +843,8 @@ static TInt RunChild(const TDesC& aExe, const TDesC& aArgs, TInt aCapSec)
         }
     else
         {
-        // Стеля вийшла. Вбиваємо дитину й чекаємо на неї - інакше вона
-        // переживе нас разом із дільником.
+        // Cap expired. Kill the child and wait for it - otherwise it
+        // outlives us along with the divider.
         Log(_L8("  child: TIMED OUT, killing"));
         p.Kill(KErrTimedOut);
         User::WaitForRequest(done);
@@ -872,8 +884,8 @@ static void ProbeDspSet(TInt aDiv, TBool aKeep, TInt aSoakSec, TInt aMode)
         }
     if (rc == KErrArgument)
         {
-        // -6: значення відкинула сама прошивка. Це не збій нашого шляху, а
-        // спрацювання її ж поручнів.
+        // -6: value was rejected by firmware itself. This is not a failure of our path, but
+        // its own guards triggering.
         Log(_L8("  firmware REJECTED the value; register untouched"));
         delete e;
         return;
@@ -885,7 +897,7 @@ static void ProbeDspSet(TInt aDiv, TBool aKeep, TInt aSoakSec, TInt aMode)
         return;
         }
 
-    // Читаємо назад, а не віримо тому, що записували, - правило проєкту.
+    // Read back rather than trusting what was written - project rule.
     TInt after = -1;
     e->LiveDspDiv(after);
     LogF(_L8("  after:  div=%d -> DSP %u kHz"), after, e->DspKhz(after));
@@ -894,14 +906,14 @@ static void ProbeDspSet(TInt aDiv, TBool aKeep, TInt aSoakSec, TInt aMode)
     else
         Log(_L8("  register confirmed by read-back"));
 
-    // Витримка. Кожен рядок лягає у файл із Flush, тож якщо апарат помре
-    // посеред неї, лог на E: переживе і покаже, на якій секунді це сталось -
-    // саме тому витримка розбита на кроки, а не зроблена одним User::After.
+    // Soak. Every line is written to file with Flush, so if the device dies
+    // in the middle of it, the log on E: survives and shows at what second it happened -
+    // which is why the soak is split into steps rather than done in a single User::After.
     const TInt soak = (aSoakSec > 0) ? aSoakSec : 3;
     if (aMode == ESoakQuiet)
         {
-        // Жодних прокидань: рівно один сон на всю витримку. Якщо ребут
-        // спричиняє глибокий простій, він має статись саме тут.
+        // No wakeups: exactly one sleep for the entire soak. If reboot
+        // is caused by deep idle, it must happen right here.
         LogF(_L8("  soak %d s QUIET - single sleep, no wakeups"), soak);
         User::After(soak * 1000000);
         TInt still = -1;
@@ -942,9 +954,9 @@ static void ProbeDspSet(TInt aDiv, TBool aKeep, TInt aSoakSec, TInt aMode)
         {
         e->KeepOnExit(ETrue);
         Log(_L8("  KEEPING the new divider (reboot restores stock)"));
-        // Не порада, а виміряний факт: два ребути з двох, один з них у повному
-        // простої, без жодного навантаження на DSP (findings 24.5). Витримка з
-        // поверненням усередині процесу при цьому проходить чисто.
+        // Not advice, but a measured fact: two reboots out of two, one of them in complete
+        // idle, with zero DSP load (findings 24.5). Meanwhile, a soak with
+        // restoration within the process passes cleanly.
         if (aDiv != e->StockDspDiv())
             Log(_L8("  WARNING: leaving a non-stock DSP divider rebooted the "
                     "device 2/2 times - use 'dspset <d> <sec>' instead"));
@@ -953,11 +965,11 @@ static void ProbeDspSet(TInt aDiv, TBool aKeep, TInt aSoakSec, TInt aMode)
     Log(_L8("DSP divider run done"));
     }
 
-// Бісекція причини перезавантажень. Один рівень за прогін; після кожного
-// апарат треба лишити в спокої і подивитись, чи вистоїть.
-// Перевірка пошуку глобала power-down там, де правильна відповідь відома з
-// профілю. Друкує знайдене поруч із очікуваним - збіг означає, що механізм,
-// на який спираються тестові профілі, працює.
+// Bisecting reboot cause. One level per run; after each,
+// the device should be left idle to see if it survives.
+// Verifying power-down global discovery where the correct answer is known from
+// the profile. Prints found value alongside expected - a match means the mechanism
+// relied upon by test profiles works.
 static void ProbeDiscover()
     {
     Log(_L8("--- discover pwrdown global (mechanism check) ---"));
@@ -1001,13 +1013,13 @@ static void ProbeLevel(TInt aLevel)
     Log(_L8("level test done - now leave the phone idle and watch"));
     }
 
-// Застосувати множник і ЗАЛИШИТИ його. Апарат далі просто працює на новій
-// частоті; повертає все перезавантаження (у флеш не пишеться нічого) або
-// повторний виклик із штатним значенням 86.
+// Apply multiplier and KEEP it. The device continues running at the new
+// frequency; a reboot restores everything (nothing is written to flash), or
+// a repeated call with nominal stock value 86.
 //
-// Це заразом обхід проблеми переходу з §20: relock робиться безголово, коли
-// дисплей не активний, а користувач потім працює на вже встановленій частоті -
-// небезпечне лише саме вікно зміни, а не стаціонарний режим.
+// This also works around the transition issue from §20: relock is performed headlessly when
+// display is inactive, and the user then operates at the already established frequency -
+// only the change window itself is dangerous, not steady-state operation.
 static void HoldOverclock(TInt aMult)
     {
     LogF(_L8("--- HOLD: set mult %d and keep it ---"), aMult);
@@ -1034,10 +1046,10 @@ static void HoldOverclock(TInt aMult)
     e->LiveMult(live);
     LogF(_L8("  live mult now %d"), live);
     {
-    // Дільники звіряємо ОКРЕМО від множника. Апаратура відкидає весь запис у
-    // CM_CLKSEL1_CORE, якщо хоч одне поле недійсне, і робить це мовчки; доти
-    // логи звітували про намір, а не про результат (findings 38).
-    // Намір: у цих двох шляхах дільники підбирає автоматика.
+    // Dividers are checked SEPARATELY from the multiplier. Hardware silently rejects
+    // the entire write to CM_CLKSEL1_CORE if any field is invalid; previously
+    // logs reported intention rather than the result (findings 38).
+    // Intention: in these two paths dividers are chosen automatically.
     const TUint32 wantCore = e->CompensatedCore(aMult);
     TUint32 liveCore = 0;
     if (e->LiveCore(liveCore) == KErrNone)
@@ -1054,10 +1066,10 @@ static void HoldOverclock(TInt aMult)
         return;
         }
 
-    // Перечитуємо ВСЮ розкладку, а не лише множник. Рядок "CLKSEL1_CORE X -> Y"
-    // вище друкується ДО запису, тобто це намір, а не факт, - і саме цієї
-    // різниці бракувало сусідньому проєкту, коли він з'ясовував, чи трималась
-    // компенсація дільників. Тепер факт видно прямо тут.
+    // Read back the ENTIRE layout, not just the multiplier. The line "CLKSEL1_CORE X -> Y"
+    // above is printed BEFORE the write, representing intention rather than fact - exactly
+    // the difference the sibling project lacked when investigating whether divider
+    // compensation held. Now the fact is visible right here.
     TClockSnap hs;
     SnapClocks(e, hs);
     LogSnap(_L8("held"), hs);
@@ -1087,35 +1099,35 @@ static void HoldOverclock(TInt aMult)
              memBefore, memAfter, p / 10, (p < 0 ? -p : p) % 10);
         }
 
-    // Частоту лишаємо, патч ядра - НІ: він небезпечний для чужих викликів
-    // каналу (findings 20). Деструктор зніме патч і shadow-сторінку, але
-    // частоту вже не торкне.
+    // We keep the frequency, but NOT the kernel patch: it is dangerous for foreign
+    // channel calls (findings 20). The destructor will remove the patch and shadow page, but
+    // will leave the frequency untouched.
     e->KeepOnExit(ETrue);
     delete e;
     LogF(_L8("  HELD at mult %d. Kernel patch removed; frequency stays."), aMult);
     Log(_L8("  to go back: patcher hold 86, or just reboot"));
     }
 
-// --- повна розкладка клоків -------------------------------------------------
+// --- full clock layout ------------------------------------------------------
 //
-// Завдання - docs/TASK_MPU_DIVIDER.md від сусіднього проєкту PS1Emulator.
+// Task - docs/TASK_MPU_DIVIDER.md from the sibling PS1Emulator project.
 //
-// Питання, на яке це відповідає: скільки з бюджету кадру - робота самого
-// ARM1136, а скільки - очікування пам'яті. Розділити їх можна лише
-// конфігурацією, у якій ОДИН домен змінився, а другий ні. Штатний "patcher hold"
-// такої не дає: він рухає множник DPLL, а з ним CORE, а з CORE одразу і ядро, і
-// шину, і дисплей - усі на ті самі відсотки. Тому тут задаються всі чотири поля
-// окремо: множник DPLL, дільник MPU (CM_CLKSEL_MPU) і дільники L3 та DSS1
-// (обидва в CM_CLKSEL1_CORE).
+// The question this answers: how much of the frame budget is ARM1136 execution
+// itself, and how much is memory waiting. They can only be separated by
+// a configuration where ONE domain changes while the other does not. Stock "patcher hold"
+// does not provide this: it moves the DPLL multiplier, along with CORE, and from CORE both core,
+// bus, and display simultaneously - all by the exact same percentages. Therefore, all four fields
+// are specified separately here: DPLL multiplier, MPU divider (CM_CLKSEL_MPU), and L3 and DSS1 dividers
+// (both in CM_CLKSEL1_CORE).
 
 _LIT8(KLayoutHeld, "HELD");
 _LIT8(KLayoutDrift, "DRIFTED");
 
-// Побачили зсув - переписати розкладку назад. Вимкнено за замовчуванням: блоб
-// ReassertDividers на апараті ще не виконувався жодного разу, а вмикати
-// неперевірений код у ядрі мовчки не можна. Ключ hold=1.
+// Saw drift - rewrite the layout back. Disabled by default: the
+// ReassertDividers blob has never run on hardware, and unverified
+// kernel code must not be enabled silently. Switch hold=1.
 //
-// Повертає ETrue, якщо переписали.
+// Returns ETrue if rewritten.
 static TBool ReassertIfDrifted(COcEngine *aE, const TClockSnap &aWant,
                                const TClockSnap &aNow, TBool aHold)
     {
@@ -1128,7 +1140,7 @@ static TBool ReassertIfDrifted(COcEngine *aE, const TClockSnap &aWant,
     return ETrue;
     }
 
-// "ключ=значення" з командного рядка; ключ передається разом зі знаком рівності.
+// "key=value" from command line; key is passed including the equals sign.
 static TBool KeyVal(const TDesC &aCmd, const TDesC &aKey, TInt &aOut)
     {
     TInt at = aCmd.Find(aKey);
@@ -1145,17 +1157,17 @@ static TBool KeyVal(const TDesC &aCmd, const TDesC &aKey, TInt &aOut)
 enum TChildKind
     {
     EChildNone = 0,
-    EChildPs1,          // E:\sys\bin\ps1stage1.exe - стенд замовника
-    EChildDsp           // E:\sys\bin\dsptest.exe   - стенд DSP-проєкту
+    EChildPs1,          // E:\sys\bin\ps1stage1.exe - client testbed
+    EChildDsp           // E:\sys\bin\dsptest.exe   - DSP project testbed
     };
 
-// Запуск дитини з періодичним знімком розкладки, поки вона працює.
+// Running child with periodic layout snapshot while it executes.
 //
-// Стан ДО і ПІСЛЯ сам собою нічого не доводить: питання стоїть саме про те, чи
-// трималася розкладка ВЕСЬ час. Губернатор DVFS переписує CM_CLKSEL1_CORE у
-// рантаймі - це замовник спостерігав прямо, - і побачити момент можна лише
-// зсередини вікна. Стеля часу лишається обов'язковою: зависла дитина інакше
-// тримала б і нас, а з нами й нештатну розкладку.
+// State BEFORE and AFTER alone proves nothing: the core question is whether
+// the layout held the ENTIRE time. The DVFS governor rewrites CM_CLKSEL1_CORE at
+// runtime - directly observed by the client, - and the transition can only be caught
+// from within the window. The time cap remains mandatory: a hanging child would
+// otherwise hold us as well, and with us the non-stock layout.
 static TInt RunChildWatched(const TDesC &aExe, const TDesC &aArgs, TInt aCapSec,
                             COcEngine *aE, TInt aSampleSec, TInt &aDrift,
                             TBool aHold)
@@ -1170,10 +1182,9 @@ static TInt RunChildWatched(const TDesC &aExe, const TDesC &aArgs, TInt aCapSec,
         }
     TRequestStatus done;
     p.Logon(done);
-    // Logon, що відмовив, завершує запит одразу, і тоді перше ж очікування
-    // виглядало б як "дитина миттєво вийшла": ми зняли б розкладку, а дитина
-    // лишилась би працювати. Тому такий запуск скасовуємо, а не наглядаємо
-    // наосліп.
+    // A failed Logon completes the request immediately, which would make the very first wait
+    // appear as "child exited instantaneously": we would remove the layout while the child
+    // kept running. Therefore, abort such a launch rather than watching blindly.
     if (done != KRequestPending)
         {
         LogF(_L8("  child: Logon failed (%d) - not running it unwatched"), done.Int());
@@ -1240,14 +1251,13 @@ static TInt RunChildWatched(const TDesC &aExe, const TDesC &aArgs, TInt aCapSec,
     return exitCode;
     }
 
-// Витримка без дитини: те саме опитування, але під власним навантаженням.
-// Саме цим робиться нульовий за вартістю крок із §5 завдання - перевірка, чи не
-// переписує губернатор CM_CLKSEL_MPU так само, як переписує CM_CLKSEL1_CORE.
-// Навантаження тут потрібне: губернатор рухає OPP лише тоді, коли є робота, і
-// перевірка в порожньому простої нічого б не показала.
-// Псевдовипадковий заповнювач і звірка з ним. Розділені навмисно: між
-// заповненням і звіркою мусить пройти час, інакше це вимір запису, а не
-// утримання.
+// Soak without child: the same polling, but under our own workload.
+// This executes the zero-cost step from §5 of the task - checking whether the
+// governor rewrites CM_CLKSEL_MPU the same way it rewrites CM_CLKSEL1_CORE.
+// Workload is necessary here: the governor only shifts OPP when there is work, and
+// checking in empty idle would reveal nothing.
+// Pseudorandom filler and verification. Separated intentionally: time
+// must pass between fill and check, otherwise it measures write rather than retention.
 static void RetentionFill(TUint32 *aBuf, TInt aWords)
     {
     TUint32 x = 0x2545f491u;
@@ -1276,21 +1286,21 @@ static TInt WatchLayout(COcEngine *aE, TInt aSec, TInt aSampleSec, TBool aHold)
     TClockSnap want;
     SnapClocks(aE, want);
     TInt drift = 0;
-    const TInt kRetWords = 256 * 1024;          // 1 МБ, завідомо повз кеш
+    const TInt kRetWords = 256 * 1024;          // 1 MB, definitely bypasses cache
     TUint32 *ret = (TUint32 *)User::Alloc(kRetWords * sizeof(TUint32));
     if (ret)
         RetentionFill(ret, kRetWords);
     else
         Log(_L8("  retention buffer alloc failed - SDRAM check skipped"));
-    // Крок відлічуємо від реального годинника, а не від суми затримок: ALU-цикл
-    // при вдвічі нижчій частоті ядра йде вдвічі довше, і мітка "t=" інакше
-    // брехала б саме в тій конфігурації, заради якої все робиться.
+    // Measure time step from real clock rather than sum of delays: ALU loop
+    // at half the core frequency takes twice as long, and the "t=" label would
+    // otherwise lie in the very configuration this is done for.
     const TUint start = User::NTickCount();
     for (TInt t = aSampleSec; t <= aSec; t += aSampleSec)
         {
-        // Спершу ALU, потім сон: перше змушує губернатора піднімати OPP, друге -
-        // опускати, тож переходи стаються в обидва боки. ~20 млн ітерацій - це
-        // близько 1.2 с при штатних 330 МГц і 2.4 с при половинних.
+        // ALU first, then sleep: the first forces the governor to raise OPP, the second -
+        // to lower it, so transitions happen in both directions. ~20M iterations is
+        // about 1.2 s at stock 330 MHz and 2.4 s at half rate.
         BestAlu(1, 20000000u);
         const TInt leftMs = t * 1000 - (TInt)(User::NTickCount() - start);
         if (leftMs > 0)
@@ -1303,12 +1313,12 @@ static TInt WatchLayout(COcEngine *aE, TInt aSec, TInt aSampleSec, TBool aHold)
         const TDesC8 *verdict = same ? &KLayoutHeld : &KLayoutDrift;
         LogF(_L8("    t=%3d s: PLL=%08x SEL2=%08x MPU=%08x CORE=%08x RFR=%08x %S (r=%d)"),
              t, now.iSel1, now.iSel2, now.iMpu, now.iCore, now.iRfr, verdict, rr);
-        // Утримання заряду в SDRAM - пряма перевірка гіпотези §26.1a. Буфер
-        // заповнено ОДИН раз до вікна, тож між записом і звіркою проходить
-        // цілий інтервал вибірки. Саме довжина цієї паузи й робить вимір
-        // чутливим: MemoryIntegrity() звіряє одразу після запису, а там
-        // проходять частки мілісекунди, і розтягнутий refresh нічого б не
-        // зіпсував.
+        // Charge retention in SDRAM - direct test of hypothesis §26.1a. The buffer
+        // was filled ONCE before the window, so an entire sample interval passes
+        // between write and check. The length of this pause is precisely what makes
+        // the measurement sensitive: MemoryIntegrity() verifies immediately after write,
+        // where only fractions of a millisecond elapse, and stretched refresh would
+        // corrupt nothing.
         if (ret)
             {
             TInt bad = RetentionCheck(ret, kRetWords);
@@ -1323,15 +1333,15 @@ static TInt WatchLayout(COcEngine *aE, TInt aSec, TInt aSampleSec, TBool aHold)
     return drift;
     }
 
-// Головна команда. Порядок кроків не довільний.
+// Main command. Step order is not arbitrary.
 //
-// ЧОМУ ЗАСТОСУВАННЯ У ДВА КРОКИ. Наївна рампа з кінцевими дільниками на кожній
-// сходинці вбила б апарат: конфігурація "mult 43, mpu_div 1" на проміжному
-// множнику 86 дала б ядру 660 МГц, а шині 330 - удвічі більше за штатну, тобто
-// далеко за межу 426 МГц, встановлену цим же проєктом. Тому спершу йде звичайна
-// рампа з АВТОМАТИЧНОЮ компенсацією (перевірений шлях: на кожній сходинці частоти
-// лишаються біля штатних), і лише на кінцевому множнику робиться ОДИН явний
-// запис потрібної розкладки. На кінцевому множнику вона коректна за побудовою.
+// WHY TWO-STEP APPLICATION. A naive ramp with final dividers at each
+// step would kill the device: configuration "mult 43, mpu_div 1" at intermediate
+// multiplier 86 would give the core 660 MHz, and the bus 330 - twice the stock value,
+// far beyond the 426 MHz limit established by this project. Therefore, a standard
+// ramp with AUTOMATIC compensation runs first (the proven path: at each step frequencies
+// stay near stock), and only at the final multiplier is ONE explicit write
+// of the desired layout performed. At the final multiplier it is correct by construction.
 static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
                       TInt aChild, const TDesC &aChildArgs, TInt aSampleSec,
                       TBool aHold)
@@ -1341,8 +1351,8 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
     if (aHold)
         Log(_L8("  hold=1: divider reassert is ENABLED and has never run on hardware"));
 
-    // Поручні беремо з валідації штатних сеттерів power.dll, а не зі своїх
-    // уявлень: дільника MPU 3 на цьому SoC не існує, хоч поле його й вмістило б.
+    // Guards are taken from validation in stock power.dll setters, not our own
+    // assumptions: MPU divider 3 does not exist on this SoC, even though the field could hold it.
     if (aMult < KOcMultMin || aMult > KOcMultMax)
         { LogF(_L8("  mult %d out of range %d..%d"), aMult, KOcMultMin, KOcMultMax); return; }
     if (aMult > KOcMultTested)
@@ -1363,8 +1373,8 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
     coreReg = CoreFieldSet(coreReg, ECoreDss1, aDss);
     const TUint32 mpuReg = (e->StockMpu() & ~KMpuDivMask) | ((TUint32)aMpu & KMpuDivMask);
 
-    // Що з цього вийде - рахуємо ДО запису, щоб у лозі лишився намір, з яким
-    // конфігурацію ставили, а не лише те, що потім прочиталось.
+    // Calculate expected outcome BEFORE writing so the log retains the intended configuration,
+    // rather than only what was subsequently read.
     TOcClocks want;
     e->ClocksFor(aMult, want);
     want.iMpuDiv = aMpu;
@@ -1377,21 +1387,21 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
     SnapClocks(e, snap);
     LogSnap(_L8("before"), snap);
 
-    // Прилад ДО зміни. Читання регістра каже, що ми записали; NOP-цикл і
-    // пропускна здатність кажуть, що з цього вийшло насправді, - а правило
-    // проєкту вимагає саме другого.
+    // Instrument BEFORE the change. Register read indicates what we wrote; NOP loop and
+    // throughput indicate what actually resulted - and project rules
+    // require precisely the latter.
     TUint32 mhzBefore = BestMhz(5);
     TUint32 memBefore = BestMem(3);
     LogF(_L8("  BEFORE: %u MHz (NOP), %u MB/s (MEM)"), mhzBefore, memBefore);
 
-    // Крок 1: рампа до потрібного множника зі штатною компенсацією.
+    // Step 1: ramp to target multiplier with stock compensation.
     //
-    // Робимо її ТУТ, а не викликом ApplyMultRamp, лише заради логу: кожна
-    // сходинка лягає у файл із flush, тож якщо апарат помре посеред рампи, з
-    // логу буде видно, на якому саме множнику. Без цього єдина спроба спуститись
-    // до 43 лишила по собі порожнечу після рядка BEFORE, і локалізувати відмову
-    // не було чим (§26.10). Семантика та сама: крок на один пункт, автопідбір
-    // дільників, 20 мс на осідання, зупинка при ненульовому статусі.
+    // We execute it HERE rather than calling ApplyMultRamp solely for logging: each
+    // step is written to file with flush, so if the device dies mid-ramp, the
+    // log will show at which exact multiplier. Without this, the single attempt to drop
+    // to 43 left emptiness after the BEFORE line, leaving no way to isolate the failure
+    // (§26.10). Semantics are identical: one step at a time, automatic divider selection,
+    // 20 ms settling time, abort on non-zero status.
     TUint32 status = 0;
     TInt r = KErrNone;
     TInt cur = 0;
@@ -1409,9 +1419,9 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
         TUint32 st = 0;
         r = e->ApplyMultAndCore(cur, e->CompensatedCore(cur), 0, st);
         status |= st;
-        // Друкуємо те, що двигун ВІДДАВ у залізо, а не те, що ми порахували:
-        // поле l3 він затискає живим значенням (findings §38.2), і друк наміру
-        // показував би шину, якої немає.
+        // Print what the engine COMMITTED to hardware, not what we computed:
+        // it clamps the l3 field to the live value (findings §38.2), and printing intent
+        // would show a bus clock that does not exist.
         const TUint32 stepCore = e->LastCoreWritten();
         TOcClocks sc;
         e->ClocksFor(cur, sc);
@@ -1431,12 +1441,12 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
         return;
         }
 
-    // Крок 2: кінцева розкладка - ТИМ САМИМ шляхом, яким її пише застосунок.
+    // Step 2: final layout - via the EXACT SAME path used by the application.
     //
-    // Раніше тут стояв прямий ApplyMultAndCore, а застосунок ходив через
-    // ApplyRampWithCore. Саме ця розбіжність і сховала помилку §38.1: пробник
-    // писав розкладку завжди, застосунок - лише коли змінювався множник. Тепер
-    // шлях один, тож цей прогін є справжньою перевіркою того, що робить GUI.
+    // Previously direct ApplyMultAndCore was used here, while the application used
+    // ApplyRampWithCore. That discrepancy concealed bug §38.1: the probe
+    // always wrote the layout, whereas the application only did so when multiplier changed. Now
+    // there is a single path, making this run a genuine verification of GUI behavior.
     status = 0;
     r = e->ApplyRampWithCore(aMult, coreReg, mpuReg, status);
     LogF(_L8("  layout write -> r=%d status=%u (0=ok,1=bypass,2=cfg,4=lock,8=rollback failed)"),
@@ -1450,10 +1460,10 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
 
     SnapClocks(e, snap);
     LogSnap(_L8("applied"), snap);
-    // Звіряємось із тим, що двигун НАСПРАВДІ віддав у залізо, а не з тим, що
-    // ми замовили: поле l3 він затискає живим значенням, бо підйом шини
-    // смертельний (findings §38.2). Інакше свідомий затиск читався б як відмова
-    // апаратури, тобто прилад брехав би про власну роботу.
+    // Compare against what the engine ACTUALLY sent to hardware, not what
+    // was requested: it clamps the l3 field to the live value because raising the bus
+    // is fatal (findings §38.2). Otherwise an intentional clamp would be interpreted as hardware
+    // failure, meaning the instrument would misreport its own operation.
     const TUint32 wroteCore = e->LastCoreWritten();
     const TInt wroteL3 = (TInt)(wroteCore & KCoreL3Mask);
     if (wroteL3 != aL3)
@@ -1491,9 +1501,9 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
         _LIT(KDsp, "E:\\sys\\bin\\dsptest.exe");
         _LIT(KDspArgs, "baseonlydcdopnobench");
         const TDesC &exe = (aChild == EChildPs1) ? KPs1() : KDsp();
-        // Аргументи беремо з командного рядка (після "args:"). Свій сталий набір
-        // є лише в DSP-стенду; стенд замовника без аргументів запускати не
-        // вигадуємо - хай отримає порожній рядок і сам вирішує.
+        // Arguments are taken from command line (after "args:"). Only the DSP
+        // testbed has a fixed default set; we do not invent defaults for the client
+        // testbed - let it receive an empty string and decide on its own.
         const TDesC &args = (aChildArgs.Length() > 0) ? aChildArgs
                           : ((aChild == EChildDsp) ? KDspArgs() : KNullDesC());
         TBuf8<160> a8;
@@ -1502,24 +1512,24 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
         RunChildWatched(exe, args, sec, e, sample, drift, aHold);
         }
 
-    // Читання ПІСЛЯ дитини - критерій приймання §8 завдання. Воно ж і відповідь
-    // на питання §5: чи тримається розкладка без резидентного патчу (між нашими
-    // знімками патч у ядрі не живе - EndPatchSession знімає його щоразу).
+    // Read AFTER child - acceptance criterion from §8 of task. It also answers
+    // question §5: does the layout hold without a resident patch (between our
+    // snapshots no patch lives in the kernel - EndPatchSession removes it each time).
     SnapClocks(e, snap);
     LogSnap(_L8("after"), snap);
     LogF(_L8("  drift samples: %d (0 = layout held the whole window)"), drift);
 
-    // Повернення розписане покроково: кожен крок пише про себе ДО того, як його
-    // зробити. Причина - смерті апарата саме на цьому місці (§26.14): лог щоразу
-    // обривався після `drift samples`, і що там сталось, було не видно.
+    // Restoration is outlined step-by-step: each step logs its intention BEFORE
+    // execution. The reason is device death at this exact point (§26.14): the log always
+    // truncated after `drift samples`, concealing what happened.
     Log(_L8("  restore: step 1, read live layout"));
     SnapClocks(e, snap);
     LogSnap(_L8("restore-before"), snap);
 
-    // Повернення робить САМ рушій. Раніше проба ходила повз нього і кликала
-    // ReassertDividers(KStockClkSel1Core, ...) напряму - це, по-перше, константи
-    // RM-320 на будь-якому апараті, а по-друге, рівно той запис, що вбив E90.
-    // Тепер обидва шляхи, і проба, і GUI, проходять через один запобіжник.
+    // Restoration is performed by the engine ITSELF. Previously probe bypassed it and called
+    // ReassertDividers(KStockClkSel1Core, ...) directly - which, first, used RM-320 constants
+    // on any device, and second, was the exact write that killed E90.
+    // Now both paths, probe and GUI, pass through the same guard.
     const TInt liveMult = (TInt)((snap.iSel1 >> 12) & 0x3ff);
     LogF(_L8("  restore: step 2, RestoreStock (live mult %d, stock %d)"),
          liveMult, e->StockMult());
@@ -1540,8 +1550,8 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
     Log(_L8("CLOCKS run done"));
     }
 
-// Етап розгону: міняє множник, міряє трьома приладами, витримує під
-// навантаженням, повертає штатне значення.
+// Overclock stage: changes multiplier, measures with three instruments, soaks under
+// load, restores stock value.
 static void RunOverclock(TInt aMult)
     {
     LogF(_L8("--- OVERCLOCK: target mult %d ---"), aMult);
@@ -1574,10 +1584,10 @@ static void RunOverclock(TInt aMult)
     e->LiveMult(live);
     LogF(_L8("  live mult now %d"), live);
     {
-    // Дільники звіряємо ОКРЕМО від множника. Апаратура відкидає весь запис у
-    // CM_CLKSEL1_CORE, якщо хоч одне поле недійсне, і робить це мовчки; доти
-    // логи звітували про намір, а не про результат (findings 38).
-    // Намір: у цих двох шляхах дільники підбирає автоматика.
+    // Dividers are checked SEPARATELY from the multiplier. Hardware silently rejects
+    // the entire write to CM_CLKSEL1_CORE if any field is invalid; previously
+    // logs reported intention rather than the result (findings 38).
+    // Intention: in these two paths dividers are chosen automatically.
     const TUint32 wantCore = e->CompensatedCore(aMult);
     TUint32 liveCore = 0;
     if (e->LiveCore(liveCore) == KErrNone)
@@ -1619,8 +1629,8 @@ static void RunOverclock(TInt aMult)
     LogF(_L8("  RESTORED: %u MHz (NOP), %u.%02u Mitr/s (ALU)"),
          mhzRestored, aluRestored / 100, aluRestored % 100);
 
-    // Три незалежні прилади мусять дати той самий відсоток. Розбіжність між
-    // ними - привід не вірити жодному (CLAUDE.md: міряти роботу, не напис).
+    // Three independent instruments must yield the same percentage. A discrepancy between
+    // them is reason to trust none (CLAUDE.md: measure actual work, not the label).
     if (mhzBefore && mhzAfter)
         {
         TInt p = (TInt)(((TInt64)mhzAfter - mhzBefore) * 1000 / mhzBefore);
@@ -1643,8 +1653,8 @@ static void RunOverclock(TInt aMult)
     delete e;
     }
 
-// Знімає зависші екземпляри з попередніх прогонів: інакше вони тримають
-// відкритий канал до драйвера. Те саме, що робить демон для себе.
+// Terminates hanging instances from previous runs: otherwise they hold
+// an open channel to the driver. The same thing the daemon does for itself.
 static void KillStaleInstances()
     {
     const TProcessId myId = RProcess().Id();
@@ -1681,16 +1691,16 @@ static void ProbeHal()
             { HALData::ECPUABI,               "ECPUABI"              },
             { HALData::EMemoryRAM,            "EMemoryRAM"           },
             { HALData::EMemoryRAMFree,        "EMemoryRAMFree"       },
-            // Ідентифікація апарата для автовибору профілю в GUI: там немає
-            // командного рядка, а взяти чужий профіль означає пропатчити чужі
-            // адреси в ядро.
+            // Device identification for GUI auto-profile selection: there is no
+            // command line, and taking the wrong profile means patching foreign
+            // addresses into the kernel.
             { HALData::EMachineUid,           "EMachineUid"          },
             { HALData::EModel,                "EModel"               },
             { HALData::EManufacturer,         "EManufacturer"        },
-            // Кандидати на апаратний вимикач автозапуску: зовнішнє живлення й
-            // стан кришки. Обидва є в SDK, але чи повертає їх ЦЕЙ апарат -
-            // питання заміру, а не документації. KErrNotSupported тут теж
-            // відповідь: значить, вимикач має бути інший.
+            // Candidates for hardware autostart switch: external power and
+            // clamshell state. Both exist in the SDK, but whether THIS device reports them
+            // is a matter of measurement, not documentation. KErrNotSupported is also
+            // an answer here: meaning the switch must be different.
             { HALData::EPowerExternal,        "EPowerExternal"       },
             { HALData::EPowerBatteryStatus,   "EPowerBatteryStatus"  },
             { HALData::ECaseState,            "ECaseState"           }
@@ -1708,8 +1718,8 @@ static void ProbeHal()
         }
     }
 
-// Перелічує вже завантажені драйвери. Це дає ТОЧНЕ зареєстроване ім'я каналу,
-// замість здогадок за рядками всередині файлу.
+// Enumerates already loaded drivers. This provides the EXACT registered channel name,
+// instead of guessing from strings inside the file.
 static void ListDrivers()
     {
     TFullName name;
@@ -1744,8 +1754,8 @@ static void ProbeDriver()
     TInt r = User::LoadLogicalDevice(KLddFile);
     LogF(_L8("LoadLogicalDevice(dvfs_interface.ldd) -> %d   [0=ok, -11=already loaded]"), r);
 
-    // Версію не вгадуємо наосліп: драйвери зазвичай приймають будь-яку не вищу
-    // за власну, тож починаємо з нуля і піднімаємось.
+    // Do not guess the version blindly: drivers typically accept anything not higher
+    // than their own, so start from zero and work upwards.
     const TVersion vers[] =
         { TVersion(0,0,0), TVersion(1,0,0), TVersion(1,1,0), TVersion(2,0,0) };
     const TInt nv = sizeof(vers) / sizeof(vers[0]);
@@ -1770,21 +1780,21 @@ static void ProbeDriver()
         }
     }
 
-// --- E90: перелік завантажених драйверів (носіїв READ-патча) -----------------
+// --- E90: list of loaded drivers (READ patch host candidates) ----------------
 //
-// На E90 dvfs немає, тож штатний READ-примітив RM-320 недоступний. Сам патч
-// (cmp r1,#0; ldrne r0,[r1]; moveq r0,#0; bx lr) драйвер-агностичний і його
-// можна покласти в тіло opcode будь-якого користувацьки-відкривного драйвера,
-// чиє тіло лежить у ROM.
+// There is no dvfs on E90, so the standard RM-320 READ primitive is unavailable. The patch itself
+// (cmp r1,#0; ldrne r0,[r1]; moveq r0,#0; bx lr) is driver-agnostic and can
+// be placed in the opcode body of any user-openable driver
+// whose body resides in ROM.
 //
-// ВАЖЛИВО (урок 2026-09-02): цей скан лише ПЕРЕЛІЧУЄ драйвери через
-// TFindLogicalDevice - жодного DoCreate. Попередня версія сліпо відкривала
-// канал до кожного завантаженого LDD; один із них завалив ядро й апарат
-// перезавантажився. Відкривати kernel-канал наосліп не можна - деякі драйвери
-// на DoCreate виконують ініціалізацію, що падає без коректних параметрів.
-// Вибір конкретного носія й розбір його DoControl робиться ОФЛАЙН за
-// резидентним XIP; відкриває наступна версія пробника рівно ОДИН вибраний
-// драйвер, і робить це під захистом, з логом імені ПЕРЕД спробою.
+// IMPORTANT (lesson of 2026-09-02): this scan only ENUMERATES drivers via
+// TFindLogicalDevice - no DoCreate. A previous version blindly opened
+// a channel to every loaded LDD; one crashed the kernel and the device
+// rebooted. Kernel channels must not be opened blindly - some drivers
+// perform initialization on DoCreate that crashes without valid parameters.
+// Choosing a specific host and analyzing its DoControl is done OFFLINE using
+// the resident XIP; the next probe version opens exactly ONE selected
+// driver, doing so safely, logging the name BEFORE the attempt.
 static void E90ScanReaders()
     {
     Log(_L8("=== E90: loaded drivers (read-patch host candidates) ==="));
@@ -1812,18 +1822,18 @@ static void E90ScanReaders()
     LogF(_L8("=== %d LDD, %d PDD ==="), total, tp);
     }
 
-// --- Чи читається XIP ROM із користувацького режиму, і чи там те, що ми думаємо
+// --- Is XIP ROM readable from user mode, and is it what we expect?
 //
-// Базу 0x80000000 для out/roms/e90.rom узято за аналогією з RM-320, а не
-// виміряно. Якщо вона хибна, всі адреси профілю E90 зсунуті, і патч лягає в
-// чужу сторінку - тихо, без падіння, рівно як ми й бачимо.
+// The base 0x80000000 for out/roms/e90.rom was assumed by analogy with RM-320 rather than
+// measured. If incorrect, all E90 profile addresses are shifted, and the patch lands on
+// a foreign page - silently, without crashing, exactly as observed.
 //
-// Проба безпечна для апарата: якщо ROM користувацькому режиму недоступний,
-// гине НАШ процес (KERN-EXEC 3), а не система. Лог скидається після кожного
-// рядка, тож адреса останньої спроби лишається видимою.
+// The probe is safe for the device: if ROM is inaccessible to user mode,
+// OUR process dies (KERN-EXEC 3), not the system. The log is flushed after each
+// line, so the address of the last attempt remains visible.
 static void RomRead(TBool aIsE90)
     {
-    Log(_L8("=== romread: чи читається XIP з user mode і чи збігається база ==="));
+    Log(_L8("=== romread: is XIP readable from user mode, and does the base match ==="));
 
     struct { TUint32 iAddr; TUint32 iVal; const char* iName; } known[3];
     known[0].iAddr = 0x80000000u; known[0].iVal = 0xea00007eu; known[0].iName = "reset";
@@ -1843,38 +1853,38 @@ static void RomRead(TBool aIsE90)
         LogF(_L8("    -> 0x%08x  expect 0x%08x  %s"),
              got, known[i].iVal, match ? "MATCH" : "*** MISMATCH ***");
         }
-    LogF(_L8("  === %d/3 -> XIP %s з user mode, база %s ==="),
-         ok, (ok > 0) ? "ЧИТАЄТЬСЯ" : "не читається",
-         (ok == 3) ? "ПІДТВЕРДЖЕНА" : "під питанням");
+    LogF(_L8("  === %d/3 -> XIP %s from user mode, base %s ==="),
+         ok, (ok > 0) ? "READS" : "does not read",
+         (ok == 3) ? "CONFIRMED" : "in doubt");
     }
 
-// --- Сигнатурний скан живого XIP з користувацького режиму --------------------
+// --- Signature scan of live XIP from user mode ------------------------------
 //
-// Наслідок romread: ROM читається з user mode. Отже адреси, залежні від
-// прошивки, можна знаходити НА АПАРАТІ, а не виводити з образу - тобто без
-// ядерного примітиву читання, в який упиралася вся офлайнова гілка.
+// Implication of romread: ROM is readable from user mode. Consequently, firmware-dependent
+// addresses can be found ON THE DEVICE rather than inferred from an image - that is, without
+// a kernel read primitive, which previously blocked the entire offline branch.
 //
-// Шукаємо константи, які код тактування тримає в літеральних пулах. Це самі
-// адреси регістрів PRCM, а вони від прошивки не залежать (це OMAP2420), тож
-// сигнатура однакова на всіх апаратах цієї лінійки.
+// We look for constants that clocking code holds in literal pools. These are the PRCM
+// register addresses themselves, which do not depend on firmware (this is OMAP2420), so
+// the signature is identical across all devices in this family.
 static void RomScan()
     {
-    Log(_L8("=== romscan: сигнатурний пошук у живому XIP (user mode) ==="));
+    Log(_L8("=== romscan: signature search in the live XIP (user mode) ==="));
 
     TInt romSize = 0;
     const TInt hr = HAL::Get(HALData::EMemoryROM, romSize);
     LogF(_L8("HAL EMemoryROM -> %d (%d bytes, %d KB)"), hr, romSize, romSize / 1024);
-    // HAL віддає ROM у кілобайтах на частині апаратів; беремо обережніше зі
-    // двох тлумачень, щоб не вийти за край і не вбити власний процес.
+    // HAL reports ROM in kilobytes on some devices; take the more conservative
+    // of the two interpretations to avoid overshooting and killing our own process.
     TUint32 span = (romSize <= 0) ? 0x00200000u
                  : ((romSize < 0x10000) ? (TUint32)romSize * 1024u : (TUint32)romSize);
     if (span > 0x04000000u) span = 0x04000000u;
     const TUint32 base = 0x80000000u;
     LogF(_L8("scanning [0x%08x .. 0x%08x)"), base, base + span);
 
-    // Літерали, за якими впізнаються потрібні функції. Бази SDRC і фізичної
-    // SRAM - найцінніші: на RM-320 перший мав лише power.dll (findings 17),
-    // другий стоїть у конструкторі, що копіює процедуру в SRAM.
+    // Literals by which target functions are recognized. SDRC and physical
+    // SRAM bases are most valuable: on RM-320 the former was present only in power.dll (findings 17),
+    // the latter is in the constructor copying the routine to SRAM.
     const TInt KSigCount = 6;
     struct { TUint32 iVal; const char* iName; } sig[KSigCount];
     sig[0].iVal = 0xc6008540u; sig[0].iName = "CM_CLKSEL1_PLL (virt)";
@@ -1884,14 +1894,14 @@ static void RomScan()
     sig[4].iVal = 0x4029e000u; sig[4].iName = "OMAP internal SRAM (phys)";
     sig[5].iVal = 0xc6014000u; sig[5].iName = "CONTROL base (virt)";
 
-    // Штатний пролог DLddUsbcChannel::DoControl - чотири слова поспіль. Саме
-    // цей носій обрано для READ/EXEC-примітиву (findings 32); адресу з
-    // офлайнового образу апарат спростував, тож шукаємо її тут.
+    // Standard DLddUsbcChannel::DoControl prologue - four words in a row. This exact
+    // host was chosen for the READ/EXEC primitive (findings 32); the device disproved
+    // the address from the offline image, so we search for it here.
     const TUint32 KDoCtlProlog[4] =
         { 0xe92d4ff0u, 0xe24dd044u, 0xe1a04000u, 0xe1a06002u };
 
     TInt hits = 0;
-    const TUint32 KProgressStep = 0x100000u;   // 1 МБ
+    const TUint32 KProgressStep = 0x100000u;   // 1 MB
     const TUint32 last = base + span - 16;
     for (TUint32 a = base; a < last; a += 4)
         {
@@ -1916,8 +1926,8 @@ static void RomScan()
             ++hits;
             }
 
-        // Диспетчер HandleMsg: ldr rX,[r1,#24] ; cmp rX,#0x80000000
-        // (той самий критерій, яким їх перелічували офлайн).
+        // HandleMsg dispatcher: ldr rX,[r1,#24] ; cmp rX,#0x80000000
+        // (the same criterion used to enumerate them offline).
         if ((w & 0xffff0fffu) == 0xe5910018u)
             {
             const TUint32 rd = (w >> 12) & 0xfu;
@@ -1934,23 +1944,23 @@ static void RomScan()
     LogF(_L8("=== romscan done: %d hits ==="), hits);
     }
 
-// --- Вивантаження вікна живого XIP у файл ------------------------------------
+// --- Dumping a live XIP window to file --------------------------------------
 //
-// Оскільки ROM читається з user mode, справжні байти беруться з апарата, а не
-// з офлайнового образу. Це знімає залежність від розкладки FPSX, яка на E90
-// виявилась не лінійною.
+// Since ROM is readable from user mode, actual bytes are obtained from the device rather
+// than an offline image. This eliminates dependency on FPSX layout, which on E90
+// proved non-linear.
 //
-//   ocprobe romdump <hex-адреса> <hex-довжина>
+//   ocprobe romdump <hex-address> <hex-length>
 //
-// Типово - вікно навколо пулів, знайдених romscan.
+// Typically - the window around pools found by romscan.
 static void RomDump(const TDesC& aCmd)
     {
-    Log(_L8("=== romdump: вивантаження вікна живого XIP ==="));
+    Log(_L8("=== romdump: dumping a window of the live XIP ==="));
 
     TUint32 start = 0x80050000u;
-    TUint32 len   = 0x00020000u;   // 128 КБ
+    TUint32 len   = 0x00020000u;   // 128 KB
 
-    // Два шістнадцяткові токени після слова romdump, якщо вони є.
+    // Two hexadecimal tokens after the word romdump, if present.
     TInt p = aCmd.Find(_L("romdump"));
     if (p != KErrNotFound)
         {
@@ -1964,7 +1974,7 @@ static void RomDump(const TDesC& aCmd)
             if (lex.Val(v, EHex) == KErrNone && v != 0) len = v;
             }
         }
-    if (len > 0x00400000u) len = 0x00400000u;   // 4 МБ стеля: канал BT повільний
+    if (len > 0x00400000u) len = 0x00400000u;   // 4 MB cap: BT link is slow
     LogF(_L8("window [0x%08x .. 0x%08x)  %d KB"), start, start + len, (TInt)(len / 1024));
 
     RFs fs;
@@ -1977,7 +1987,7 @@ static void RomDump(const TDesC& aCmd)
     LogF(_L8("RFile::Replace(E:\\romdump.bin) -> %d"), r);
     if (r != KErrNone) { fs.Close(); return; }
 
-    // Пишемо блоками; ROM читається як звичайна пам'ять.
+    // Write in chunks; ROM is read like regular memory.
     const TInt KChunk = 4096;
     TUint32 done = 0;
     while (done < len && r == KErrNone)
@@ -1993,17 +2003,17 @@ static void RomDump(const TDesC& aCmd)
     Log(_L8("=== romdump done ==="));
     }
 
-// --- Бутстрап READ-примітиву E90 через хост Usbc (findings §32) --------------
+// --- Bootstrapping E90 READ primitive via Usbc host (findings §32) ----------
 //
-// На E90 dvfs немає, тож примітив читання/виклику ставиться записом RomPatcher+
-// у тіло DoControl стандартного драйвера USB-клієнта DLddUsbcChannel (LDD-ім'я
-// "Usbc"): і на RM-320, і на E90 пролог DoControl байт-у-байт однаковий, а
-// аргумент a1 (адреса) приходить у r2. READ-стаб (варіант r2):
+// E90 lacks dvfs, so the read/call primitive is established via RomPatcher+ write
+// into the DoControl body of standard USB client driver DLddUsbcChannel (LDD name
+// "Usbc"): on both RM-320 and E90, the DoControl prologue is byte-for-byte identical, and
+// argument a1 (address) arrives in r2. READ stub (r2 variant):
 //   cmp r2,#0 ; ldrne r0,[r2] ; moveq r0,#0 ; bx lr
-// Диспетчер HandleMsg спеціально пропускає opcode 69 (0x45) до DoControl навіть
-// коли канал ще не готовий (USB без кабелю), тож читаємо через DoControl(69,addr).
-// Пролог не виконується (stmdb/sub пропущено), sp не чіпається, bx lr повертає
-// r0 у результат DoControl користувача.
+// HandleMsg dispatcher specifically allows opcode 69 (0x45) through to DoControl even
+// when channel is not ready (USB unconnected), so we read via DoControl(69,addr).
+// Prologue is bypassed (stmdb/sub skipped), sp is untouched, bx lr returns
+// r0 into user DoControl result.
 
 _LIT(KUsbcName, "Usbc");
 
@@ -2013,20 +2023,20 @@ static const TUint32 KUsbcReadStub[4] =
       0x03a00000u,   // moveq r0, #0
       0xe12fff1eu }; // bx    lr
 
-// Штатні перші 4 слова DLddUsbcChannel::DoControl (однакові на обох апаратах),
-// для відкату. Решта прологу за ними не чіпається.
+// Standard first 4 words of DLddUsbcChannel::DoControl (identical on both devices),
+// for rollback. The remainder of prologue behind them is untouched.
 static const TUint32 KUsbcOriginal[4] =
     { 0xe92d4ff0u,   // stmdb sp!, {r4,r5,r6,r7,r8,r9,sl,fp,lr}
       0xe24dd044u,   // sub   sp, sp, #68
       0xe1a04000u,   // mov   r4, r0
       0xe1a06002u }; // mov   r6, r2
 
-// Стаб-підпис: нічого не розіменовує, лише повертає впізнавану константу.
-// Розрізняє два стани, які інакше зливаються в один нуль: "стаб виконався, але
-// адреса прийшла не в r2" і "стаб не виконувався взагалі, відповів штатний
-// DoControl". Друге на E90 очікуване, якщо сторінка вже затінена патчами
-// Open4all: наш запис тоді лягає в наявну shadow-сторінку, нової не
-// створюється, а отже I-cache не скидається (findings 19).
+// Signature stub: does not dereference anything, only returns a recognizable constant.
+// Distinguishes two states that otherwise blend into a single zero: "stub executed, but
+// address did not arrive in r2" and "stub did not execute at all, stock DoControl
+// responded". The second is expected on E90 if page is already shadowed by Open4all
+// patches: our write then lands in existing shadow page, no new one is
+// created, and therefore I-cache is not flushed (findings 19).
 static const TUint32 KUsbcSigStub[4] =
     { 0xe3a0005au,   // mov   r0, #0x5a
       0xe12fff1eu,   // bx    lr
@@ -2035,7 +2045,7 @@ static const TUint32 KUsbcSigStub[4] =
 
 const TInt KUsbcSigValue = 0x5a;
 
-// Хост-канал: єдина потрібна дія - DoControl(69, addr) для читання після патчу.
+// Host channel: only required action is DoControl(69, addr) for reading after patch.
 class RUsbcHost : public RBusLogicalChannel
     {
 public:
@@ -2044,24 +2054,24 @@ public:
     TInt Read(TUint32 aAddress) { return DoControl(69, (TAny*)aAddress); }
     };
 
-// Три відомі з ROM слова - незалежна перевірка примітиву (та сама на обох
-// апаратах): вектор скидання, пул множника, перше слово SRAM-рутини.
+// Three words known from ROM - independent primitive verification (same on both
+// devices): reset vector, multiplier pool, first word of SRAM routine.
 struct TKnownWord { TUint32 iAddr; TUint32 iVal; const char* iName; };
 
 static void UsbcBoot(TBool aIsE90)
     {
     Log(_L8("=== usbcboot: bootstrap READ primitive via Usbc host (findings 32) ==="));
 
-    // E90: адреса ВИМІРЯНА на живому апараті (romscan -> romdump -> objdump),
-    // а не виведена з out/roms/e90.rom - розкладка того образу апаратом
-    // спростована. RM-320 лишається як був.
+    // E90: address MEASURED on live device (romscan -> romdump -> objdump),
+    // not derived from out/roms/e90.rom - the layout of that image was disproven
+    // by the device. RM-320 remains as it was.
     const TUint32 host = aIsE90 ? 0x800bf874u : 0x8010bd04u;
     LogF(_L8("device=%s  host DLddUsbcChannel::DoControl=0x%08x  a1 in r2"),
          aIsE90 ? "E90" : "RM-320", host);
 
-    // Відомі слова: pool однаковий за значенням, адреси різні між апаратами.
-    // Контрольні слова. Для E90 всі три прочитані з живого апарата
-    // (romread/romdump), тож збіг тут доводить саме примітив, а не розкладку.
+    // Known words: pool is identical in value, addresses differ between devices.
+    // Check words. For E90 all three were read from live device
+    // (romread/romdump), so a match here proves the primitive itself, not the layout.
     const TUint32 poolMult = aIsE90 ? 0x8005a610u : 0x800b16ecu;
     TKnownWord known[3];
     known[0].iAddr = 0x80000000u; known[0].iVal = 0xea00007eu; known[0].iName = "reset";
@@ -2070,7 +2080,7 @@ static void UsbcBoot(TBool aIsE90)
     known[2].iVal  = aIsE90 ? 0xe5915018u : 0xe92d40feu;
     known[2].iName = aIsE90 ? "dispatcher" : "sram-routine";
 
-    // 1) Патчер.
+    // 1) Patcher.
     TInt r = User::LoadLogicalDevice(KPatcherFile);
     LogF(_L8("LoadLogicalDevice(patcher.ldd) -> %d  [0=ok, -11=already]"), r);
     if (r != KErrNone && r != KErrAlreadyExists)
@@ -2080,13 +2090,13 @@ static void UsbcBoot(TBool aIsE90)
     LogF(_L8("patcher.Open() -> %d"), r);
     if (r != KErrNone) { Log(_L8("  ABORT (nothing patched)")); return; }
 
-    // 1a) Чи працює шлях запису патчера на цьому апараті ВЗАГАЛІ. Пишемо в
-    //     пам'ять власного процесу (адреса поза ROM іде прямим str, findings 10)
-    //     і читаємо назад у користувацькому режимі. Безпечно за побудовою: ціль -
-    //     наша власна змінна. Розрізняє "патчер не пише нічого" від "пише, але
-    //     в ROM-shadow без скидання I-cache".
-    volatile TUint32 canary = 0x11111111u;   // volatile: значення міняє ядро,
-    TUint32 canaryAddr = (TUint32)&canary;  // компілятор не має тримати його в регістрі
+    // 1a) Does the patcher write path work on this device AT ALL. We write to
+    //     our own process memory (an address outside ROM uses direct str, findings 10)
+    //     and read back in user mode. Safe by construction: the target is
+    //     our own variable. Distinguishes "patcher writes nothing" from "writes, but
+    //     to ROM shadow without I-cache flush".
+    volatile TUint32 canary = 0x11111111u;   // volatile: value changed by kernel,
+    TUint32 canaryAddr = (TUint32)&canary;  // compiler must not keep it in a register
     TBuf8<4> mark;
     const TUint32 KCanaryValue = 0xdeadbeefu;
     mark.Copy((const TUint8*)&KCanaryValue, 4);
@@ -2095,8 +2105,8 @@ static void UsbcBoot(TBool aIsE90)
          (TUint32)&canary, cw, (TUint32)canary,
          (canary == KCanaryValue) ? "WRITE PATH OK" : "*** PATCHER WROTE NOTHING ***");
 
-    // 2) Хост Usbc. Лог імені ПЕРЕД відкриттям (урок 2026-09-02). Відкриваємо
-    //    РІВНО цей один вивірений драйвер.
+    // 2) Usbc host. Log the name BEFORE opening (lesson of 2026-09-02). Open
+    //    EXACTLY this single vetted driver.
     Log(_L8("opening host channel \"Usbc\" (DLddUsbcChannel) ..."));
     const TVersion vers[] = { TVersion(0,0,0), TVersion(1,0,0), TVersion(2,0,0) };
     RUsbcHost usb;
@@ -2111,9 +2121,9 @@ static void UsbcBoot(TBool aIsE90)
         { Log(_L8("  Usbc channel did NOT open - ABORT (nothing patched)")); patcher.Close(); return; }
     Log(_L8("  Usbc channel OPENED"));
 
-    // 3) Спершу стаб-підпис: чи виконується взагалі те, що ми записали.
-    //    Він нічого не розіменовує, тож не може впасти навіть на хибних
-    //    припущеннях про регістри.
+    // 3) Signature stub first: does what we wrote actually execute.
+    //    It does not dereference anything, so cannot crash even on false
+    //    register assumptions.
     TUint32 addr = host;
     TBuf8<16> stub;
     stub.Copy((const TUint8*)KUsbcSigStub, sizeof(KUsbcSigStub));
@@ -2130,7 +2140,7 @@ static void UsbcBoot(TBool aIsE90)
              sigOk ? "STUB RUNS" : "*** STUB NOT EXECUTING (stale I-cache?) ***");
         }
 
-    // 4) READ-стаб - лише якщо підпис довів, що записане виконується.
+    // 4) READ stub - only if signature proved the written code executes.
     if (r == KErrNone && !sigOk)
         Log(_L8("  skipping known-word reads: patch is not in effect"));
 
@@ -2144,7 +2154,7 @@ static void UsbcBoot(TBool aIsE90)
 
     if (r == KErrNone && sigOk)
         {
-        // 5) Читаємо три відомі слова через хост.
+        // 5) Read three known words via host.
         TInt ok = 0;
         for (TInt i = 0; i < 3; ++i)
             {
@@ -2158,8 +2168,8 @@ static void UsbcBoot(TBool aIsE90)
         LogF(_L8("  === %d/3 known words matched -> read primitive %s ==="),
              ok, (ok == 3) ? "WORKS" : "FAILED");
 
-        // Штатне тактування - тим самим примітивом, лише читання. Досі множник
-        // E90 у профілі стояв здогадом (86); тут він міряється.
+        // Stock clocking - with the same primitive, read-only. Until now multiplier
+        // for E90 was a guess in the profile (86); here it is measured.
         if (ok == 3)
             {
             const TUint32 pll  = (TUint32)usb.Read(0xc6008540u);  // CM_CLKSEL1_PLL
@@ -2175,11 +2185,11 @@ static void UsbcBoot(TBool aIsE90)
             LogF(_L8("  CLK CM_CLKSEL_MPU   = 0x%08x  mpudiv=%d"),
                  mpu, (TInt)(mpu & 0x1f));
             LogF(_L8("  CLK CM_CLKSEL1_CORE = 0x%08x"), core);
-            LogF(_L8("  CLK CM_CLKEN_PLL    = 0x%08x  (lock=3 у полі [1:0])"), en);
+            LogF(_L8("  CLK CM_CLKEN_PLL    = 0x%08x  (lock=3 in field [1:0])"), en);
             }
         }
 
-    // 6) Відкат ЗАВЖДИ: оригінальні слова + FreeShadowPage (скидання I-cache).
+    // 6) Rollback ALWAYS: original words + FreeShadowPage (I-cache flush).
     addr = host;
     stub.Copy((const TUint8*)KUsbcOriginal, sizeof(KUsbcOriginal));
     TInt rr = patcher.WriteBytes(addr, stub);
@@ -2193,9 +2203,9 @@ static void UsbcBoot(TBool aIsE90)
     Log(_L8("=== usbcboot done: host restored, channels closed ==="));
     }
 
-// Найважливіше питання після першого прогону: 206 МГц - це простій чи стеля?
-// Тримаємо ядро зайнятим і паралельно знімаємо те, що HAL каже про частоту.
-// Якщо губернатор піднімає частоту під навантаженням, це видно тут.
+// The most important question after the first run: is 206 MHz idle or the ceiling?
+// We keep the core busy while concurrently sampling what HAL reports about frequency.
+// If the governor raises frequency under load, it will be visible here.
 static void SampleUnderLoad()
     {
     Log(_L8("--- CPU speed under sustained load ---"));
@@ -2213,9 +2223,9 @@ static void SampleUnderLoad()
         }
     }
 
-// Читає caps драйвера. RDevice віддає структуру, що в переважної більшості
-// драйверів починається з TVersion - звідти дізнаємось справжню версію, не
-// перебираючи її навмання.
+// Reads driver caps. RDevice returns a structure that in the vast majority
+// of drivers begins with TVersion - from there we learn the real version without
+// iterating through versions blindly.
 static void ProbeDeviceCaps()
     {
     Log(_L8("--- dvfs_interface caps ---"));
@@ -2241,8 +2251,8 @@ static void ProbeDeviceCaps()
     dev.Close();
     }
 
-// Один замір абсолютної частоти. Повертає МГц, щоб можна було порівнювати
-// стан "до" і "після" в межах одного прогону, без переносу через перезапуск.
+// A single absolute frequency measurement. Returns MHz to allow comparing
+// "before" and "after" states within a single run, without carrying over across reboots.
 static TUint32 MeasureMhz()
     {
     const TUint32 kIter = 400000;
@@ -2256,14 +2266,14 @@ static TUint32 MeasureMhz()
 static void MeasureAbsoluteClock()
     {
     Log(_L8("--- absolute clock ---"));
-    SpinNop(200000);                       // розігрів
+    SpinNop(200000);                       // warmup
     for (TInt run = 0; run < 3; ++run)
         LogF(_L8("NOP run %d: %u MHz"), run + 1, MeasureMhz());
     }
 
-// Єдина зміна стану за весь пробник. Резервуємо максимальну продуктивність,
-// міряємо, звільняємо, міряємо ще раз. Резерв/звільнення парні, тож лічильник
-// у драйвері повертається туди ж, звідки почали.
+// The only state change in the entire probe. Reserve maximum performance,
+// measure, release, measure again. Reserve/release are paired, so the counter
+// in the driver returns right back to where we started.
 static void ExperimentReserve()
     {
     Log(_L8("--- reserve experiment ---"));
@@ -2275,7 +2285,7 @@ static void ExperimentReserve()
         return;
         }
 
-    // Опкоди, крім 1, за кодом мають повертати 0 - перевіряємо це твердження.
+    // According to code, opcodes other than 1 should return 0 - verify this assertion.
     for (TInt op = 0; op < 4; ++op)
         LogF(_L8("DoControl(%d) -> %d"), op, ch.Ctl(op));
 
@@ -2298,8 +2308,8 @@ static void Benchmark()
     {
     Log(_L8("--- measurement ---"));
 
-    // Розігрів: перший прогін ловить промахи кешу і можливий підйом частоти
-    // губернатором DVFS, тому в залік не йде.
+    // Warmup: the first run catches cache misses and possible frequency elevation
+    // by the DVFS governor, so it is discarded from scoring.
     SpinAlu(2000000);
 
     const TUint32 kIter = 8000000;
@@ -2310,13 +2320,13 @@ static void Benchmark()
         TUint32 sink = SpinAlu(kIter);
         TUint32 t1 = User::FastCounter();
         TUint32 us = ElapsedUs(t0, t1);
-        // Мітерацій/с у сотих: цілочисельно, без плаваючої коми.
+        // Miterations/s in hundredths: integer arithmetic, without floating point.
         TUint32 m100 = us ? (TUint32)(((TUint64)kIter * 100u) / us) : 0;
         LogF(_L8("ALU run %d: %u us, %u.%02u Mitr/s (sink=%u)"),
              run + 1, us, m100 / 100, m100 % 100, sink);
         }
 
-    const TInt kWords = 512 * 1024;          // 2 МБ - гарантовано повз кеш
+    const TInt kWords = 512 * 1024;          // 2 MB - guaranteed to bypass cache
     TUint32 *buf = (TUint32 *)User::Alloc(kWords * sizeof(TUint32));
     if (!buf)
         {
@@ -2333,15 +2343,15 @@ static void Benchmark()
         TUint32 sink = SpinMem(buf, kWords, 8);
         TUint32 t1 = User::FastCounter();
         TUint32 us = ElapsedUs(t0, t1);
-        TUint32 lines = (TUint32)(kWords / 16) * 8u;
-        TUint32 mbs = us ? (TUint32)(((TUint64)lines * 64u) / us) : 0;   // МБ/с
+        const TUint64 bytes = (TUint64)(kWords & ~7) * 4u * 8u;
+        TUint32 mbs = us ? (TUint32)(bytes / us) : 0;                    // MB/s
         LogF(_L8("MEM run %d: %u us, ~%u MB/s (sink=%u)"), run + 1, us, mbs, sink);
         }
     User::Free(buf);
     }
 
-// Перевірка сканера XIP на апараті, де правильна відповідь відома незалежно.
-// Нічого не патчить: лише читає ROM з користувацького режиму.
+// Verifying XIP scanner on a device where the correct answer is known independently.
+// Patches nothing: only reads ROM from user mode.
 static void RunRomFind()
     {
     Log(_L8("--- romfind: signature scan of the live XIP ---"));
@@ -2362,19 +2372,19 @@ static void RunRomFind()
 
 // --- ALU bench --------------------------------------------------------------
 //
-// Навіщо. Тест ALU у застосунку рахує ітерації LCG і показує Mitr/s, але
-// скільки тактів коштує одна ітерація, з цього числа не видно, тож порівняти
-// його ні з чим. Тут кожне ядро написане асемблером із .rept, тобто кількість
-// інструкцій на ітерацію відома ТОЧНО і не залежить від настрою компілятора, а
-// частота береться з незалежного NOP-заміру. На виході - такти на операцію.
+// Why. The ALU test in the application counts LCG iterations and reports Mitr/s, but
+// how many cycles one iteration costs is not visible from this number, making it impossible
+// to compare against anything. Here each kernel is written in assembly with .rept, so the number
+// of instructions per iteration is known EXACTLY and does not depend on compiler whims, while
+// frequency is taken from an independent NOP measurement. The output is cycles per operation.
 //
-// Ядра підібрані так, щоб розділити дві різні величини. Залежний ланцюг міряє
-// ЗАТРИМКУ інструкції: наступна не починається, доки не готова попередня.
-// Незалежний - ПРОПУСКНУ ЗДАТНІСТЬ: скільки таких інструкцій конвеєр видає за
-// такт. ARM1136 одноконвеєрний, тож для add обидва числа мусять зійтись на
-// одиниці; розбіжність означала б, що замір міряє не те, що ми думаємо.
+// Kernels are chosen to separate two distinct metrics. A dependent chain measures
+// instruction LATENCY: the next cannot begin until the previous is ready.
+// An independent chain measures THROUGHPUT: how many such instructions the pipeline issues per
+// cycle. ARM1136 is single-issue, so for add both numbers must converge to
+// one; a discrepancy would mean the benchmark is not measuring what we think.
 
-// 64 залежні додавання: очікувана затримка 1 такт.
+// 64 dependent additions: expected latency 1 cycle.
 static void SpinAddDep(TUint32 aIter)
     {
     __asm__ __volatile__(
@@ -2387,7 +2397,7 @@ static void SpinAddDep(TUint32 aIter)
         : "+r" (aIter) : : "r3", "cc");
     }
 
-// 64 незалежні додавання по чотирьох регістрах: ланцюга залежностей немає.
+// 64 independent additions across four registers: no dependency chain.
 static void SpinAddIndep(TUint32 aIter)
     {
     __asm__ __volatile__(
@@ -2403,7 +2413,7 @@ static void SpinAddIndep(TUint32 aIter)
         : "+r" (aIter) : : "r3", "r4", "r5", "r6", "cc");
     }
 
-// 64 залежні множення. Rd != Rm навмисно: залежність іде через Rs.
+// 64 dependent multiplications. Rd != Rm intentionally: dependency runs through Rs.
 static void SpinMulDep(TUint32 aIter)
     {
     __asm__ __volatile__(
@@ -2417,8 +2427,8 @@ static void SpinMulDep(TUint32 aIter)
         : "+r" (aIter) : : "r3", "r4", "cc");
     }
 
-// Ядро LCG: множення й додавання в одному ланцюгу - рівно те, що крутить
-// тест ALU у застосунку. 32 пари на ітерацію, тобто теж 64 операції.
+// LCG core: multiplication and addition in a single chain - exactly what runs
+// the ALU test in the application. 32 pairs per iteration, i.e., also 64 operations.
 static void SpinLcg(TUint32 aIter)
     {
     __asm__ __volatile__(
@@ -2434,7 +2444,7 @@ static void SpinLcg(TUint32 aIter)
         : "+r" (aIter) : : "r3", "r4", "r5", "cc");
     }
 
-// Зсув із виключним АБО в одному ланцюгу: друга половина ітерації LCG у GUI.
+// Shift with XOR in a single chain: the second half of the LCG iteration in the GUI.
 static void SpinShiftDep(TUint32 aIter)
     {
     __asm__ __volatile__(
@@ -2447,7 +2457,7 @@ static void SpinShiftDep(TUint32 aIter)
         : "+r" (aIter) : : "r3", "cc");
     }
 
-// Такти на операцію в сотих. aOps - скільки операцій у ядрі на одну ітерацію.
+// Cycles per operation in hundredths. aOps - number of operations in the kernel per iteration.
 static void ReportAlu(const TDesC8& aName, void (*aFn)(TUint32),
                       TUint32 aIter, TUint32 aOps, TUint32 aMhz)
     {
@@ -2456,7 +2466,7 @@ static void ReportAlu(const TDesC8& aName, void (*aFn)(TUint32),
     TUint32 t1 = User::FastCounter();
     const TUint32 us = ElapsedUs(t0, t1);
     const TUint64 ops = (TUint64)aIter * aOps;
-    // пікосекунди на операцію, далі такти = пс * МГц / 1e6
+    // picoseconds per operation, then cycles = ps * MHz / 1e6
     const TUint32 psPer = ops ? (TUint32)(((TUint64)us * 1000000u) / ops) : 0;
     const TUint32 cyc100 = (TUint32)(((TUint64)psPer * aMhz) / 10000u);
     LogF(_L8("%S: %u us, %u.%03u ns/op, %u.%02u cycles/op"),
@@ -2466,7 +2476,7 @@ static void ReportAlu(const TDesC8& aName, void (*aFn)(TUint32),
 static void RunAluBench()
     {
     Log(_L8("--- ALU bench ---"));
-    SpinNop(200000);                        // розігрів: підняти OPP
+    SpinNop(200000);                        // warmup: raise OPP
     const TUint32 mhz = MeasureMhz();
     LogF(_L8("clock (NOP chain): %u MHz"), mhz);
     if (!mhz)
@@ -2481,16 +2491,16 @@ static void RunAluBench()
 
 // --- memory bench -----------------------------------------------------------
 //
-// Навіщо окремий інструмент. Смуга пам'яті в GUI рахувалась за припущенням, що
-// одне читання підтягує 64 байти. Довжина рядка кешу - величина апаратна, і
-// припускати її не можна: якщо рядок 32 байти, число завищене рівно вдвічі.
-// Тут вона МІРЯЄТЬСЯ: обхід із кроком, меншим за рядок, ділить один підкачаний
-// рядок між кількома читаннями, тож час на одне читання росте доти, доки крок
-// не дійде до довжини рядка, і далі виходить на полицю.
+// Why a separate tool. Memory bandwidth in GUI was computed assuming that
+// a single read fetches 64 bytes. Cache line length is a hardware property and
+// cannot be assumed: if the line is 32 bytes, the figure is overestimated by exactly 2x.
+// Here it is MEASURED: traversing with a stride smaller than a line splits one fetched
+// line among multiple reads, so time per read increases until stride
+// reaches line length, and then plateaus.
 static void RunMemBench()
     {
     Log(_L8("--- memory bench ---"));
-    const TInt kWords = 1024 * 1024;             // 4 МБ, гарантовано повз кеш
+    const TInt kWords = 1024 * 1024;             // 4 MB, guaranteed to bypass cache
     TUint32* buf = (TUint32*)User::Alloc(kWords * sizeof(TUint32));
     if (!buf)
         {
@@ -2501,8 +2511,8 @@ static void RunMemBench()
     for (i = 0; i < kWords; ++i)
         buf[i] = (TUint32)i + 1u;
 
-    // 1. Розгортка по кроку: наносекунди на одне читання.
-    static const TInt KStrides[] = { 1, 2, 4, 8, 16, 32, 64 };   // у словах
+    // 1. Stride sweep: nanoseconds per read.
+    static const TInt KStrides[] = { 1, 2, 4, 8, 16, 32, 64 };   // in words
     const TInt nStrides = sizeof(KStrides) / sizeof(KStrides[0]);
     TInt s;
     for (s = 0; s < nStrides; ++s)
@@ -2517,13 +2527,13 @@ static void RunMemBench()
         sink = acc;
         const TUint32 us = ElapsedUs(t0, t1);
         const TUint32 reads = (TUint32)(kWords / step);
-        // пікосекунди на читання: на цілих інакше втратили б усю точність
+        // picoseconds per read: with integers we would otherwise lose all precision
         const TUint32 psPer = reads ? (TUint32)(((TUint64)us * 1000000u) / reads) : 0;
         LogF(_L8("stride %4d B: %u us, %u.%03u ns/read (sink=%u)"),
              step * 4, us, psPer / 1000, psPer % 1000, (TUint32)sink);
         }
 
-    // 2. Суцільне читання: КОЖНЕ слово, тож байти пораховані без припущень.
+    // 2. Sequential read: EVERY word, so bytes are counted without assumptions.
     TInt p;
     for (p = 0; p < 2; ++p)
         {
@@ -2542,13 +2552,13 @@ static void RunMemBench()
         LogF(_L8("seq read 4 MB: %u us, %u MB/s (sink=%u)"), us, mbs, (TUint32)sink);
         }
 
-    // 3. Те саме в межах L1 (4 КБ): стеля ядра на читаннях з кешу.
+    // 3. Same within L1 (4 KB): core ceiling on reads from cache.
     {
-    const TInt cWords = 1024;                    // 4 КБ
+    const TInt cWords = 1024;                    // 4 KB
     const TInt rounds = 2048;
     volatile TUint32 sink = 0;
     TUint32 acc = 0;
-    for (i = 0; i < cWords; ++i)                 // розігрів: набити рядки
+    for (i = 0; i < cWords; ++i)                 // warmup: fill lines
         acc += buf[i];
     TUint32 t0 = User::FastCounter();
     TInt r;
@@ -2567,7 +2577,7 @@ static void RunMemBench()
          rounds, us, mbs, (TUint32)sink);
     }
 
-    // 4. Запис суцільно - друга половина картини.
+    // 4. Sequential write - second half of the picture.
     {
     TUint32 t0 = User::FastCounter();
     for (i = 0; i < kWords; i += 8)
@@ -2600,11 +2610,11 @@ static void DoFontProbeL()
     static const TUint16 KProbeChars[] =
         {
         0x0041, // 'A'
-        0x0430, // 'а'
-        0x0456, // 'і'
-        0x0457, // 'ї'
-        0x0454, // 'є'
-        0x0491, // 'ґ'
+        0x0430, // Cyrillic small letter a
+        0x0456, // Cyrillic small letter Ukrainian i
+        0x0457, // Cyrillic small letter yi
+        0x0454, // Cyrillic small letter Ukrainian ie
+        0x0491, // Cyrillic small letter ghe with upturn
         0x02bc, // modifier apostrophe
         0x4e00  // CJK control
         };
@@ -2743,14 +2753,14 @@ static void RunL()
     {
     User::LeaveIfError(gFs.Connect());
     gFs.MkDirAll(KLogFile);
-    // Перезаписуємо: кожен прогін - самодостатній звіт.
+    // Overwrite: each run is a self-contained report.
     User::LeaveIfError(gLog.Replace(gFs, KLogFile, EFileWrite | EFileShareAny));
 
     Log(_L8("== ocprobe: DVFS probe, read-only =="));
-    // ПРЯМИЙ доказ перезавантаження. Мережева доступність його не показує:
-    // апарат встигає піднятись і знову відповідати між нашими перевірками.
-    // Лічильник тіків росте від старту системи й обнуляється лише ребутом,
-    // тож порівняння цього числа між прогонами - єдине надійне свідчення.
+    // DIRECT proof of reboot. Network reachability does not show it:
+    // the device manages to boot and respond again between our checks.
+    // Tick counter increments from system start and is reset only by reboot,
+    // so comparing this number between runs is the only reliable evidence.
     {
     TUint ntick = User::NTickCount();
     TInt np = 1000;
@@ -2768,17 +2778,17 @@ static void RunL()
     else
         Log(_L8("fast counter: UNAVAILABLE - all timings will read zero"));
 
-    // Прогони з патчером ітеративні, тож повільну оглядову частину пропускаємо:
-    // вона нічого не додає, а кожна зайва хвилина - це хвилина на апараті.
-    // Командний рядок читаємо ОДИН раз і в буфер на 256 символів. Причина
-    // конкретна: аргументи стенду замовника ("gui play nosnd frames6100 dsa
-    // light blend imggt.pbp") самі по собі займають півсотні, і в попередньому
-    // TBuf<64> команда мовчки обрізалась би посередині. 256 - рівно стільки ж,
-    // скільки приймає демон розгортання (tester_exec.cpp, TBuf<256> args).
+    // Runs with patcher are iterative, so we skip the slow survey part:
+    // it adds nothing, and every extra minute is a minute on hardware.
+    // We read command line ONCE into a 256-character buffer. The specific
+    // reason: client testbed arguments ("gui play nosnd frames6100 dsa
+    // light blend imggt.pbp") alone take fifty chars, and in previous
+    // TBuf<64> command was silently truncated mid-string. 256 is exactly as much
+    // as the deployment daemon accepts (tester_exec.cpp, TBuf<256> args).
     //
-    // Усе після маркера "args:" належить ДИТИНІ, а не нам, і відрізається
-    // одразу. Інакше слово з чужих аргументів ловилось би нашим власним Find і
-    // запускало б чужу гілку.
+    // Everything after marker "args:" belongs to the CHILD, not us, and is cut off
+    // immediately. Otherwise a word from foreign arguments would be caught by our own Find and
+    // trigger a different branch.
     TBuf<256> full;
     User::CommandLine(full);
     TPtrC cmd(full);
@@ -2790,13 +2800,13 @@ static void RunL()
         childArgs.Set(full.Mid(sep + 5));
         }
     const TBool patcherRun = (cmd.Find(_L("patcher")) != KErrNotFound);
-    // E90-режим: лише HAL + скан відкривних каналів, без повільної оглядової
-    // частини й без dvfs-проби (dvfs на E90 нема).
+    // E90 mode: only HAL + scan of openable channels, without slow survey
+    // part and without dvfs probe (no dvfs on E90).
     const TBool e90scan = (cmd.Find(_L("e90scan")) != KErrNotFound);
-    // Бутстрап READ-примітиву через хост Usbc. "usbcboot e90" - E90-адреси,
-    // інакше RM-320 (де є dvfs-оракул для звірки самого механізму).
+    // Bootstrap READ primitive via Usbc host. "usbcboot e90" - E90 addresses,
+    // otherwise RM-320 (where dvfs oracle exists to verify the mechanism itself).
     const TBool usbcboot = (cmd.Find(_L("usbcboot")) != KErrNotFound);
-    // Пряме читання XIP з user mode: перевірка бази образу (див. RomRead).
+    // Direct reading of XIP from user mode: image base check (see RomRead).
     const TBool romread = (cmd.Find(_L("romread")) != KErrNotFound);
     const TBool romscan = (cmd.Find(_L("romscan")) != KErrNotFound);
     const TBool romdump = (cmd.Find(_L("romdump")) != KErrNotFound);
@@ -2805,10 +2815,10 @@ static void RunL()
     const TBool alubenchRun = (cmd.Find(_L("alubench")) != KErrNotFound);
     const TBool romfindRun = (cmd.Find(_L("romfind")) != KErrNotFound);
     const TBool quiet = patcherRun || e90scan || usbcboot || romread || romscan || romdump || fontRun || membenchRun || alubenchRun || romfindRun;
-    // Профіль E90 для patcher-команд: "patcher ... e90" бере KProfileE90. Тоді
-    // Prepare() (шлях EReadDvfs) свідомо відмовить (EOcStepUnsupported) замість
-    // патчити RM-320-адреси в чуже ядро E90 (findings §27). Розгінний шлях E90
-    // (через Usbc) - окремо; тут лише безпечна відмова.
+    // E90 profile for patcher commands: "patcher ... e90" selects KProfileE90. Then
+    // Prepare() (EReadDvfs path) will deliberately fail (EOcStepUnsupported) instead of
+    // patching RM-320 addresses into foreign E90 kernel (findings §27). E90 overclock path
+    // (via Usbc) is separate; here only safe refusal.
     if (patcherRun && cmd.Find(_L("e90")) != KErrNotFound)
         gUseE90Profile = ETrue;
 
@@ -2829,7 +2839,7 @@ static void RunL()
         ProbeDriver();
         }
 
-    // TestPowerAPI лише на явну вимогу: "power <індекс>".
+    // TestPowerAPI only on explicit request: "power <index>".
     TInt at = cmd.Find(_L("power"));
     if (at != KErrNotFound)
         {
@@ -2850,28 +2860,28 @@ static void RunL()
         ExperimentReserve();
         SampleUnderLoad();
         }
-    // Прогони з патчером міряють самі, у парі "до/після" в межах одного запуску.
+    // Patcher runs measure on their own, in a "before/after" pair within a single invocation.
     if (!quiet)
         {
         MeasureAbsoluteClock();
         Benchmark();
         }
 
-    // RomPatcher+ ніколи не вантажимо у звичайному прогоні. Команди окремі:
-    //   "patcher selftest" - лише буфер цього процесу;
-    //   "patcher read"     - self-test, потім READ-патч без запису PRCM.
-    //   "patcher sram"     - self-test, READ-патч, ланцюг до SRAM-копії, SDRC.
-    //   "patcher engine"       - безголова перевірка двигуна, лише читання;
-    //   "patcher blobtest"     - виконання тестового блоба в режимі ядра;
-    //   "patcher dsp [n]"      - регістри домену DSP, лише читання (n знімків);
-    //   "patcher dspset <d>"   - змінити дільник DSP, повернути штатний на виході;
-    //   "patcher dsphold <d>"  - те саме, але лишити (ребут усе одно поверне);
-    //   "patcher oc <mult>"    - розгін, замір, витримка, повернення штатного.
+    // RomPatcher+ is never loaded during a regular run. Commands are separate:
+    //   "patcher selftest" - buffer of this process only;
+    //   "patcher read"     - self-test, then READ patch without PRCM writes;
+    //   "patcher sram"     - self-test, READ patch, chain to SRAM copy, SDRC;
+    //   "patcher engine"       - headless engine check, read-only;
+    //   "patcher blobtest"     - execution of test blob in kernel mode;
+    //   "patcher dsp [n]"      - DSP domain registers, read-only (n snapshots);
+    //   "patcher dspset <d>"   - change DSP divider, restore stock on exit;
+    //   "patcher dsphold <d>"  - same, but keep it (reboot restores anyway);
+    //   "patcher oc <mult>"    - overclock, measurement, soak, restore stock;
     //   "patcher clocks mult=86 mpu=4 l3=4 dss=6 sec=300 [sample=10]
-    //                   [child=ps1|dsp] [args:<аргументи дитини>]"
-    //                          - повна розкладка клоків, витримка з наглядом,
-    //                            повернення штатного стану. Аргументи дитини
-    //                            йдуть ОСТАННІМИ, після маркера "args:".
+    //                   [child=ps1|dsp] [args:<child arguments>]"
+    //                          - full clock layout, supervised soak,
+    //                            restore stock state. Child arguments
+    //                            come LAST, after the "args:" marker.
     TInt lv = cmd.Find(_L("patcher level"));
     if (lv != KErrNotFound)
         {
@@ -2893,8 +2903,8 @@ static void RunL()
         ProbeEngine();
     else if (cmd.Find(_L("patcher clocks")) != KErrNotFound)
         {
-        // Замовчування - рівно штатна розкладка: команда без жодного ключа
-        // нічого не змінює, лише міряє й наглядає.
+        // Default is exactly stock layout: command without any switches
+        // changes nothing, only measures and supervises.
         TInt mult = KStockMult, mpu = 2, l3 = 4, dss = 6, sec = 30, sample = 10;
         KeyVal(cmd, _L("mult="), mult);
         KeyVal(cmd, _L("mpu="), mpu);
@@ -2902,8 +2912,8 @@ static void RunL()
         KeyVal(cmd, _L("dss="), dss);
         KeyVal(cmd, _L("sec="), sec);
         KeyVal(cmd, _L("sample="), sample);
-        // Стеля витримки та сама, що й у dspset: зависла дитина не має тримати
-        // нештатну розкладку довше, ніж ми свідомо дозволили.
+        // Soak cap is the same as in dspset: a hanging child must not hold
+        // a non-stock layout longer than deliberately permitted.
         if (sec < 0 || sec > 900)
             sec = 30;
         if (sample < 5 || sample > 60)
@@ -2913,8 +2923,8 @@ static void RunL()
             child = EChildPs1;
         else if (cmd.Find(_L("child=dsp")) != KErrNotFound)
             child = EChildDsp;
-        // hold=1 вмикає переписування дільників при зсуві. Окремим ключем і
-        // вимкнене за замовчуванням: цей блоб на апараті ще не виконувався.
+        // hold=1 enables rewriting dividers upon drift. A separate switch and
+        // disabled by default: this blob has never executed on hardware yet.
         TInt hold = 0;
         KeyVal(cmd, _L("hold="), hold);
         RunClocks(mult, mpu, l3, dss, sec, child, childArgs, sample, hold != 0);
@@ -2929,7 +2939,7 @@ static void RunL()
         TInt n = -1;
         if (lex.Val(n) == KErrNone)
             {
-            // Другий необов'язковий аргумент - секунди витримки.
+            // Second optional argument - soak seconds.
             lex.SkipSpace();
             TInt soak = 0;
             if (lex.Val(soak) != KErrNone || soak < 0 || soak > 900)
@@ -2950,8 +2960,8 @@ static void RunL()
         TLex lex(cmd.Mid(at + 11));
         lex.SkipSpace();
         TInt n = 0;
-        // Без аргументу - 12 знімків за 3 секунди: досить, щоб побачити
-        // бімодальність, і мало, щоб не тримати апарат.
+        // Without argument - 12 snapshots over 3 seconds: enough to see
+        // bimodality, and short enough not to stall the device.
         if (lex.Val(n) != KErrNone || n < 1 || n > 60)
             n = 12;
         ProbeDsp(n);

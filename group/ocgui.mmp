@@ -1,8 +1,8 @@
-// Застосунок розгону з інтерфейсом на апараті.
+// Overclock application with an on-device UI.
 //
-// UID2 нуль, як у демона й у stage1 PS1Emulator: застосунком EXE робить файл
-// реєстрації, а не UID2. 0x100039CE тут лише додавав би ризику - пакети з ним
-// на цьому апараті не встановлювались.
+// UID2 is zero, as in the daemon and in stage1 PS1Emulator: what makes the EXE
+// an application is the registration file, not UID2. 0x100039CE would only add
+// risk here - packages with it failed to install on this device.
 
 TARGET          ocgui.exe
 TARGETTYPE      exe
@@ -10,22 +10,23 @@ UID             0 0xE0001011
 SECUREID        0xE0001011
 VENDORID        0
 
-// Той самий набір, що й у пробника: PowerMgmt - найімовірніша перевірка в
-// DDVFSChannel::DoCreate, решта - щоб відмова каналу була змістовним висновком,
-// а не наслідком бракуючого дозволу. ReadDeviceData не входить у самопідписний
-// набір, тож пакет ставиться лише на цьому вже розблокованому апараті.
-// CommDD додано 2026-09-09: на E90 носієм READ/EXEC-примітиву є драйвер
-// USB-клієнта Usbc, а його DoCreate без CommDD віддає -46. Без цього рядка
-// застосунок на E90 стартує, але двигун лишається NOT READY.
+// The same set as the probe: PowerMgmt is the most likely check in
+// DDVFSChannel::DoCreate, the rest ensure that a channel failure is a meaningful
+// conclusion rather than a consequence of missing capability. ReadDeviceData is not
+// part of the self-signed set, so the package can only be installed on an already
+// unlocked device.
+// CommDD added 2026-09-09: on E90 the host for the READ/EXEC primitive is the Usbc
+// USB client driver, and its DoCreate returns -46 without CommDD. Without this line,
+// the app starts on E90, but the engine remains NOT READY.
 CAPABILITY      PowerMgmt WriteDeviceData ReadDeviceData ReadUserData WriteUserData ProtServ CommDD
 
-// Блоб relock і замір такту покладаються на фіксоване кодування ARM: у THUMB
-// і розподіл регістрів, і вартість інструкцій інші.
+// The relock blob and clock measurement rely on fixed ARM encoding: in THUMB
+// both register allocation and instruction costs differ.
 ALWAYS_BUILD_AS_ARM
 
 EPOCSTACKSIZE   0x5000
-// 2 МБ під тестовий буфер плюс запас: робочий набір мусить бути явно більший
-// за кеш, інакше тест шини міряв би кеш.
+// 2 MB for test buffer plus headroom: the working set must be significantly larger
+// than the cache, otherwise the bus test would measure the cache.
 EPOCHEAPSIZE    0x10000 0x800000
 
 SOURCEPATH      ..\src
@@ -33,8 +34,8 @@ SOURCE          ocgui.cpp
 SOURCE          ocengine.cpp
 SOURCE          ocstr.cpp
 
-// Ресурс застосунку. Ім'я мусить збігатися з app_file у ocgui_reg.rss -
-// фреймворк шукає рівно \resource\apps\<app_file>.rsc.
+// Application resource. Name must match app_file in ocgui_reg.rss -
+// the framework looks specifically for \resource\apps\<app_file>.rsc.
 START RESOURCE  ocgui.rss
 TARGET          ocgui
 TARGETPATH      \resource\apps

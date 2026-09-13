@@ -1,35 +1,35 @@
-// romscan.js - сигнатурний пошук машинерії розгону в СИРОМУ образі прошивки
-// (MCU/CORE FPSX, розширення .C0R/.C0/.C01/.c00), без апарата й без емулятора.
+// romscan.js - signature search for overclock machinery in a RAW firmware image
+// (MCU/CORE FPSX, extensions .C0R/.C0/.C01/.c00), without device and without emulator.
 //
-// Працює тому, що ядровий бік ROM (ekern, power.dll, *.ldd/*.pdd) лежить у
-// XIP CORE нестисненим і виконується прямо з флешу. Тому інструкції цих модулів
-// присутні в образі як є, і їх можна знайти за сигнатурою. Стиснені секції
-// ROFS (переважно user-side) сюди не потрапляють - це навмисна межа методу:
-// romscan судить лише про ядрову частину, якої нам і треба.
+// Works because the kernel side of the ROM (ekern, power.dll, *.ldd/*.pdd) resides in
+// XIP CORE uncompressed and executes directly from flash. Therefore instructions of these modules
+// are present in the image as is, and can be found by signature. Compressed ROFS sections
+// (mostly user-side) are not included here - this is an intentional boundary of the method:
+// romscan inspects only the kernel part, which is what we need.
 //
-// Що шукає:
-//   1. Тіло dvfs_interface DoControl(1) - наш примітив читання частоти. Шість
-//      слів, два з них адресозалежні, тож звіряються за маскою. Наявність = на
-//      цю прошивку метод переноситься як є; відсутність = потрібен інший читач.
-//   2. Літеральні пули PRCM - адреси регістрів тактування (CM_CLKSEL*_PLL,
-//      CM_CLKSEL1_CORE, CM_CLKSEL_MPU, CM_CLKEN_PLL), упаковані поряд. Це хвіст
-//      функції power.dll, яка пише клоки, тобто сам механізм розгону.
+// What it looks for:
+//   1. dvfs_interface DoControl(1) body - our clock reading primitive. Six
+//      words, two of them are address-dependent, so matched by mask. Presence = the method
+//      ports to this firmware as is; absence = a different reader is needed.
+//   2. PRCM literal pools - clock register addresses (CM_CLKSEL*_PLL,
+//      CM_CLKSEL1_CORE, CM_CLKSEL_MPU, CM_CLKEN_PLL), packed together. This is the tail
+//      of the power.dll function that writes clocks, i.e. the overclock mechanism itself.
 //
-// Використання:  node tools/romscan.js <образ.C0R> [ще образи...]
-//                node tools/romscan.js --json <образ>   (машиночитаний вивід)
+// Usage:  node tools/romscan.js <image.C0R> [more images...]
+//         node tools/romscan.js --json <image>   (machine-readable output)
 
 const fs = require("fs");
 
 function scan(path) {
   const b = fs.readFileSync(path);
 
-  // 1) тіло DoControl(1): stmdb sp!,{r4,lr}; mov r0,#1; bl ?; ldr r1,[pc,#imm];
-  //    ldmia sp!,{r4,lr}; b ?   (крок 2 байти: XIP може лежати зі зсувом mod4=2)
+  // 1) DoControl(1) body: stmdb sp!,{r4,lr}; mov r0,#1; bl ?; ldr r1,[pc,#imm];
+  //    ldmia sp!,{r4,lr}; b ?   (step 2 bytes: XIP can be located at mod4=2 offset)
 
-  // 3) наявність самого драйвера dvfs_interface за іменем. Імʼя ядрового
-  //    модуля лежить у XIP і як ASCII (заголовок E32), і як UTF-16 (каталог
-  //    ROM), тож знаходиться навіть тоді, коли тіло DoControl(1) скомпільовано
-  //    інакше й сигнатура його не ловить. Це і є надійний тест "чи є драйвер".
+  // 3) presence of the dvfs_interface driver itself by name. The name of the kernel
+  //    module resides in XIP both as ASCII (E32 header) and UTF-16 (ROM directory),
+  //    so it is found even when the DoControl(1) body is compiled differently and
+  //    the signature does not catch it. This is the reliable test for "is driver present".
   function hasDvfsName(){
     const a=b.indexOf(Buffer.from("dvfs_interface","latin1"));
     const u=b.indexOf(Buffer.from("dvfs_interface","utf16le"));
@@ -48,7 +48,7 @@ function scan(path) {
     dvfs.push(p);
   }
 
-  // 2) літерали PRCM і їх скупчення (>=3 у межах 0x40 байтів = пул)
+  // 2) PRCM literals and their clusters (>=3 within 0x40 bytes = pool)
   const regs = [0xc6008540, 0xc6008544, 0xc6008140, 0xc6008500, 0xc6008240];
   const pos = [];
   for (let p = 0; p + 4 <= b.length; p += 2) {
@@ -80,15 +80,15 @@ for (const f of files) {
 }
 if (json) { console.log(JSON.stringify(out, null, 2)); process.exit(0); }
 for (const r of out) {
-  if (r.error) { console.log(r.file + "  ПОМИЛКА: " + r.error); continue; }
+  if (r.error) { console.log(r.file + "  ERROR: " + r.error); continue; }
   const dv = r.dvfs.length
-    ? "Є (x" + r.dvfs.length + " @0x" + r.dvfs.map(x => x.toString(16)).join(",0x") + ")"
-    : "немає";
+    ? "yes (x" + r.dvfs.length + " @0x" + r.dvfs.map(x => x.toString(16)).join(",0x") + ")"
+    : "none";
   const cl = r.clusters.length
     ? r.clusters.map(c => "@0x" + c.at.toString(16) + "(x" + c.n + ")").join(" ")
-    : "немає";
+    : "none";
   console.log(r.file);
-  console.log("  драйвер dvfs_interface: " + (r.dname.present ? "Є" : "НЕМАЄ"));
-  console.log("  тіло DoControl(1) (патч-сайт): " + dv);
-  console.log("  PRCM-пул (механізм запису): " + cl + "  [літералів усього " + r.prcm + "]");
+  console.log("  dvfs_interface driver: " + (r.dname.present ? "yes" : "no"));
+  console.log("  DoControl(1) body (patch site): " + dv);
+  console.log("  PRCM pool (write mechanism): " + cl + "  [literals in total " + r.prcm + "]");
 }

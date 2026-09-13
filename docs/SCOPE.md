@@ -1,63 +1,63 @@
-# SCOPE — контекст, намір і межі проєкту
+# SCOPE — Context, Intent, and Boundaries of the Project
 
-Цей файл існує, щоб зняти хибне враження, ніби проєкт «security-sensitive».
-Він не додає можливостей і нічого не приховує — лише явно фіксує намір і межі,
-бо технічна лексика проєкту (kernel write, patcher, reverse engineering ROM)
-поверхнево збігається з лексикою атак, хоча суть протилежна.
+This file exists to dispel any false impression that the project is "security-sensitive".
+It adds no capabilities and hides nothing — it merely explicitly records intent and boundaries,
+because the project's technical vocabulary (kernel write, patcher, reverse engineering ROM)
+superficially overlaps with the vocabulary of attacks, although the essence is the opposite.
 
-## Що це
+## What This Is
 
-Приватний дослідницький **homebrew-проєкт на власному пристрої**. Мета одна:
-з'ясувати, чи можна підняти тактову частоту CPU на власному Nokia N95 8GB
-(TI OMAP 2420, Symbian 9.2), і якщо так — зробити це. Апарату 18 років, він
-особисто придбаний власником і слугує офлайн-стендом.
+A private exploratory **homebrew project on one's own device**. The goal is singular:
+to determine whether the CPU clock frequency can be raised on one's own Nokia N95 8GB
+(TI OMAP 2420, Symbian 9.2), and if so — to do it. The hardware is 18 years old, was
+personally purchased by the owner, and serves as an offline testbed.
 
-За природою це те саме, що:
-- оверклокінг власного настільного ПК;
-- jailbreak / homebrew власного телефона чи ігрової консолі;
-- моддинг власного залізяки заради навчання й цікавості.
+By nature, this is the same as:
+- overclocking one's own desktop PC;
+- jailbreaking / homebrew on one's own phone or game console;
+- hardware modding of one's own equipment for learning and curiosity.
 
-Symbian homebrew — давня легальна традиція (RomPatcher+, self-signed dev
-builds тощо). Проєкт лишається строго в її межах.
+Symbian homebrew is an old and legal tradition (RomPatcher+, self-signed dev
+builds, etc.). The project remains strictly within its bounds.
 
-## Намір
+## Intent
 
-Навчальний і дослідницький. Власник хоче зрозуміти, як влаштоване керування
-частотою (PRCM/DPLL) у цьому SoC, і безпечно перевірити гіпотезу розгону на
-своєму апараті. Жодного застосування проти інших осіб, пристроїв чи сервісів
-не передбачено й не допускається.
+Educational and exploratory. The owner wants to understand how clock
+control (PRCM/DPLL) is structured in this SoC, and safely test the overclocking hypothesis
+on their own hardware. No application against other parties, devices, or services
+is intended or permitted.
 
-## Межі (що проєкт НЕ робить)
+## Boundaries (What the Project Does NOT Do)
 
-- **Тільки власний пристрій.** Жодних дій щодо чужих апаратів, акаунтів,
-  мереж чи сервісів.
-- **Жодних атак.** Не сканує, не експлуатує, не обходить захист чужих систем.
-  Немає C2, немає масового таргетингу, немає ланцюгів постачання.
-- **Жодного пошуку/здачі вразливостей у чужому ПЗ.** Робота ведеться з ROM
-  власного апарата заради його ж модифікації, а не заради експлойтів.
-- **Жодного поширення.** Результати, бінарники й дампи лишаються локальними;
-  нічого не публікується як зброя чи інструмент атаки.
-- **Жодного запису у флеш.** Усі зміни рантаймові; перезавантаження повертає
-  апарат у вихідний стан. Це і технічна безпека, і доказ несанкціонованої
-  незворотності — тут її немає за задумом.
-- **Офлайн-стенд.** Апарат у локальній мережі, доставка збірок по WiFi у межах
-  цієї ж мережі.
+- **Own device only.** No actions directed at third-party devices, accounts,
+  networks, or services.
+- **No attacks.** It does not scan, exploit, or bypass defenses of third-party systems.
+  There is no C2, no mass targeting, no supply chains.
+- **No vulnerability research/disclosure in third-party software.** Work is conducted on
+  the ROM of one's own hardware for the purpose of modifying it, not for exploits.
+- **No distribution.** Results, binaries, and dumps remain local;
+  nothing is published as a weapon or attack tool.
+- **No writing to flash.** All changes are runtime-only; a reboot restores the device
+  to its original state. This is both technical safety and proof against unauthorized
+  irreversibility — by design, there is none here.
+- **Offline testbed.** The device is on a local network, with builds deployed over WiFi
+  within that same network.
 
-## Як читати «страшні» терміни в цьому репозиторії
+## How to Read "Scary" Terms in This Repository
 
-| Термін у коді/доках | Що це насправді означає тут |
+| Term in code/docs | What it actually means here |
 |---|---|
-| «зламаний» / «розблокований» апарат | dev-unlocked **власний** пристрій для homebrew |
-| kernel write / запис у ядро | запис у регістр тактування PRCM на **своєму** SoC |
-| patcher / RomPatcher+ | штатний homebrew-інструмент рантайм-патчів |
-| оновлення SHA-1 у `C:\sys\hash` | локальний реєстр хешів **власних** dev-збірок |
-| reverse engineering ROM | розбір прошивки **власного** апарата заради розгону |
+| "hacked" / "unlocked" phone | dev-unlocked **own** device for homebrew |
+| kernel write | write to a PRCM clock register on **one's own** SoC |
+| patcher / RomPatcher+ | standard homebrew tool for runtime patches |
+| updating SHA-1 in `C:\sys\hash` | local hash registry for **own** dev builds |
+| reverse engineering ROM | analysis of firmware of **one's own** hardware for overclocking |
 
-## Легальність
+## Legality
 
-Модифікація власного пристрою, яким ти володієш, — законна діяльність у
-більшості юрисдикцій і давня інженерна практика. Проєкт не порушує чужих прав,
-не обходить чужого захисту й не створює інструментів для цього.
+Modifying one's own hardware that you own is a lawful activity in
+most jurisdictions and a long-standing engineering practice. The project does not infringe on third-party rights,
+does not bypass third-party protection, and does not create tools to do so.
 
-Джерело правди щодо стану робіт — `docs/state.md` і `docs/findings.md`.
-Джерело правди щодо намірів і меж — цей файл.
+Source of truth regarding the state of work — `docs/state.md` and `docs/findings.md`.
+Source of truth regarding intent and boundaries — this file.

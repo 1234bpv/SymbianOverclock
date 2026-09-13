@@ -1,5 +1,5 @@
-// Пробник DVFS. Консольного виводу немає - демон запускає його без термінала,
-// тож звіт іде у файл E:\ocprobe.log, який ПК потім забирає через GET.
+// DVFS probe. There is no console output - the daemon runs it without a terminal,
+// so the report is written to E:\ocprobe.log, which the PC then retrieves via GET.
 
 TARGET          ocprobe.exe
 TARGETTYPE      exe
@@ -7,20 +7,20 @@ UID             0 0xE0001010
 SECUREID        0xE0001010
 VENDORID        0
 
-// PowerMgmt - найімовірніший претендент на перевірку в DDVFSChannel::DoCreate.
-// Решта - щоб відмова не виявилась відмовою з іншої, побічної причини: якщо
-// канал не відкриється, це має бути змістовний висновок, а не наслідок
-// бракуючого дозволу на запис логу.
-// Широкий набір: E90-скан пробує відкрити довільні kernel-канали, а різні
-// драйвери перевіряють різні дозволи (CommDD, MultimediaDD, NetworkControl...).
-// Щоб відмова відкриття означала саме недоступність каналу, а не брак дозволу,
-// беремо все, що приймає dev-сертифікат на зламаному апараті (усе, крім
-// виробничих TCB/AllFiles/DRM).
+// PowerMgmt is the most likely candidate for checking in DDVFSChannel::DoCreate.
+// The rest are to ensure failure is not due to another, secondary reason: if the
+// channel fails to open, it must be a meaningful conclusion, not a consequence of
+// missing permissions to write the log.
+// Broad set: E90 scan attempts to open arbitrary kernel channels, and different
+// drivers check different capabilities (CommDD, MultimediaDD, NetworkControl...).
+// To ensure that open failure indicates actual channel unavailability rather than
+// missing capabilities, we include everything accepted by a dev certificate on a hacked
+// device (everything except production TCB/AllFiles/DRM).
 CAPABILITY      PowerMgmt WriteDeviceData ReadDeviceData ReadUserData WriteUserData ProtServ CommDD MultimediaDD NetworkControl NetworkServices LocalServices Location SwEvent TrustedUI SurroundingsDD UserEnvironment DiskAdmin
 
-// Абсолютний замір частоти покладається на вбудований асемблер із фіксованою
-// вартістю такту на інструкцію. У THUMB розподіл регістрів і кодування інші,
-// тож ціль збирається як ARM.
+// Absolute clock measurement relies on inline assembly with fixed clock cycle
+// cost per instruction. In THUMB, register allocation and encoding differ,
+// so the target is built as ARM.
 ALWAYS_BUILD_AS_ARM
 
 EPOCSTACKSIZE   0x5000

@@ -1,4 +1,4 @@
-// Реалізація двигуна розгону. Див. ocengine.h і docs/findings.md 17-18.
+// Overclock engine implementation. See ocengine.h and docs/findings.md 17-18.
 
 #include "ocengine.h"
 #include <e32svr.h>
@@ -9,30 +9,30 @@ _LIT(KPatcherFile, "patcher.ldd");
 _LIT(KPatcherName, "RomPatcherPlus.Driver");
 _LIT(KDvfsFile, "dvfs_interface.ldd");
 _LIT(KDvfsName, "dvfs_interface");
-// Носій примітиву там, де dvfs немає: стандартний драйвер USB-клієнта.
+// Primitive host where dvfs is absent: standard USB client driver.
 _LIT(KUsbcName, "Usbc");
 
-// Тіло dvfs_interface DoControl(1): рівно 6 слів, 0x80148410..0x80148427.
-// Диспетчер починається з 0x80148428 і лишається недоторканим.
+// dvfs_interface DoControl(1) body: exactly 6 words, 0x80148410..0x80148427.
+// The dispatcher starts at 0x80148428 and remains untouched.
 const TUint32 KDvfsBody = 0x80148410u;
-// Глобал power.dll: [+4] -> об'єкт power-down, [obj+16] -> лінійна адреса SRAM.
+// power.dll global: [+4] -> power-down object, [obj+16] -> SRAM linear address.
 const TUint32 KPwrDownGlobal = 0xc80030c8u;
-// Джерело копії в ROM: за ним звіряємо, що знайшли саме виконувану копію.
+// ROM copy source: used for verification that we found the executable copy.
 const TUint32 KRomSramRoutine = 0x800a7f6cu;
 
-// Еталонний профіль. Значення - ті самі константи, що доведені на апараті, лише
-// зібрані в одному місці. Поведінка RM-320 від цього не міняється ні на біт;
-// сенс у тому, що ІНШИЙ апарат тепер додається як другий такий запис, а не
-// правкою коду. Числа для нового профілю беруться з розпакованого z: (§29):
-// dvfsBody - зсув тіла DoControl(1); romSram - idle-рутина power.dll; dspSetter -
-// сеттер дільника DSP; pwrDown - глобал power-down. Де dvfs в прошивці нема
-// (E90 та ін.) - iRead інший, а iDvfsBody = 0.
+// Reference profile. Values are the same constants proven on the device, just
+// gathered in one place. RM-320 behavior does not change by a single bit from this;
+// the point is that ANOTHER device is now added as a second such entry, not
+// by modifying code. Numbers for a new profile are taken from unpacked z: (§29):
+// dvfsBody - DoControl(1) body offset; romSram - power.dll idle routine; dspSetter -
+// DSP divider setter; pwrDown - power-down global. Where dvfs is absent in firmware
+// (E90 etc.) - iRead is different, and iDvfsBody = 0.
 const TUint32 KSramRoutineSignature[8] =
     { 0xe92d40feu,   // stmdb sp!, {r1-r7, lr}
       0xe59f1128u,   // ldr   r1, [pc, #296]
       0xe59f5128u,   // ldr   r5, [pc, #296]
       0xe3a03000u,   // mov   r3, #0
-      0xee073f9au,   // mcr   p15, 0, r3, c7, c10, 4   барʼєр запису
+      0xee073f9au,   // mcr   p15, 0, r3, c7, c10, 4   write barrier
       0xe5914070u,   // ldr   r4, [r1, #112]           SDRC
       0xe3844048u,   // orr   r4, r4, #72
       0xe5814070u }; // str   r4, [r1, #112]
@@ -40,7 +40,7 @@ const TUint32 KSramRoutineSignature[8] =
 const TOcProfile KProfileRM320 =
     {
     "RM-320 35.0.001/31.0.015",
-    0x20002d84u,            // HAL EMachineUid, знято з апарата
+    0x20002d84u,            // HAL EMachineUid, retrieved from device
     EReadDvfs,
     EHostDvfs,
     KDvfsBody,
@@ -50,123 +50,123 @@ const TOcProfile KProfileRM320 =
     KStockClkSel1Core,
     KStockClkSelMpu,
     KStockMult,
-    // Дві збірки, і підстави для них РІЗНІ. 35.0.001 - те, що стоїть на апараті,
-    // на якому весь розгін і доведено (перевірено 2026-09-11 гейтом: апарат
-    // повідомляє "V 35.0.001"). 31.0.015 - образ, з якого адреси виводили
-    // офлайн (out/roms/rm320.rom), і назва профілю досі казала саме про нього.
-    // Те, що ті самі адреси працюють на обох, і є доказ, що між цими збірками
-    // код не зсунувся.
+    // Two builds, and reasons for them are DIFFERENT. 35.0.001 is what is installed on the device
+    // on which the entire overclock was proven (verified on 2026-09-11 by gate: the device
+    // reports "V 35.0.001"). 31.0.015 is the image from which addresses were derived
+    // offline (out/roms/rm320.rom), and profile name until now mentioned only it.
+    // The fact that the same addresses work on both is proof that between these builds
+    // code did not shift.
     "35.0.001;31.0.015",
-    EFalse,                 // доведений на апараті
-    0xc80030ecu,            // орієнтир: потрібен лише щоб ПЕРЕВІРИТИ пошук
+    EFalse,                 // proven on device
+    0xc80030ecu,            // hint: needed only to VERIFY search
     KSramRoutineSignature,
     EFalse
     };
 
 // --- Nokia E90 (RA-6, 400.34.93) --------------------------------------------
 //
-// ВИПРАВЛЕНО 2026-09-09 (findings §34). Три адреси, що стояли тут раніше
-// (0x80056874, 0x80059aa4, 0xc8004194), виведені з out/roms/e90.rom за
-// припущенням, що зсув у файлі лінійно переводиться у віртуальну адресу. Апарат
-// це припущення СПРОСТУВАВ: читання живого XIP з user mode дало за тими
-// адресами інший код, а сам ROM на апараті 19776 КБ проти 1.7 МБ у витягнутому
-// образі. Тому адреси обнулено - хибне число небезпечніше за відсутнє. Спосіб
-// дістати правильні вже є і перевірений: сигнатурний скан живого ROM
-// (ocprobe romscan / romdump), яким уже виміряно хост Usbc 0x800bf874.
-// dvfs у прошивці E90 НЕМАЄ (перевірено: "dvfs" у XIP стосується дисплея), тож
-// носієм READ/EXEC-примітиву тут працює Usbc: iHost = EHostUsbc, а iDvfsBody -
-// адреса тіла DLddUsbcChannel::DoControl. Механіка патча спільна з RM-320,
-// різняться лише опкод, регістр аргументу й слова відкату (findings §32, §34).
+// FIXED 2026-09-09 (findings §34). Three addresses that were here previously
+// (0x80056874, 0x80059aa4, 0xc8004194) were derived from out/roms/e90.rom under
+// the assumption that offset in the file linearly translates to virtual address. The device
+// DISPROVED this assumption: reading live XIP from user mode yielded different code
+// at those addresses, and the ROM itself on device is 19776 KB vs 1.7 MB in the extracted
+// image. Therefore the addresses are zeroed - an incorrect number is more dangerous than an absent one. A method
+// to get correct ones already exists and is tested: signature scan of live ROM
+// (ocprobe romscan / romdump), which already measured Usbc host 0x800bf874.
+// dvfs is NOT present in E90 firmware (verified: "dvfs" in XIP relates to the display), so
+// Usbc acts as the READ/EXEC primitive host here: iHost = EHostUsbc, and iDvfsBody is
+// the address of DLddUsbcChannel::DoControl body. Patch mechanics are shared with RM-320,
+// differing only in opcode, argument register, and rollback words (findings §32, §34).
 //
-// Три адреси нижче ВИМІРЯНО на живому апараті 2026-09-09 сигнатурним сканом
-// (romscan -> romdump -> objdump), а не виведено з офлайнового образу:
-//   iDvfsBody       0x800bf874  тіло DoControl; пролог звірено, диспетчер за
-//                               0x800c09a4 кличе саме його і пропускає opcode 69;
-//   iRomSramRoutine 0x80058da4  relock-рутина: DSB, SDRC+0x70 |= 0x48, перевірка
-//                               ревізії кремнію, bypass, WFI, relock, DLL 0x770E -
-//                               структурно та сама, що на RM-320, і саме її
-//                               адресу конструктор подає в memmove до SRAM;
-//   iPwrDownGlobal  0xc8003068  глобал, у який лягає об'єкт power-down
+// The three addresses below were MEASURED on a live device on 2026-09-09 via signature scan
+// (romscan -> romdump -> objdump), rather than derived from an offline image:
+//   iDvfsBody       0x800bf874  DoControl body; prologue verified, dispatcher at
+//                               0x800c09a4 calls specifically it and allows opcode 69;
+//   iRomSramRoutine 0x80058da4  relock routine: DSB, SDRC+0x70 |= 0x48, silicon
+//                               revision check, bypass, WFI, relock, DLL 0x770E -
+//                               structurally the same as on RM-320, and it is its
+//                               address that the constructor passes to memmove to SRAM;
+//   iPwrDownGlobal  0xc8003068  global into which the power-down object is stored
 //                               (str r0,[r5,#4] @0x80059448).
-// Сеттер дільника DSP ще не виміряний - для розгону він не потрібен, його
-// вживає лише побічна гілка DSP, тож лишається 0 і гілка сама себе вимикає.
+// DSP divider setter is not yet measured - it is not needed for overclock, it is used
+// only by the secondary DSP branch, so it remains 0 and the branch disables itself.
 //
-// ШТАТНА розкладка тактування ВИМІРЯНА на апараті 2026-09-09 примітивом Usbc
-// (findings §34), а не виведена офлайн і не вгадана:
-//   CM_CLKSEL1_PLL  = 0x00056400  mult=86 div=4 sys_clk=19.2 МГц
+// STOCK clocking layout was MEASURED on the device on 2026-09-09 via the Usbc primitive
+// (findings §34), not derived offline and not guessed:
+//   CM_CLKSEL1_PLL  = 0x00056400  mult=86 div=4 sys_clk=19.2 MHz
 //   CM_CLKSEL2_PLL  = 2, CM_CLKSEL_MPU = 2, CM_CLKSEL1_CORE = 0x04360626
-//   CM_CLKEN_PLL    = 0x0f (DPLL у lock)
-// Тобто 19.2*86/5 = 330.24 МГц на DPLL, і після x2 / /2 те саме на MPU - E90
-// штатно йде на тих самих 330.24 МГц, що й RM-320. Здогад "86" підтвердився.
-// Це знімок ОДНОГО моменту; на E90 процесорного dvfs немає (§27), тож розкладка
-// має бути сталою, але при першому WRITE-прогоні її варто перечитати.
-// Число mult=97 з бутстрапу (§33) до робочого штату ОС не стосується, а самі
-// адреси §33 виведені з розкладки, яку апарат спростував.
+//   CM_CLKEN_PLL    = 0x0f (DPLL in lock)
+// That is 19.2*86/5 = 330.24 MHz on DPLL, and after x2 / /2 the same on MPU - E90
+// runs stock at the same 330.24 MHz as RM-320. Guess "86" is confirmed.
+// This is a snapshot of ONE moment; on E90 there is no CPU dvfs (§27), so layout
+// should be constant, but on first WRITE run it should be reread.
+// mult=97 value from bootstrap (§33) does not apply to OS working state, and §33
+// addresses themselves were derived from a layout disproven by the device.
 const TUint32 KE90HostBody       = 0x800bf874u;  // DLddUsbcChannel::DoControl
 const TUint32 KE90RomSramRoutine = 0x80058da4u;
-const TUint32 KE90DspSetter      = 0u;   // не потрібен для розгону, не міряний
+const TUint32 KE90DspSetter      = 0u;   // not needed for overclock, not measured
 const TUint32 KE90PwrDownGlobal  = 0xc8003068u;
 const TOcProfile KProfileE90 =
     {
     "RA-6 400.34.93",
-    0x20002496u,            // HAL EMachineUid, знято з апарата
-    EReadDvfs,              // читання через патч тіла DoControl носія
-    EHostUsbc,              // носій - Usbc, бо dvfs у прошивці немає
+    0x20002496u,            // HAL EMachineUid, retrieved from device
+    EReadDvfs,              // read via patch of host's DoControl body
+    EHostUsbc,              // host is Usbc, because dvfs is absent in firmware
     KE90HostBody,
     KE90RomSramRoutine,
     KE90DspSetter,
     KE90PwrDownGlobal,
-    0x04360626,             // iStockClkSel1Core: ВИМІРЯНО на апараті 2026-09-09
-    2,                      // iStockClkSelMpu:   ВИМІРЯНО там само
-    86,                     // iStockMult: ВИМІРЯНО (CM_CLKSEL1_PLL=0x00056400,
-                            //   mult=86 div=4 sys_clk=19.2 -> 330.24 МГц, як RM-320)
+    0x04360626,             // iStockClkSel1Core: MEASURED on device 2026-09-09
+    2,                      // iStockClkSelMpu:   MEASURED in the same place
+    86,                     // iStockMult: MEASURED (CM_CLKSEL1_PLL=0x00056400,
+                            //   mult=86 div=4 sys_clk=19.2 -> 330.24 MHz, like RM-320)
     "400.34.93",
-    EFalse,                 // доведений на апараті
-    0xc80030ecu,            // орієнтир: те саме, для перевірки пошуку
+    EFalse,                 // proven on device
+    0xc80030ecu,            // hint: same, to verify search
     KSramRoutineSignature,
-    EFalse                  // адреси відомі, шукати нічого
+    EFalse                  // addresses are known, nothing to search
     };
 
-// --- ТЕСТОВІ профілі --------------------------------------------------------
+// --- TEST profiles ---------------------------------------------------------
 //
-// Обидва виведені ОФЛАЙН з образів прошивок і на залізі не перевірені жодного
-// разу. Тому вони ніколи не добираються автоматично: машинний uid у них нуль, а
-// ProfileForThisDevice їх пропускає. Вибрати такий профіль можна лише руками й
-// свідомо.
+// Both were derived OFFLINE from firmware images and have not been verified
+// on hardware even once. Therefore they are never picked automatically: machine uid
+// in them is zero, and ProfileForThisDevice skips them. Such a profile can only be selected
+// manually and deliberately.
 //
-// Що саме доведено, а що ні. Три адреси power.dll звірено побайтово з еталоном
-// RM-320 прямо в образах: у RM-159 вони збігаються один в один, у N82 зсунуті
-// рівно на +0x10, і код у цих місцях тотожний. Адресу iDvfsBody знайдено за
-// сигнатурою тіла DoControl(1) - по одному-єдиному збігу на весь 43-мегабайтний
-// образ, причому на еталонному образі та сама сигнатура точно відтворює відому
-// адресу 0x80148410, тобто метод перевірено на відомій відповіді.
+// What specifically is proven, and what is not. Three power.dll addresses were verified
+// byte-for-byte against the RM-320 reference directly in images: in RM-159 they match
+// one-to-one, in N82 they are shifted by exactly +0x10, and code in those places is identical.
+// The iDvfsBody address was found by DoControl(1) body signature - a single match across
+// the entire 43-megabyte image, where on reference image the same signature accurately
+// reproduces the known address 0x80148410, meaning the method is verified on a known answer.
 //
-// Чого НЕ доведено. Глобал power-down офлайн знайти не вдалось: сигнатура пари
-// геттер/сеттер дає на RM-320 сусідню пару (0xc80030ec замість справжніх
-// 0xc80030c8), тобто метод НЕ підтверджено. Тому тут стоїть орієнтир, а сама
-// адреса шукається на апараті зі звіркою копії SRAM. Версії збірок теж невідомі:
-// рядка версії в резидентному XIP немає, тож гейт по прошивці для цих профілів
-// порожній, і його роль бере на себе звірка підпису relock-рутини після патча.
+// What is NOT proven. Power-down global could not be found offline: signature of the
+// getter/setter pair yields a neighbouring pair on RM-320 (0xc80030ec instead of true
+// 0xc80030c8), meaning the method is NOT confirmed. Therefore a hint is placed here,
+// and the address itself is searched on the device with SRAM copy verification. Build versions
+// are also unknown: there is no version string in resident XIP, so the firmware gate for these
+// profiles is empty, and its role is assumed by verifying relock routine signature after patching.
 //
-// Штатна розкладка тактування невідома - нулі означають "взяти з апарата на
-// старті". Через це апарат перед першим запуском мусить бути щойно
-// перезавантажений, інакше опорна точка з'їде.
+// Stock clocking layout is unknown - zeroes mean "take from device at start".
+// Because of this, the device before first launch must be freshly rebooted,
+// otherwise the reference point will drift.
 const TOcProfile KProfileN95Classic =
     {
     "RM-159 N95 classic (TEST)",
-    0,                      // машинний uid невідомий: авто-добору немає
+    0,                      // machine uid unknown: no auto-selection
     EReadDvfs,
     EHostDvfs,
-    0x8014b5f0u,            // iDvfsBody: єдиний збіг сигнатури в образі
-    0x800a7f6cu,            // iRomSramRoutine: байт-у-байт як RM-320
-    0x800ac59cu,            // iDspSetter: байт-у-байт як RM-320
-    0,                      // iPwrDownGlobal: шукати на апараті
-    0,                      // iStockClkSel1Core: зняти з апарата
-    0,                      // iStockClkSelMpu: зняти з апарата
-    0,                      // iStockMult: зняти з апарата
-    "",                     // збірка невідома, гейт порожній
+    0x8014b5f0u,            // iDvfsBody: only signature match in image
+    0x800a7f6cu,            // iRomSramRoutine: byte-for-byte like RM-320
+    0x800ac59cu,            // iDspSetter: byte-for-byte like RM-320
+    0,                      // iPwrDownGlobal: search on device
+    0,                      // iStockClkSel1Core: retrieve from device
+    0,                      // iStockClkSelMpu: retrieve from device
+    0,                      // iStockMult: retrieve from device
+    "",                     // build unknown, gate is empty
     ETrue,
-    0xc80030ecu,            // орієнтир пошуку глобала
+    0xc80030ecu,            // global search hint
     KSramRoutineSignature,
     EFalse
     };
@@ -177,9 +177,9 @@ const TOcProfile KProfileN82 =
     0,
     EReadDvfs,
     EHostDvfs,
-    0x801411e0u,            // iDvfsBody: єдиний збіг сигнатури в образі
-    0x800a7f7cu,            // iRomSramRoutine: RM-320 + 0x10, код тотожний
-    0x800ac5acu,            // iDspSetter: RM-320 + 0x10, код тотожний
+    0x801411e0u,            // iDvfsBody: only signature match in image
+    0x800a7f7cu,            // iRomSramRoutine: RM-320 + 0x10, code identical
+    0x800ac5acu,            // iDspSetter: RM-320 + 0x10, code identical
     0,
     0,
     0,
@@ -191,40 +191,40 @@ const TOcProfile KProfileN82 =
     EFalse
     };
 
-// --- профілі, які шукають адреси САМІ ---------------------------------------
+// --- profiles that discover addresses THEMSELVES ----------------------------
 //
-// N93 (RM-55) і N93i (RM-156) - той самий OMAP 2420, але офлайнових адрес для
-// них дати неможливо, і це не обережність, а вимірюваний факт. Витягнутий із
-// прошивки XIP у них, як і в E90, є уламком: 1.1 і 1.3 МБ проти майже 20 МБ
-// на апараті, і зсув у файлі не дорівнює адресі. Для E90 різниця виміряна
-// прямо: тіло DoControl лежить у файлі за 0x80094ac4, а на апараті за
-// 0x800bf874 (findings 47.1). Константа, виведена з такого образу, показувала
-// б у чужу сторінку.
+// N93 (RM-55) and N93i (RM-156) are the same OMAP 2420, but offline addresses
+// cannot be provided for them, and this is not caution, but a measurable fact. XIP
+// extracted from firmware in them, as in E90, is a fragment: 1.1 and 1.3 MB vs almost 20 MB
+// on device, and file offset does not equal address. For E90 the difference was measured
+// directly: DoControl body is in the file at 0x80094ac4, and on the device at
+// 0x800bf874 (findings 47.1). A constant derived from such an image would point
+// to an alien page.
 //
-// Драйвера dvfs у прошивках N93 і N93i немає жодної версії - як і на E90, -
-// тож носієм примітиву лишається Usbc.
+// There is no version of dvfs driver in N93 and N93i firmwares - just like on E90 -
+// so Usbc remains the primitive host.
 //
-// Звідси iDiscover: адреси шукає сам апарат сигнатурним скануванням живого
-// XIP, читанням із користувацького режиму. Не знайшлося або знайшлося двічі -
-// двигун відмовляє, і в ядро не пишеться нічого. Ці профілі НЕ перевірені на
-// залізі жодного разу; вони існують саме для того, щоб власник апарата міг
-// спробувати й повернути результат.
+// Hence iDiscover: addresses are discovered by the device itself via signature scanning of live
+// XIP, reading from user mode. If not found or found twice -
+// engine rejects, and nothing is written to the kernel. These profiles are NOT verified
+// on hardware even once; they exist specifically so that device owners can
+// try and report back the result.
 const TOcProfile KProfileN93 =
     {
     "RM-55 N93 (TEST, auto)",
-    0,                      // машинний uid невідомий: авто-добору немає
+    0,                      // machine uid unknown: no auto-selection
     EReadDvfs,
     EHostUsbc,
-    0,                      // тіло DoControl: знайти на апараті
-    0,                      // relock-рутина: знайти на апараті
-    0,                      // сеттер DSP невідомий - ApplyDspDiv відмовить
-    0,                      // глобал power-down: пошук навколо орієнтира
-    0, 0, 0,                // штатна розкладка: зняти з апарата
-    "",                     // збірка невідома, гейт порожній
+    0,                      // DoControl body: discover on device
+    0,                      // relock routine: discover on device
+    0,                      // DSP setter unknown - ApplyDspDiv will reject
+    0,                      // power-down global: search around hint
+    0, 0, 0,                // stock layout: retrieve from device
+    "",                     // build unknown, gate is empty
     ETrue,
-    0xc80030ecu,            // орієнтир пошуку глобала (як у решти OMAP2420)
+    0xc80030ecu,            // global search hint (as on other OMAP2420)
     KSramRoutineSignature,
-    ETrue                   // адреси шукати скануванням
+    ETrue                   // discover addresses via scanning
     };
 
 const TOcProfile KProfileN93i =
@@ -242,7 +242,7 @@ const TOcProfile KProfileN93i =
     ETrue
     };
 
-// Тестові профілі окремим списком - саме щоб їх не можна було взяти випадково.
+// Test profiles as a separate list - specifically so they cannot be picked accidentally.
 static const TOcProfile* const KTestProfiles[] =
     { &KProfileN95Classic, &KProfileN82, &KProfileN93, &KProfileN93i };
 
@@ -258,12 +258,12 @@ const TOcProfile* TestProfile(TInt aIndex)
     return KTestProfiles[aIndex];
     }
 
-// Добір профілю за апаратом. Список тримати тут, поруч із самими профілями.
+// Profile selection for device. Keep list here, next to profiles themselves.
 //
-// Свідомо НЕ робимо запасного варіанту "якщо не впізнали - беремо еталонний".
-// Профіль - це чотири адреси, які патчаться в ядро; на невпізнаному апараті
-// вони вказують у нікуди, і ціна помилки - перезавантаження щонайменше.
-// Невідомий апарат мусить отримати чесну відмову, а не здогад.
+// Deliberately do NOT make a fallback "if not recognized - take reference".
+// A profile is four addresses patched into the kernel; on an unrecognized device
+// they point nowhere, and the cost of error is a reboot at least.
+// An unknown device must get an honest rejection, not a guess.
 const TOcProfile* ProfileForThisDevice()
     {
     const TOcProfile* const known[] = { &KProfileRM320, &KProfileE90 };
@@ -279,25 +279,25 @@ const TOcProfile* ProfileForThisDevice()
     return NULL;
     }
 
-// Firmware займає перші 1024 байти чанка; пишемо зі зсувом 2048 з 4096.
+// Firmware occupies the first 1024 bytes of the chunk; we write at offset 2048 of 4096.
 const TUint32 KSramSlot = 0x800u;
 
-// --- код, що виконується з SRAM ---------------------------------------------
+// --- code executed from SRAM ------------------------------------------------
 //
-// Вимоги жорсткі й неочевидні:
-//   * жодного зовнішнього bl - після копіювання відносні переходи вели б у
-//     нікуди. Константи - з власного пулу (.ltorg у кінці), тож ldr [pc,#off]
-//     лишається коректним на будь-якій адресі;
-//   * жодного звернення до SDRAM у критичному вікні: поки DPLL у bypass,
-//     контролер SDRAM тактується мізерною частотою і refresh голодує. Стек
-//     чіпаємо лише до і після вікна;
-//   * EN_DPLL - це БІТИ [1:0] CM_CLKEN_PLL, а не [2:0]. Біти [3:2] - APLL
-//     54 МГц; маска #7 вимкнула б його разом із DPLL. Маску #3 узято з коду
-//     самої power.dll (and r2,r2,#0xfc);
-//   * усі очікування обмежені лічильником: переривання вимкнені, тож
-//     нескінченний цикл означав би виймання батареї.
+// Strict and non-obvious requirements:
+//   * no external bl - after copying, relative jumps would lead to
+//     nowhere. Constants - from own pool (.ltorg at the end), so ldr [pc,#off]
+//     remains valid at any address;
+//   * no SDRAM access in the critical window: while DPLL is in bypass,
+//     SDRAM controller is clocked at a tiny frequency and refresh is starved. Stack
+//     is touched only before and after the window;
+//   * EN_DPLL is BITS [1:0] of CM_CLKEN_PLL, not [2:0]. Bits [3:2] are APLL
+//     54 MHz; mask #7 would disable it along with DPLL. Mask #3 is taken from code
+//     of power.dll itself (and r2,r2,#0xfc);
+//   * all waits are bounded by counter: interrupts are disabled, so
+//     an infinite loop would mean pulling the battery.
 //
-// Порядок - за omap242x_sram_set_prcm і за idle-процедурою power.dll @0x800A7F6C.
+// Order follows omap242x_sram_set_prcm and power.dll idle routine @0x800A7F6C.
 __asm__(
 "   .text                       \n"
 "   .align 2                    \n"
@@ -315,83 +315,83 @@ __asm__(
 "   .ltorg                      \n"
 "OcReadBlobEnd:                 \n"
 "                               \n"
-// EXEC-патч тіла DoControl(1). Критично: канал dvfs_interface відкриваємо не
-// лише ми (§15 - mmrmserver.dll, fmradiotunercontrol.dll), і в застосунку з
-// живим інтерфейсом ці клієнти активні. Простий "bx r1" означав би, що будь-який
-// їхній виклик DoControl(1, a1) стрибає в ядрі за ЧУЖОЮ адресою - звідси
-// зависання, і тим певніше, чим більше таких вікон ми відкриваємо.
-// Тому стрибаємо ТІЛЬКИ на одну очікувану адресу (наш слот у SRAM), а всім
-// іншим повертаємо 0 - безневинно, як і READ-патч на a1=0.
-// Рівно 6 слів = 24 байти, тобто точний розмір оригінального тіла.
+// EXEC patch of DoControl(1) body. Critical: dvfs_interface channel is opened not
+// only by us (§15 - mmrmserver.dll, fmradiotunercontrol.dll), and in an application with
+// a live interface these clients are active. A simple "bx r1" would mean that any of
+// their DoControl(1, a1) calls jumps in the kernel to an UNEXPECTED address - hence
+// hangs, and all the more certain the more such windows we open.
+// Therefore we jump ONLY to one expected address (our SRAM slot), and return 0
+// to all others - harmlessly, like the READ patch on a1=0.
+// Exactly 6 words = 24 bytes, which is the exact size of the original body.
 "   .global OcExecPatchStart    \n"
 "   .global OcExecPatchEnd      \n"
 "OcExecPatchStart:              \n"
-"   ldr  r0, [pc, #12]          \n"   // -> літерал нижче
+"   ldr  r0, [pc, #12]          \n"   // -> literal below
 "   cmp  r1, r0                 \n"
 "   bxeq r1                     \n"
 "   mov  r0, #0                 \n"
 "   bx   lr                     \n"
-"   .word 0xDEADBEEF            \n"   // дозволена адреса; патчиться зовні
+"   .word 0xDEADBEEF            \n"   // allowed address; patched externally
 "OcExecPatchEnd:                \n"
 "                               \n"
-// Те саме для носія Usbc, де адреса приходить у r2 (findings §34). Обережність
-// тут та сама й не менш потрібна: канал Usbc теж не наш власний, тож стрибаємо
-// лише на єдину дозволену адресу, а решті повертаємо 0.
+// Same for Usbc host, where address arrives in r2 (findings §34). Caution
+// here is the same and no less necessary: Usbc channel is also not our own, so we jump
+// only to the single allowed address, returning 0 to the rest.
 "   .global OcExecPatchR2Start  \n"
 "   .global OcExecPatchR2End    \n"
 "OcExecPatchR2Start:            \n"
-"   ldr  r0, [pc, #12]          \n"   // -> літерал нижче
+"   ldr  r0, [pc, #12]          \n"   // -> literal below
 "   cmp  r2, r0                 \n"
 "   bxeq r2                     \n"
 "   mov  r0, #0                 \n"
 "   bx   lr                     \n"
-"   .word 0xDEADBEEF            \n"   // дозволена адреса; патчиться зовні
+"   .word 0xDEADBEEF            \n"   // allowed address; patched externally
 "OcExecPatchR2End:              \n"
 "                               \n"
-// Трамплін до ШТАТНОГО сеттера дільника DSP у power.dll (@0x800AC59C).
+// Trampoline to STOCK DSP divider setter in power.dll (@0x800AC59C).
 //
-// Чому кличемо чужу функцію замість того, щоб самим писати в CM_CLKSEL_DSP:
-//   * сеттер сам валідує значення (відкидає 0, 5, 9, 16, 18) і повертає -6,
-//     тобто прошивка не дає записати те, що вважає недійсним для цього SoC -
-//     рівно ті самі поручні, які проєкт уже бере для CM_CLKSEL1_CORE;
-//   * усередині він робить Modify32 із маскою 0x1F, тобто решта регістра
-//     зберігається чужим, перевіреним кодом, а не нашим read-modify-write;
-//   * ми не вводимо нової форми патча ядра. WRITE-патч тіла DoControl(1)
-//     ("strne r2,[r1]") був би гіршою за READ мішенню для чужих клієнтів
-//     dvfs_interface, а до того ж просто не працює: диспетчер @0x80148428
-//     знищує a2 (mov r3,#0) і передає в тіло r1 == r2 == a1.
-// Функцію викликаємо ПРЯМО В ROM, не копіюючи: усі її власні bl лишаються
-// коректними, зокрема bl на Modify32.
+// Why we call vendor function instead of writing to CM_CLKSEL_DSP ourselves:
+//   * the setter validates values itself (rejects 0, 5, 9, 16, 18) and returns -6,
+//     meaning firmware forbids writing what it considers invalid for this SoC -
+//     exactly the same guardrails the project already takes for CM_CLKSEL1_CORE;
+//   * internally it does Modify32 with mask 0x1F, so the rest of the register
+//     is preserved by vendor, verified code, not by our read-modify-write;
+//   * we do not introduce a new kernel patch form. WRITE patch of DoControl(1) body
+//     ("strne r2,[r1]") would be a worse target than READ for third-party
+//     dvfs_interface clients, and moreover it simply does not work: dispatcher @0x80148428
+//     destroys a2 (mov r3,#0) and passes r1 == r2 == a1 to the body.
+// We call the function DIRECTLY IN ROM without copying: all its own bl calls remain
+// valid, in particular bl to Modify32.
 //
-// Аргумент один - дільник у r1; r0 сеттер ігнорує (перезаписує одразу).
-// Повертає 0 або -6, і це значення доїжджає до викликача як результат
-// DoControl(1): EXEC-патч робить bxeq r1, тобто хвостовий перехід.
+// Exactly one argument - divider in r1; setter ignores r0 (overwrites it immediately).
+// Returns 0 or -6, and this value reaches the caller as the result of
+// DoControl(1): EXEC patch does bxeq r1, which is a tail call.
 "   .global OcRelockBlobStart   \n"
 "   .global OcRelockBlobEnd     \n"
 "OcRelockBlobStart:             \n"
 "   stmfd sp!, {r4-r11, lr}     \n"
 "   ldr  r4, =0xC6008000        \n"
 "   ldr  r5, =0xC6129000        \n"
-"   ldr  r6, =0xDEADBEEF        \n"   // новий CM_CLKSEL1_PLL; патчиться зовні
-"   ldr  r11, =0xFEEDFACE       \n"   // початковий, для апаратного відкату
-"   ldr  r2, =0xCAFEBABE        \n"   // новий CM_CLKSEL1_CORE (дільники)
-"   ldr  r3, =0xBAADF00D        \n"   // початковий CM_CLKSEL1_CORE
+"   ldr  r6, =0xDEADBEEF        \n"   // new CM_CLKSEL1_PLL; patched externally
+"   ldr  r11, =0xFEEDFACE       \n"   // initial, for hardware rollback
+"   ldr  r2, =0xCAFEBABE        \n"   // new CM_CLKSEL1_CORE (dividers)
+"   ldr  r3, =0xBAADF00D        \n"   // initial CM_CLKSEL1_CORE
 "   mov  r7, #0                 \n"
 "   mrs  r8, cpsr               \n"
 "   orr  r9, r8, #0xC0          \n"
 "   msr  cpsr_c, r9             \n"
-// SDRAM у self-refresh ДО вікна. Без цього кроку контролер памʼяті лишається
-// в звичайному режимі, поки CORE (а з ним L3 і SDRAM) падає до sys_clk на весь
-// час bypass+relock. Безголовий прогін це переживав, бо трафіку до памʼяті
-// майже не було; із живим дисплеєм, який безперервно читає кадровий буфер,
-// апарат зависав намертво, і то тим певніше, чим більший крок множника (довше
-// захоплення DPLL = довше вікно). Значення 0x48 і саме це місце в
-// послідовності - з idle-процедури power.dll @0x800A7F6C (findings 17), тобто
-// вендорський код для цього ж SoC.
+// SDRAM into self-refresh BEFORE the window. Without this step, the memory controller remains
+// in normal mode while CORE (and with it L3 and SDRAM) drops to sys_clk for the entire
+// bypass+relock duration. A headless run survived this because memory traffic
+// was almost nonexistent; with a live display continuously reading the framebuffer,
+// the device hung hard, all the more certainly the larger the multiplier step (longer
+// DPLL lock time = longer window). The 0x48 value and this exact place in the
+// sequence are from power.dll idle routine @0x800A7F6C (findings 17), i.e.
+// vendor code for this same SoC.
 "   ldr  r0, [r5, #0x70]        \n"
 "   orr  r0, r0, #0x48          \n"
 "   str  r0, [r5, #0x70]        \n"
-"   ldr  r0, [r5, #0x70]        \n"   // читання назад: запис мусить дійти
+"   ldr  r0, [r5, #0x70]        \n"   // read back: write must take effect
 "   ldr  r0, [r4, #0x500]       \n"
 "   bic  r0, r0, #3             \n"
 "   orr  r0, r0, #2             \n"
@@ -406,16 +406,16 @@ __asm__(
 "   orr  r7, r7, #1             \n"
 "   b    3f                     \n"
 "2: str  r6, [r4, #0x540]       \n"
-// Дільники домену CORE пишемо ТУТ, разом із множником: одна фіксація
-// CLKCFG_CTRL латчить і PLL, і CLKSEL1_CORE, тож L3/SDRAM і DSS ніколи не
-// бачать нову CORE зі старим дільником. Саме цього бракувало: дисплей
-// тактується CORE/DSS1_div, і будь-яка зміна CORE без компенсації дільника
-// зсувала його піксельний клок - звідси зависання відрисовки, причому
-// симетрично, і при пониженні частоти теж (findings §21).
+// Write CORE domain dividers HERE, together with multiplier: a single commit
+// of CLKCFG_CTRL latches both PLL and CLKSEL1_CORE, so L3/SDRAM and DSS never
+// see new CORE with old divider. This is exactly what was missing: display
+// is clocked by CORE/DSS1_div, and any CORE change without divider compensation
+// shifted its pixel clock - hence rendering freeze, symmetrically,
+// even when lowering frequency (findings §21).
 "   str  r2, [r4, #0x240]       \n"
-// Дільник MPU - у тій самій фіксації. Він дозволяє взяти потрібну частоту ядра
-// при ВДВІЧІ нижчій CORE (діл. 1 замість 2), тобто перевірити гіпотезу, що межа
-// не в самому ARM, а в CORE як найвищій внутрішній частоті.
+// MPU divider - in the same commit. It allows setting target core frequency
+// at TWICE lower CORE (div 1 instead of 2), thus testing hypothesis that the limit
+// is not in ARM itself, but in CORE as the highest internal frequency.
 "   ldr  r0, =0xF00DBEEF        \n"
 "   str  r0, [r4, #0x140]       \n"
 "   mov  r0, #1                 \n"
@@ -439,11 +439,11 @@ __asm__(
 "   subs r10, r10, #1           \n"
 "   bne  5b                     \n"
 "   orr  r7, r7, #4             \n"
-// АПАРАТНИЙ ВІДКАТ. Якщо DPLL не захопився на новому множнику, лишити його в
-// bypass не можна: CORE тоді дорівнює sys_clk, MPU падає до ~9.6 МГц, і апарат
-// виглядає як намертво зависший, хоча формально живий. Повертаємось у bypass,
-// пишемо ПОЧАТКОВИЙ множник і захоплюємось на ньому - усе всередині тієї самої
-// критичної секції, поки переривання ще вимкнені.
+// HARDWARE ROLLBACK. If DPLL failed to lock on the new multiplier, leaving it in
+// bypass is unacceptable: CORE then equals sys_clk, MPU drops to ~9.6 MHz, and device
+// looks completely frozen, although formally alive. We return to bypass,
+// write INITIAL multiplier, and lock on it - all within the same
+// critical section while interrupts are still disabled.
 "   ldr  r0, [r4, #0x500]       \n"
 "   bic  r0, r0, #3             \n"
 "   orr  r0, r0, #2             \n"
@@ -455,9 +455,9 @@ __asm__(
 "   beq  9f                     \n"
 "   subs r10, r10, #1           \n"
 "   bne  8b                     \n"
-"9: str  r11, [r4, #0x540]      \n"   // початковий CM_CLKSEL1_PLL
-"   str  r3, [r4, #0x240]       \n"   // і початкові дільники
-"   ldr  r0, =0xFEEDC0DE        \n"   // початковий CM_CLKSEL_MPU
+"9: str  r11, [r4, #0x540]      \n"   // initial CM_CLKSEL1_PLL
+"   str  r3, [r4, #0x240]       \n"   // and initial dividers
+"   ldr  r0, =0xFEEDC0DE        \n"   // initial CM_CLKSEL_MPU
 "   str  r0, [r4, #0x140]       \n"
 "   mov  r0, #1                 \n"
 "   str  r0, [r4, #0x80]        \n"
@@ -472,7 +472,7 @@ __asm__(
 "   beq  6f                     \n"
 "   subs r10, r10, #1           \n"
 "   bne  0b                     \n"
-"   orr  r7, r7, #8             \n"   // відкат теж не вдався
+"   orr  r7, r7, #8             \n"   // rollback also failed
 "6: ldr  r0, [r5, #0x64]        \n"
 "   and  r0, r0, #0xFF00        \n"
 "   ldr  r1, [r5, #0x60]        \n"
@@ -498,33 +498,33 @@ __asm__(
 "   .ltorg                      \n"
 "OcRelockBlobEnd:               \n"
 "                               \n"
-// Трамплін до ШТАТНОГО сеттера дільника DSP у power.dll (@0x800AC59C).
+// Trampoline to STOCK DSP divider setter in power.dll (@0x800AC59C).
 //
-// Чому кличемо чужу функцію замість того, щоб самим писати в CM_CLKSEL_DSP:
-//   * сеттер сам валідує значення (відкидає 0, 5, 9, 16, 18) і повертає -6,
-//     тобто прошивка не дає записати те, що вважає недійсним для цього SoC -
-//     рівно ті самі поручні, які проєкт уже бере для CM_CLKSEL1_CORE;
-//   * усередині він робить Modify32 (@0x800A1C50) - leaf-функцію з IRQ/FIQ off
-//     і DMB, без блокувань і викликів, тож із нашого контексту вона безпечна, а
-//     решта бітів регістра зберігається чужим перевіреним кодом;
-//   * ми не вводимо нової форми патча ядра. WRITE-патч тіла DoControl(1)
-//     ("strne r2,[r1]") був би гіршою за READ мішенню для чужих клієнтів
-//     dvfs_interface, а до того ж просто не працює: диспетчер @0x80148428
-//     знищує a2 (mov r3,#0) і передає в тіло r1 == r2 == a1.
-// Функцію викликаємо ПРЯМО В ROM, не копіюючи: усі її власні bl лишаються
-// коректними, зокрема bl на Modify32.
+// Why we call vendor function instead of writing to CM_CLKSEL_DSP ourselves:
+//   * the setter validates values itself (rejects 0, 5, 9, 16, 18) and returns -6,
+//     meaning firmware forbids writing what it considers invalid for this SoC -
+//     exactly the same guardrails the project already takes for CM_CLKSEL1_CORE;
+//   * internally it does Modify32 (@0x800A1C50) - leaf function with IRQ/FIQ off
+//     and DMB, without locks or calls, so from our context it is safe, while
+//     the rest of the register bits are preserved by vendor verified code;
+//   * we do not introduce a new kernel patch form. WRITE patch of DoControl(1) body
+//     ("strne r2,[r1]") would be a worse target than READ for third-party
+//     dvfs_interface clients, and moreover it simply does not work: dispatcher @0x80148428
+//     destroys a2 (mov r3,#0) and passes r1 == r2 == a1 to the body.
+// We call the function DIRECTLY IN ROM without copying: all its own bl calls remain
+// valid, in particular bl to Modify32.
 //
-// ФІКСАЦІЯ. Самого запису в CM_CLKSEL_DSP НЕ ДОСИТЬ - перевірено на апараті:
-// сеттер повертав 0, а регістр лишався зі старим значенням. Нове значення
-// латчиться тільки записом 1 у PRCM_CLKCFG_CTRL (+0x80), як і для CLKSEL1_CORE
-// та CLKSEL_MPU у relock-блобі вище. Штатний сеттер цього не робить - і саме
-// тому він, вочевидь, ніде в ROM не викликається: у такому вигляді він не
-// працює. Ланцюг тримаємо під вимкненими перериваннями: губернатор DVFS у
-// рантаймі сам рухає CM_CLKSEL2_PLL і фіксує його тим самим латчем, тож між
-// нашим записом і нашою фіксацією йому вклинюватись не можна.
+// COMMIT. Writing to CM_CLKSEL_DSP alone is NOT ENOUGH - verified on hardware:
+// setter returned 0, but the register retained its old value. The new value
+// is latched only by writing 1 to PRCM_CLKCFG_CTRL (+0x80), just as for CLKSEL1_CORE
+// and CLKSEL_MPU in the relock blob above. Stock setter does not do this - and that
+// is evidently why it is never called anywhere in ROM: in this form it does not
+// work. We hold the sequence under disabled interrupts: DVFS governor in
+// runtime moves CM_CLKSEL2_PLL itself and commits it with the same latch, so between
+// our write and our commit it must not intervene.
 //
-// Повертає: 0 = записано, -6 = прошивка відкинула значення, 1 = латч не
-// звільнився за відведені цикли.
+// Returns: 0 = written, -6 = firmware rejected value, 1 = latch did not
+// clear within allocated cycles.
 "   .global OcDspBlobStart      \n"
 "   .global OcDspBlobEnd        \n"
 "OcDspBlobStart:                \n"
@@ -532,12 +532,12 @@ __asm__(
 "   mrs  r5, cpsr               \n"
 "   orr  r3, r5, #0xC0          \n"
 "   msr  cpsr_c, r3             \n"
-"   ldr  r1, =0xD5D1D1D1        \n"   // дільник; патчиться зовні
-"   ldr  r2, =0xD5A0A0A0        \n"   // адреса сеттера; патчиться зовні
+"   ldr  r1, =0xD5D1D1D1        \n"   // divider; patched externally
+"   ldr  r2, =0xD5A0A0A0        \n"   // setter address; patched externally
 "   mov  r0, #0                 \n"
 "   blx  r2                     \n"
 "   movs r4, r0                 \n"
-"   bne  13f                    \n"   // сеттер відмовив - фіксувати нічого
+"   bne  13f                    \n"   // setter rejected - nothing to commit
 "   ldr  r3, =0xC6008000        \n"
 "   mov  r0, #1                 \n"
 "   str  r0, [r3, #0x80]        \n"
@@ -547,32 +547,32 @@ __asm__(
 "   beq  13f                    \n"
 "   subs r2, r2, #1             \n"
 "   bne  11b                    \n"
-"   mov  r4, #1                 \n"   // таймаут латча
+"   mov  r4, #1                 \n"   // latch timeout
 "13:msr  cpsr_c, r5             \n"
 "   mov  r0, r4                 \n"
 "   ldmfd sp!, {r4, r5, pc}     \n"
 "   .ltorg                      \n"
 "OcDspBlobEnd:                  \n"
 "                               \n"
-// Переписати ЛИШЕ дільники - CM_CLKSEL1_CORE і CM_CLKSEL_MPU - і зафіксувати їх
-// латчем PRCM_CLKCFG_CTRL. DPLL при цьому не зупиняється.
+// Rewrite ONLY dividers - CM_CLKSEL1_CORE and CM_CLKSEL_MPU - and commit them
+// with PRCM_CLKCFG_CTRL latch. DPLL is not stopped during this.
 //
-// Навіщо окремий блоб, коли relock уже вміє писати ті самі два регістри. Бо
-// relock заради цього щоразу заганяє DPLL у bypass, а це те саме вікно, яке при
-// активному дисплеї вішає апарат (findings §20, §21). Тут CORE не змінюється
-// взагалі, змінюються лише похідні від неї дільники - рівно те, що робить сам
-// губернатор при переході OPP. Тобто це не новий клас операції для цього SoC, а
-// той самий, яким прошивка користується постійно.
+// Why a separate blob when relock can already write the same two registers. Because
+// relock puts DPLL into bypass every time for this, and that is the same window that hangs
+// the device with an active display (findings §20, §21). Here CORE does not change
+// at all, only dividers derived from it change - exactly what the governor
+// itself does during OPP transition. So this is not a new class of operation for this SoC, but
+// the same one the firmware uses continuously.
 //
-// Потрібен цей шлях для одного: утримати розкладку, поки в тому ж вікні працює
-// вимірюваний процес. Замовник спостерігав, що записані дільники живуть секунди
-// й повертаються до штатного слова; перезаписати їх повним relock посеред
-// прогону емулятора не можна, а так - можна.
+// This path is needed for one thing: hold layout while measured process runs
+// in the same window. Customer observed that written dividers live for seconds
+// and return to stock word; rewriting them via full relock during an emulator
+// run is impossible, but this way - possible.
 //
-// Повертає 0, якщо латч звільнився, і 1, якщо ні.
+// Returns 0 if latch cleared, and 1 if not.
 //
-// НЕ ПЕРЕВІРЕНО НА АПАРАТІ станом на 2026-08-15: код написаний, зібраний, але
-// жодного разу не виконаний. Увімкнення - лише явним ключем hold=1.
+// NOT VERIFIED ON DEVICE as of 2026-08-15: code written, compiled, but
+// never executed. Activation - only via explicit key hold=1.
 "   .global OcDivBlobStart      \n"
 "   .global OcDivBlobEnd        \n"
 "OcDivBlobStart:                \n"
@@ -580,14 +580,14 @@ __asm__(
 "   orr  r3, r12, #0xC0         \n"
 "   msr  cpsr_c, r3             \n"
 "   ldr  r3, =0xC6008000        \n"
-"   ldr  r0, =0xD1C0DE01        \n"   // нове CM_CLKSEL1_CORE; патчиться зовні
+"   ldr  r0, =0xD1C0DE01        \n"   // new CM_CLKSEL1_CORE; patched externally
 "   str  r0, [r3, #0x240]       \n"
-"   ldr  r0, =0xD1C0DE02        \n"   // нове CM_CLKSEL_MPU; патчиться зовні
+"   ldr  r0, =0xD1C0DE02        \n"   // new CM_CLKSEL_MPU; patched externally
 "   str  r0, [r3, #0x140]       \n"
 "   mov  r1, #1                 \n"
 "   str  r1, [r3, #0x80]        \n"
 "   mov  r2, #0x10000           \n"
-"   mov  r0, #1                 \n"   // поки латч не звільнився - це таймаут
+"   mov  r0, #1                 \n"   // until latch clears - this is timeout
 "21:ldr  r1, [r3, #0x80]        \n"
 "   tst  r1, #1                 \n"
 "   moveq r0, #0                \n"
@@ -611,12 +611,12 @@ extern "C" void OcDspBlobEnd(void);
 extern "C" void OcDivBlobStart(void);
 extern "C" void OcDivBlobEnd(void);
 
-// Оригінальні 6 слів тіла DoControl(1), зняті з дизасемблера ROM
-// (out/asm/dvfs_if.asm, 0x80148410..0x80148427). Тримати їх тут обов'язково:
-// без відкату наш патч лишається в ROM-shadow ЖИТИ ПІСЛЯ ВИХОДУ процесу, тобто
-// в системі назавжди (до перезавантаження) висить підмінена функція ядра. Якщо
-// її колись викличе не наш код і не з нулем у a1, ми розіменуємо довільну
-// адресу в режимі ядра - апарат перезавантажиться.
+// Original 6 words of DoControl(1) body, retrieved from ROM disassembly
+// (out/asm/dvfs_if.asm, 0x80148410..0x80148427). Keeping them here is mandatory:
+// without rollback our patch remains in ROM-shadow TO LIVE AFTER PROCESS EXITS, i.e.
+// a replaced kernel function hangs in the system forever (until reboot). If
+// it is ever called by non-our code and with non-zero in a1, we dereference an arbitrary
+// address in kernel mode - the device will reboot.
 static const TUint32 KDvfsOriginal[6] =
     { 0xe92d4010u,   // stmdb sp!, {r4, lr}
       0xe3a00001u,   // mov   r0, #1
@@ -625,19 +625,19 @@ static const TUint32 KDvfsOriginal[6] =
       0xe8bd4010u,   // ldmia sp!, {r4, lr}
       0xea000135u }; // b     0x80148900
 
-// READ-патч: cmp r1,#0 ; ldrne r0,[r1] ; moveq r0,#0 ; bx lr
+// READ patch: cmp r1,#0 ; ldrne r0,[r1] ; moveq r0,#0 ; bx lr
 static const TUint32 KReadPatch[4] =
     { 0xe3510000u, 0x15910000u, 0x03a00000u, 0xe12fff1eu };
 
-// Те саме для носія Usbc, де адреса приходить у r2 (findings §32/§34):
+// Same for Usbc host, where address arrives in r2 (findings §32/§34):
 //   cmp r2,#0 ; ldrne r0,[r2] ; moveq r0,#0 ; bx lr
 static const TUint32 KReadPatchR2[4] =
     { 0xe3520000u, 0x15920000u, 0x03a00000u, 0xe12fff1eu };
 
-// Штатні 6 слів тіла DLddUsbcChannel::DoControl на E90, ЗНЯТІ З ЖИВОГО ROM
-// (romdump 0x800bf874, findings §34) - не з офлайнового образу, розкладку
-// якого апарат спростував. Роль та сама, що в KDvfsOriginal: без відкату
-// підмінене тіло чужого драйвера лишається в ROM-shadow до перезавантаження.
+// Stock 6 words of DLddUsbcChannel::DoControl body on E90, RETRIEVED FROM LIVE ROM
+// (romdump 0x800bf874, findings §34) - not from offline image whose layout
+// was disproven by device. Same role as KDvfsOriginal: without rollback
+// replaced body of foreign driver remains in ROM-shadow until reboot.
 static const TUint32 KUsbcOriginal[6] =
     { 0xe92d4ff0u,   // stmdb sp!, {r4-r9, sl, fp, lr}
       0xe24dd044u,   // sub   sp, sp, #68
@@ -646,7 +646,7 @@ static const TUint32 KUsbcOriginal[6] =
       0xe1a07001u,   // mov   r7, r1
       0xe3a01000u }; // mov   r1, #0
 
-// Вибір за профілем. Тримати в одному місці, щоб гілки не розійшлись.
+// Selection by profile. Keep in one place so branches do not diverge.
 static const TUint32* HostOriginal(const TOcProfile* aP, TInt& aWords)
     {
     if (aP->iHost == EHostUsbc) { aWords = 6; return KUsbcOriginal; }
@@ -659,7 +659,7 @@ static const TUint32* HostReadPatch(const TOcProfile* aP)
     }
 
 
-// --- канали -----------------------------------------------------------------
+// --- channels ---------------------------------------------------------------
 
 TInt RPatcherChannel::Open()
     {
@@ -681,8 +681,8 @@ TInt RDvfsChannel::Open()
     {
     if (iHost == EHostUsbc)
         {
-        // Драйвер USB-клієнта відкривається без кабелю; версію добираємо, бо
-        // між прошивками вона різна (перевірено: на E90 бере 0.0.0).
+        // USB client driver opens without a cable; we select version because
+        // it differs across firmwares (verified: on E90 it takes 0.0.0).
         const TVersion vers[] = { TVersion(0,0,0), TVersion(1,0,0), TVersion(2,0,0) };
         TInt r = KErrNotFound;
         for (TInt i = 0; i < 3 && r != KErrNone; ++i)
@@ -695,43 +695,43 @@ TInt RDvfsChannel::Open()
 
 TInt RDvfsChannel::ReadOrCall(TUint32 aAddress)
     {
-    // Опкод 69 диспетчер Usbc пропускає до DoControl навіть коли канал не
-    // готовий (USB без кабелю) - саме тому цей носій і обрано (findings §32).
+    // Usbc dispatcher passes opcode 69 to DoControl even when the channel is not
+    // ready (USB without a cable) - which is why this host was chosen (findings §32).
     return DoControl((iHost == EHostUsbc) ? 69 : 1, (TAny*)aAddress);
     }
 
-// --- поля CM_CLKSEL1_CORE ---------------------------------------------------
+// --- CM_CLKSEL1_CORE fields -------------------------------------------------
 //
-// Дозволені значення - точно ті, які приймають сеттери power.dll. Кожен робить
-// cmp/таблицю переходів перед Modify32; хто не пройшов - отримує KErrNotSupported.
-// Маски дозволених нижче зібрані з тих перевірок (findings §21).
+// Allowed values are exactly those accepted by power.dll setters. Each does a
+// cmp/jump table before Modify32; whatever fails gets KErrNotSupported.
+// Allowed masks below are collected from those checks (findings §21).
 #define ALL_EXCEPT(n)  (0xfffffffeu & ~(1u << (n)))
 
-// ВИПРАВЛЕНО 2026-08-15. Для L3 тут стояло ALL_EXCEPT(18) - тобто «дозволено
-// все, крім 18». Це помилка читання валідації.
+// FIXED 2026-08-15. For L3, ALL_EXCEPT(18) stood here - meaning "all allowed
+// except 18". This was a validation reading error.
 //
-// Валідатор L3 @0x800AC424 читається так:
-//   cmp r1,#5 / beq reject          -> 5 відкинуто
-//   bgt >5                          -> гілка для великих
-//   cmp r1,#0 / cmpne r1,#3 / bne accept   -> 0 і 3 відкинуто
-//   cmp r1,#9 / cmpne r1,#18 / bne accept  -> 9 і 18 відкинуто
-// Тобто відкидаються 0, 3, 5, 9, 18 - той самий за формою перелік, що й у
-// сеттера дільника DSP (0, 5, 9, 16, 18).
+// L3 validator @0x800AC424 reads as follows:
+//   cmp r1,#5 / beq reject          -> 5 rejected
+//   bgt >5                          -> branch for larger
+//   cmp r1,#0 / cmpne r1,#3 / bne accept   -> 0 and 3 rejected
+//   cmp r1,#9 / cmpne r1,#18 / bne accept  -> 9 and 18 rejected
+// That is, 0, 3, 5, 9, 18 are rejected - the same list in form as in the
+// DSP divider setter (0, 5, 9, 16, 18).
 //
-// АЛЕ САМОЇ ЦІЄЇ ТАБЛИЦІ НЕ ДОСИТЬ, і це головний урок §26. Валідатор DSS1
-// @0x800AC49C відкидає ЛИШЕ 18, проте апарат відмовився взяти `dssdiv=7`: два
-// прогони з ним (у другому - при завідомо дійсному `l3div=6`) не змінили
-// регістр зовсім, а той самий прогін із `dssdiv=6` записався. Отже апаратний
-// набір дільників вужчий за той, що валідує прошивка, і недійсне значення в
-// ОДНОМУ полі відкидає ВЕСЬ запис у CM_CLKSEL1_CORE, а не лише своє поле.
+// BUT THIS TABLE ALONE IS NOT ENOUGH, and that is the main lesson of §26. DSS1 validator
+// @0x800AC49C rejects ONLY 18, yet the device refused to take `dssdiv=7`: two
+// runs with it (in the second - with known-valid `l3div=6`) did not change
+// the register at all, whereas the same run with `dssdiv=6` wrote successfully. Thus the hardware
+// set of dividers is narrower than what firmware validates, and an invalid value in
+// ONE field rejects the ENTIRE write to CM_CLKSEL1_CORE, not just its own field.
 //
-// Звідси два різні набори. Тут - широкий, з валідації прошивки, плюс виміряне
-// виключення 7 для DSS1: ручний режим лишається гнучким, а відмову апарата
-// ловить читання назад (рядок MISMATCH). Для АВТОМАТИЧНОГО підбору
-// використовується завідомо вужчий KAutoDivAllowed - там помилятись нема на що.
+// Hence two different sets. Here - the wide one from firmware validation plus measured
+// exclusion of 7 for DSS1: manual mode remains flexible, and device refusal
+// is caught by read-back (MISMATCH line). For AUTOMATIC selection,
+// the deliberately narrower KAutoDivAllowed is used - there is no margin for error there.
 static const TCoreField KCoreFields[ECoreFieldCount] =
     {
-    // назва      маска         зсув  дозволені            база
+    // name       mask          shift allowed              base
     { "L3   ",  0x0000001fu,   0, ALL_EXCEPT(18) & ~((1u<<3)|(1u<<5)|(1u<<9)), 0 },
     { "L4   ",  0x00000060u,   5, (1u<<1)|(1u<<2),        1 },
     { "DSS1 ",  0x00001f00u,   8, ALL_EXCEPT(18) & ~(1u<<7), 0 },
@@ -741,28 +741,28 @@ static const TCoreField KCoreFields[ECoreFieldCount] =
     { "USB  ",  0x0e000000u,  25, (1u<<1)|(1u<<2)|(1u<<4), -1 }
     };
 
-// Набір для АВТОМАТИЧНОГО підбору: 1, 2, 4, 5, 6, 8, 12, 16.
+// Set for AUTOMATIC selection: 1, 2, 4, 5, 6, 8, 12, 16.
 //
-// Вужчий за валідацію прошивки, і навмисно: недійсне значення означає, що не
-// запишеться НІЧОГО, і CORE поїде зі старими дільниками - рівно та ситуація,
-// яка ламала відрисовку (§21). Тут лише те, що або виміряно, або безспірне.
+// Narrower than firmware validation, and intentionally so: an invalid value means
+// NOTHING gets written, and CORE will run with old dividers - exactly the situation
+// that broke rendering (§21). Here is only what is either measured or indisputable.
 //
-// Виміряно на апараті: 2, 4, 6 і 8 записуються; 5 теж (апарат 13 годин
-// пропрацював із dssdiv=5, залишеним чужим прогоном); 7 НЕ записується.
-// Значення 1, 12 і 16 не перевірялись, але в підборі для робочого діапазону
-// множників не з'являються.
+// Measured on device: 2, 4, 6, and 8 write successfully; 5 too (device worked for 13 hours
+// with dssdiv=5 left by another run); 7 does NOT write.
+// Values 1, 12, and 16 were not tested, but they do not appear in selection for the working
+// multiplier range.
 //
-// 3 і 9 свідомо НЕ включені: валідатор L3 їх відкидає, а для DSS1 вони не
-// перевірені. Ціна - компенсація дисплея неточна на множниках нижче ~60, де
-// потрібен саме дільник 3. Для робочого діапазону 86..111 це значення не
-// потрібне; для рампи вниз до 43 - потрібне, але той шлях і без того
-// перекритий (§26.10).
+// 3 and 9 are deliberately NOT included: L3 validator rejects them, and for DSS1 they are not
+// verified. The cost - display compensation is inaccurate on multipliers below ~60, where
+// divider 3 is specifically needed. For working range 86..111 this value is not
+// needed; for ramp down to 43 it is needed, but that path is blocked anyway
+// (§26.10).
 const TUint32 KAutoDivAllowed =
     (1u<<1)|(1u<<2)|(1u<<4)|(1u<<5)|(1u<<6)|(1u<<8)|(1u<<12)|(1u<<16);
 
-// Для L3 - те саме, але без 5: його відкидає валідатор @0x800AC424. Два набори,
-// а не один, саме тому: спільний набір або пропустив би недійсне для L3
-// значення, або даремно відібрав би дійсне для DSS1.
+// For L3 - same, but without 5: validator @0x800AC424 rejects it. Two sets,
+// not one, for this exact reason: a shared set would either allow an invalid value
+// for L3 or unnecessarily remove a valid one for DSS1.
 const TUint32 KAutoL3Allowed = KAutoDivAllowed & ~(1u<<5);
 
 TInt MpuDivStep(TInt aValue, TInt aDir)
@@ -775,9 +775,9 @@ TInt MpuDivStep(TInt aValue, TInt aDir)
     return aValue;
     }
 
-// Наступний/попередній дільник DSP із дозволених прошивкою. Та сама механіка,
-// що й у MpuDivStep: поручні беремо з валідації штатного сеттера, а не з
-// власних уявлень про те, що «має працювати».
+// Next/previous DSP divider from those allowed by firmware. Same mechanics
+// as in MpuDivStep: guardrails are taken from stock setter validation, not from
+// our own notions of what "should work".
 TInt DspDivStep(TInt aValue, TInt aDir)
     {
     for (TInt v = aValue + aDir; v >= 1 && v <= 31; v += aDir)
@@ -810,17 +810,17 @@ TUint32 CoreFieldSet(TUint32 aCoreReg, TInt aId, TInt aValue)
 TInt CoreFieldStep(TInt aId, TInt aValue, TInt aDir)
     {
     const TCoreField& f = CoreField(aId);
-    // Ширина поля обмежує діапазон: для 1-бітного DSS2 це 0..1, для 5-бітного 0..31.
+    // Field width bounds range: for 1-bit DSS2 it is 0..1, for 5-bit 0..31.
     TInt maxv = (TInt)(f.iMask >> f.iShift);
     for (TInt v = aValue + aDir; v >= 0 && v <= maxv; v += aDir)
         {
         if (v < 32 && (f.iAllowed & (1u << v)))
             return v;
         }
-    return aValue;                 // далі допустимих немає - лишаємо як було
+    return aValue;                 // no more valid values - leave as was
     }
 
-// --- розклад тактування -----------------------------------------------------
+// --- clock schedule ---------------------------------------------------------
 
 void TOcClocks::Decode(TUint32 aClkSel1, TUint32 aClkSel2, TUint32 aMpuDiv,
                        TUint32 aCoreDiv)
@@ -858,7 +858,7 @@ TUint32 TOcClocks::L3Khz() const
     return iL3Div ? CoreKhz() / (TUint32)iL3Div : 0;
     }
 
-// --- двигун -----------------------------------------------------------------
+// --- engine -----------------------------------------------------------------
 
 COcEngine::COcEngine()
   : iProfile(&KProfileRM320),
@@ -883,27 +883,27 @@ void COcEngine::ConstructL() {}
 
 COcEngine::~COcEngine()
     {
-    // Порядок обов'язковий і саме такий:
-    //   1. зняти розгін - частота переживає процес;
-    //   2. повернути оригінальні байти ядра - патч теж переживає процес, і
-    //      лишати підмінену функцію в системі означає ставити міну на потім;
-    //   3. лише тоді закривати канали (без патчера крок 2 неможливий).
+    // Order is mandatory and strictly as follows:
+    //   1. remove overclock - frequency survives the process;
+    //   2. restore original kernel bytes - patch also survives the process, and
+    //      leaving a replaced function in the system means planting a landmine for later;
+    //   3. only then close channels (step 2 is impossible without patcher).
     if (iApplied && !iKeep && iSram)
         {
         TUint32 st = 0;
         RestoreStock(st);
         }
-    // Дільник DSP - за тим самим правилом, що й частота ядра: процес помирає, а
-    // домен лишається переналаштованим, і тихо віддати апарат таким було б
-    // негідно. KeepOnExit покриває і це.
+    // DSP divider - by same rule as core frequency: process dies while
+    // the domain remains reconfigured, and silently leaving the device like this would be
+    // improper. KeepOnExit covers this too.
     if (!iKeep && iSram && iDspDiv != iStockDspDiv)
         {
         TInt rc = 0;
         RestoreDspDiv(rc);
         }
     RestoreKernelCode();
-    // Останнім - зняти shadow. Після цього в ядрі не лишається ні наших
-    // байтів, ні виділеної під них сторінки.
+    // Last - remove shadow. After this, neither our bytes nor
+    // the page allocated for them remain in the kernel.
     UnshadowKernelPage();
     if (iDvfsOpen)
         iDvfs.Close();
@@ -911,12 +911,12 @@ COcEngine::~COcEngine()
         iPatcher.Close();
     }
 
-// Повертає тіло DoControl(1) у первісний вигляд. Безпечно викликати повторно.
+// Restores DoControl(1) body to original state. Safe to call repeatedly.
 //
-// Пишемо всі 6 слів: EXEC-патч займає рівно стільки. Раніше тут стояло 4 слова
-// з обґрунтуванням "16 байтів - перевірений шлях memmove"; те обґрунтування було
-// хибним діагнозом - справжньою причиною невдалого відкату був I-cache, а не
-// довжина запису (findings §19).
+// We write all 6 words: EXEC patch takes exactly that much. Previously 4 words stood here
+// with the rationale "16 bytes is the tested memmove path"; that rationale was
+// a misdiagnosis - the true reason for failed rollback was I-cache, not
+// write length (findings §19).
 TInt COcEngine::RestoreKernelCode()
     {
     if (!iPatcherOpen || !iPatched)
@@ -932,10 +932,10 @@ TInt COcEngine::RestoreKernelCode()
     return r;
     }
 
-// Знімає ROM-shadow із тіла DoControl(1): сторінці повертається штатне
-// відображення прямо на ROM, а виділена патчером RAM-сторінка звільняється.
-// Робиться ОДИН раз, при завершенні: вміст ми й так відновлюємо після кожної
-// операції, а от alloc/free сторінок ядра на кожне читання - зайва churn.
+// Removes ROM-shadow from DoControl(1) body: the page is returned to stock
+// mapping directly to ROM, and the RAM page allocated by patcher is freed.
+// Done ONCE, on exit: we restore contents after each operation anyway,
+// whereas alloc/free of kernel pages on every read is unnecessary churn.
 TInt COcEngine::UnshadowKernelPage()
     {
     if (!iPatcherOpen || !iShadowed)
@@ -948,26 +948,26 @@ TInt COcEngine::UnshadowKernelPage()
     return r;
     }
 
-// Перевірка відкату. Прочитати відновлені байти нічим - примітив читання це
-// і Є ті байти. Але в оригінальної функції є відома поведінка: DoControl(1, 0)
-// віддає відсоток від номіналу (findings 3), тобто 50 або 100. Наш READ-патч
-// на a1=0 повертає рівно 0, а EXEC-патч стрибнув би за нульовою адресою.
-// Отже ненульовий відсоток тут - доказ, що в ядрі знову штатний код.
+// Rollback verification. There is nothing to read restored bytes with - the read primitive IS
+// those bytes. But the original function has known behavior: DoControl(1, 0)
+// returns percentage of nominal (findings 3), i.e. 50 or 100. Our READ patch
+// on a1=0 returns exactly 0, and EXEC patch would jump to NULL address.
+// Therefore a non-zero percentage here is proof that stock code is back in the kernel.
 TInt COcEngine::VerifyRestored()
     {
     if (!iDvfsOpen || iPatched)
         return KErrNotReady;
     if (iProfile->iHost == EHostUsbc)
         {
-        // Трюк із відсотком тут не працює: штатний DoControl(69, x) на Usbc
-        // повертає 0 і без патча (виміряно, findings §34).
+        // Percentage trick does not work here: stock DoControl(69, x) on Usbc
+        // returns 0 even without patch (measured, findings §34).
         //
-        // Кликати штатний DoControl(69) з ненульовим a1 задля перевірки НЕ МОЖНА:
-        // опкод 69 у справжньому драйвері - реальна функція, і що вона зробить із
-        // чужим покажчиком, ми не знаємо. Натомість перевіряємо прямо: на цьому
-        // апараті XIP читається з user mode (findings §34), тож просто звіряємо
-        // шість слів тіла з еталоном. Це сильніший доказ за будь-який непрямий -
-        // ми дивимось на самі байти, і жодного виклику в ядро не робимо.
+        // Calling stock DoControl(69) with non-zero a1 for verification is FORBIDDEN:
+        // opcode 69 in the real driver is a real function, and what it will do with
+        // an alien pointer we do not know. Instead we check directly: on this
+        // device XIP is readable from user mode (findings §34), so we simply verify
+        // the six body words against the reference. This is stronger proof than any indirect one -
+        // we inspect the bytes themselves, without making any call into the kernel.
         const volatile TUint32* body = (const volatile TUint32*)HostBody();
         for (TInt i = 0; i < 6; ++i)
             if (body[i] != iOrigWords[i])
@@ -1013,12 +1013,12 @@ const TDesC& COcEngine::StepName(TOcStep aStep)
         }
     }
 
-// Ланцюг глобал -> обʼєкт -> копія SRAM, зі звіркою копії з оригіналом у ROM.
+// Chain global -> object -> SRAM copy, with copy verification against original in ROM.
 //
-// Звірка була в одне слово, і для єдиної відомої адреси цього вистачало. Для
-// ПОШУКУ одного слова замало: 0xe92d40fe трапляється в памʼяті часто, і
-// випадковий кандидат пройшов би. Тому тут вісім слів - це вже підпис функції,
-// а не збіг.
+// Verification was one word, and for a single known address this was sufficient. For
+// SEARCH one word is too little: 0xe92d40fe occurs often in memory, and
+// an accidental candidate would pass. Therefore eight words here - this is already a function signature,
+// not a coincidence.
 TInt COcEngine::ChaseSram(TUint32 aGlobal, TUint32& aSram)
     {
     aSram = 0;
@@ -1041,13 +1041,13 @@ TInt COcEngine::ChaseSram(TUint32 aGlobal, TUint32& aSram)
     return KErrNone;
     }
 
-// Пошук глобала power-down у вікні навколо орієнтира, взятого з ROM.
+// Search for power-down global in a window around the hint taken from ROM.
 //
-// Орієнтир - це значення літерального пулу пари геттер/сеттер, знайденої в
-// образі за сигнатурою. На RM-320 цей пул дає 0xc80030ec, тоді як справжній
-// глобал 0xc80030c8, тобто поруч, але НЕ той самий: сигнатура знаходить сусідню
-// пару. Саме тому офлайнове значення в профіль не кладуть, а шукають на
-// апараті - і приймають лише те, що пройшло звірку SRAM.
+// The hint is the literal pool value of getter/setter pair found in
+// the image by signature. On RM-320 this pool yields 0xc80030ec, whereas the true
+// global is 0xc80030c8, i.e. nearby, but NOT the same: the signature finds a neighboring
+// pair. That is why offline value is not put into profile, but searched on
+// the device - and only what passed SRAM verification is accepted.
 TInt COcEngine::DiscoverPwrDownGlobal(TUint32& aGlobal, TUint32& aSram)
     {
     aGlobal = 0;
@@ -1055,11 +1055,11 @@ TInt COcEngine::DiscoverPwrDownGlobal(TUint32& aGlobal, TUint32& aSram)
     const TUint32 hint = iProfile->iPwrDownHint;
     if (!hint)
         return KErrNotSupported;
-    // Підказку бере профіль, а профіль може дописати стороння людина за
-    // docs/PORTING.md. Тому діапазон перевіряємо тут, а не покладаємось на те,
-    // що в таблиці лежить осмислене число: читання йде в режимі ядра, і адреса
-    // поза ядровими даними - це виняток у ядрі, а не KErrNotFound. Верхня межа
-    // заразом не дає hint + span обгорнутись і зациклити пошук.
+    // Hint is taken from profile, and profile can be written by a third party per
+    // docs/PORTING.md. Therefore range is verified here, rather than relying on
+    // the table containing a meaningful number: reading happens in kernel mode, and address
+    // outside kernel data is a kernel exception, not KErrNotFound. Upper bound
+    // also prevents hint + span from wrapping around and looping the search.
     if (hint < KKernDataLo || hint >= KKernDataHi || (hint & 3))
         return KErrArgument;
     const TUint32 lo = hint - KPwrDownSearchSpan;
@@ -1077,14 +1077,14 @@ TInt COcEngine::DiscoverPwrDownGlobal(TUint32& aGlobal, TUint32& aSram)
     return KErrNotFound;
     }
 
-// Прогін пошуку НА ВИМОГУ, коли адреса вже відома. Сенс один: перевірити сам
-// механізм там, де правильну відповідь знаємо наперед, і побачити, чи він її
-// відтворює. Без цього тестові профілі спирались би на неперевірений метод -
-// рівно та помилка, яку офлайновий пошук глобала вже раз зробив.
+// Search run ON DEMAND, when address is already known. Single purpose: verify the
+// mechanism itself where correct answer is known in advance, and see whether it
+// reproduces it. Without this, test profiles would rely on an unverified method -
+// exactly the mistake offline global search made once already.
 TInt COcEngine::TryDiscoverGlobal(TUint32& aGlobal, TUint32& aSram)
     {
-    // Читання працює лише всередині сеансу патча: Prepare() знімає патч за
-    // собою, тож тут його треба накласти заново й обовʼязково зняти після.
+    // Reading works only inside patch session: Prepare() removes patch after
+    // itself, so here it must be reapplied and necessarily removed afterward.
     TInt r = ApplyReadPatch();
     if (r != KErrNone)
         return r;
@@ -1119,15 +1119,15 @@ TInt COcEngine::PokeWords(TUint32 aAddr, const TUint32* aWords, TInt aCount)
     return Poke(aAddr, b);
     }
 
-// Канал доводиться перевідкривати після кожної зміни патчу: драйвер тримає
-// стан, а нам треба гарантувати, що наступний DoControl(1) піде у свіже тіло.
+// Channel has to be reopened after each patch change: the driver holds
+// state, while we need to guarantee that next DoControl(1) goes into fresh body.
 TInt COcEngine::ReopenDvfs()
     {
-    // Носій Usbc відкриваємо РАЗ і не смикаємо. Доведений прогін (usbcboot)
-    // відкривав канал ДО накладання патча; close/open уже пропатченого драйвера
-    // USB - зайвий ризик, бо DoCreate виконує справжню ініціалізацію драйвера,
-    // а сліпе відкриття kernel-каналів на E90 вже валило апарат (state.md,
-    // 2026-09-02). Для dvfs поведінка лишається як була.
+    // Open Usbc host ONCE and do not disturb. The proven run (usbcboot)
+    // opened channel BEFORE applying patch; close/open of an already patched
+    // USB driver is unnecessary risk, because DoCreate performs actual driver initialization,
+    // and blind opening of kernel channels on E90 already crashed the device (state.md,
+    // 2026-09-02). For dvfs behavior remains as it was.
     if (iProfile->iHost == EHostUsbc && iDvfsOpen)
         return KErrNone;
     if (iDvfsOpen)
@@ -1141,16 +1141,16 @@ TInt COcEngine::ReopenDvfs()
     return r;
     }
 
-// Канал НЕ перевідкриваємо. Доведений прогін пробника відкривав його рівно
-// один раз, і перевідкриття тут нічого не дає: диспетчер драйвера викликає
-// пропатчене тіло через "bl 0x80148410" напряму, нічого не кешуючи. Зайві
-// цикли close/open - це зайві операції над драйвером ядра на кожне читання,
-// а апарат до цієї роботи був стабільний, тож нову churn вносити нема за що.
+// We do NOT reopen channel. Proven probe run opened it exactly
+// once, and reopening here gives nothing: driver dispatcher calls
+// patched body via "bl 0x80148410" directly, caching nothing. Redundant
+// close/open cycles are redundant kernel driver operations on each read,
+// and device before this work was stable, so there is no reason to introduce new churn.
 TInt COcEngine::ApplyReadPatch()
     {
-    // Без знятого оригіналу патч накладати не можна: відкочувати буде нічим.
-    // Перевірка стоїть тут, а не лише в Prepare(), щоб жоден із кількох шляхів
-    // патчення не міг обійти її повз.
+    // Patch cannot be applied without captured original: there would be nothing to roll back with.
+    // Check is placed here, not just in Prepare(), so none of several patching
+    // paths can bypass it.
     if (iOrigCount != 6)
         return KErrNotReady;
     TInt r = PokeWords(HostBody(), HostReadPatch(iProfile), 4);
@@ -1164,13 +1164,13 @@ TInt COcEngine::ApplyReadPatch()
 
 TInt COcEngine::ApplyExecPatch()
     {
-    // Без знятого оригіналу патч накладати не можна: відкочувати буде нічим.
-    // Перевірка стоїть тут, а не лише в Prepare(), щоб жоден із кількох шляхів
-    // патчення не міг обійти її повз.
+    // Patch cannot be applied without captured original: there would be nothing to roll back with.
+    // Check is placed here, not just in Prepare(), so none of several patching
+    // paths can bypass it.
     if (iOrigCount != 6)
         return KErrNotReady;
-    // Байти беремо з асемблерного шаблону, а не з масиву констант: кодування
-    // інструкцій рахує асемблер, а не я вручну.
+    // Bytes are taken from assembler template, not from constant array: instruction
+    // encoding is computed by assembler, not manually by me.
     const TBool r2 = (iProfile->iHost == EHostUsbc);
     const TUint8* p = (const TUint8*)((TUint32)(r2 ? &OcExecPatchR2Start
                                                   : &OcExecPatchStart) & ~1u);
@@ -1182,7 +1182,7 @@ TInt COcEngine::ApplyExecPatch()
     TBuf8<24> patch;
     patch.Copy(p, len);
 
-    // Підставляємо єдину адресу, стрибок на яку дозволено.
+    // Substitute the single address to which jumping is allowed.
     const TUint32 allowed = iSram + KSramSlot;
     TBool found = EFalse;
     for (TInt i = 0; i + 4 <= len; i += 4)
@@ -1210,25 +1210,25 @@ TInt COcEngine::ApplyExecPatch()
     return KErrNone;
     }
 
-// Знімає патч НАДІЙНО. Перезапису байтів для цього НЕ досить: жоден шлях
-// патчера не робить Cache::IMB (findings §14), а пропатчена функція вже
-// виконувалась, тож її інструкції лишаються в I-cache. Спостережено прямо:
-// після відновлення байтів DoControl(1,0) повертав 0, тобто патч був живий.
-// FreeShadowPage натомість викидає RAM-сторінку й повертає відображення на
-// справжній ROM - разом із коректним обслуговуванням кешу.
-// Байти все одно переписуємо першими: якщо unshadow колись не спрацює, вміст
-// сторінки має бути штатним.
+// Removes patch RELIABLY. Overwriting bytes is NOT enough for this: no patcher
+// path performs Cache::IMB (findings §14), while the patched function has already
+// executed, so its instructions remain in I-cache. Observed directly:
+// after restoring bytes DoControl(1,0) returned 0, meaning patch was alive.
+// FreeShadowPage instead discards RAM page and returns mapping to
+// real ROM - along with proper cache maintenance.
+// Bytes are still rewritten first: if unshadow ever fails, page
+// content must be stock.
 TInt COcEngine::EndPatchSession()
     {
     RestoreKernelCode();
     return UnshadowKernelPage();
     }
 
-// Читання кількох адрес за ОДИН цикл патч/unshadow. Кожен такий цикл - це
-// вікно, у якому пропатчене тіло DoControl(1) живе в ядрі, а канал
-// dvfs_interface відкриваємо не лише ми (§15: mmrmserver.dll,
-// fmradiotunercontrol.dll). Тож N окремих ReadReg - це N вікон замість одного,
-// і платити цим за зручність нема за що.
+// Reading several addresses in a SINGLE patch/unshadow cycle. Each such cycle is
+// a window in which patched DoControl(1) body lives in the kernel, and dvfs_interface
+// channel is opened not only by us (§15: mmrmserver.dll,
+// fmradiotunercontrol.dll). Thus N separate ReadRegs are N windows instead of one,
+// and there is no reason to pay with this for convenience.
 TInt COcEngine::ReadRegs(const TUint32* aAddr, TUint32* aOut, TInt aCount)
     {
     if (!iPatcherOpen)
@@ -1252,11 +1252,11 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     aVerify = -1;
     aReadValue = 0;
 
-    // Той самий гейт, що і в Prepare(), і з тієї самої причини. Рівень 2 і вище
-    // НАКЛАДАЄ патч, а профіль тут за замовчуванням еталонний (RM-320), бо
-    // викликач може не звати SetProfile. Без цієї перевірки "selftest 2" на
-    // чужому апараті записав би адресу RM-320 у чуже ядро - тобто саме те, від
-    // чого гейт і ставили.
+    // Same gate as in Prepare(), and for the same reason. Level 2 and above
+    // APPLIES patch, while the profile here defaults to reference (RM-320) because
+    // the caller might not invoke SetProfile. Without this check, "selftest 2" on
+    // an alien device would write RM-320 address into alien kernel - exactly what
+    // the gate was set up to prevent.
     if (aLevel >= 2 && CheckFirmware() != KErrNone)
         {
         iStep = EOcStepFirmware;
@@ -1269,6 +1269,14 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
         return r;
 
     iStep = EOcStepOpenPatcher;
+    // Prepare can be entered more than once: on an unrecognised phone the user
+    // cycles through test profiles and presses OK on each. Opening an already
+    // open channel leaks the previous handle, so close it first.
+    if (iPatcherOpen)
+        {
+        iPatcher.Close();
+        iPatcherOpen = EFalse;
+        }
     r = iPatcher.Open();
     if (r != KErrNone)
         return r;
@@ -1276,7 +1284,7 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     if (aLevel < 1)
         return KErrNone;
 
-    // Рівень 1: контракт func 105 на власному буфері. Ядро не чіпається.
+    // Level 1: func 105 contract on own buffer. Kernel is not touched.
     iStep = EOcStepSelfTest;
     TBuf8<4> target;
     TBuf8<4> bytes;
@@ -1291,14 +1299,14 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     if (aLevel < 2)
         return KErrNone;
 
-    // Оригінал знімаємо саме тут: рівні 0 і 1 ядра не чіпають, і вимагати від
-    // них звірки байтів означало б відмовляти в нешкідливій перевірці.
+    // Capture original right here: levels 0 and 1 do not touch kernel, and requiring
+    // byte verification from them would mean rejecting a harmless check.
     iStep = EOcStepVerifyBody;
     if (CaptureOriginal() != KErrNone)
         return KErrCorrupt;
 
-    // Рівень 2: перший дотик до коду ядра. Саме тут виникає ROM-shadow сторінка,
-    // і вона лишається до перезавантаження навіть після відновлення вмісту.
+    // Level 2: first touch of kernel code. Right here ROM-shadow page arises,
+    // and it remains until reboot even after content restoration.
     iStep = EOcStepOpenDvfs;
     User::LoadLogicalDevice(KDvfsFile);
     r = ReopenDvfs();
@@ -1310,8 +1318,8 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     if (r != KErrNone)
         return r;
     aReadValue = (TUint32)iDvfs.ReadOrCall(KRegClkSel1Pll);
-    // Перевіряти ПІСЛЯ unshadow, а не після перезапису байтів: саме unshadow
-    // і є надійним зняттям патчу.
+    // Verify AFTER unshadow, not after overwriting bytes: unshadow specifically
+    // is the reliable patch removal.
     EndPatchSession();
     aVerify = VerifyRestored();
     if (aLevel < 3)
@@ -1320,20 +1328,20 @@ TInt COcEngine::SelfTestLevel(TInt aLevel, TInt& aVerify, TUint32& aReadValue)
     return Prepare();
     }
 
-// Гейт по прошивці.
+// Firmware gate.
 //
-// Адреси профілю виведені з КОНКРЕТНОЇ збірки прошивки, а не з моделі апарата.
-// Збіг машинного uid означає лише "той самий телефон", і на іншій збірці той
-// самий патч ляже не на той код - це вже не "ребут повертає як було", а запис
-// у випадкову функцію ядра. Поки апарат був один і прошивка своя, різниці не
-// було; з появою чужих апаратів вона стає головним ризиком проєкту.
+// Profile addresses were derived from a SPECIFIC firmware build, not from device model.
+// Machine uid match means only "same phone model", and on another build the same
+// patch will land on different code - that is no longer "reboot restores stock", but a write
+// into a random kernel function. While there was one device and own firmware, there was no
+// difference; with foreign devices appearing, it becomes the project's primary risk.
 //
-// Тому: версію читаємо з апарата й вимагаємо збігу з тією, під яку виведено
-// адреси. Не змогли прочитати - теж відмова: "не вдалось перевірити" це не
-// "перевірено". Профіль із порожнім iFwVersion не гейтимо взагалі, і це має
-// бути видно в документації, а не лише тут.
-// Визначення тут, а не в класі: опорні поля оголошені нижче за цей метод, і
-// компілятор GCCE 3.x таке тіло в класі не приймає.
+// Therefore: we read version from device and require match with the one addresses were derived
+// for. Failed to read - rejection too: "failed to verify" is not
+// "verified". A profile with empty iFwVersion is not gated at all, and this must
+// be visible in documentation, not just here.
+// Definition here, not in class: reference fields are declared below this method, and
+// GCCE 3.x compiler does not accept such in-class body.
 TBool COcEngine::BootedNonStock() const
     {
     return iBootMult != iStockClocks.iMult
@@ -1341,23 +1349,23 @@ TBool COcEngine::BootedNonStock() const
         || (iBootMpu & KMpuDivMask) != (iStockMpu & KMpuDivMask);
     }
 
-// Знімає штатні слова тіла DoControl із живого ROM і переконується, що там
-// справді те, що ми думаємо. Сенс подвійний.
+// Captures stock words of DoControl body from live ROM and verifies that
+// what is there is indeed what we expect. Twofold purpose.
 //
-// По-перше, відкат. Раніше сюди підставлялась константа KDvfsOriginal, але в
-// ній слова bl, ldr [pc,#imm] і b - зміщення, унікальні для збірки RM-320. На
-// іншій збірці такий відкат записав би в чуже тіло чужі зміщення, і драйвер
-// лишився б зіпсованим до перезавантаження. Живі слова вільні від цієї вади за
-// побудовою.
+// First, rollback. Previously constant KDvfsOriginal was substituted here, but in
+// it words bl, ldr [pc,#imm], and b are offsets unique to the RM-320 build. On
+// another build such a rollback would write alien offsets into alien body, and the driver
+// would remain corrupted until reboot. Live words are free from this defect by
+// design.
 //
-// По-друге, впізнання апарата. Тестовий профіль не має ні машинного uid, ні
-// прошивкового гейту, тож байти за адресою патча - єдине, що ще відрізняє
-// правильний апарат від будь-якого іншого Symbian-телефона. XIP читається з
-// режиму користувача (findings §34), тож перевірка коштує нуль і робиться ДО
-// першого запису в ядро.
+// Second, device recognition. A test profile has neither machine uid nor
+// firmware gate, so bytes at the patch address are the only thing that distinguishes
+// the correct device from any other Symbian phone. XIP is readable from
+// user mode (findings §34), so check costs zero and is done BEFORE
+// the first write to kernel.
 //
-// Маска повторює сигнатуру пошуку (tools/romscan.js): три слова точні, у трьох
-// решти звіряється лише код операції, бо зміщення там і мають різнитись.
+// Mask repeats the search signature (tools/romscan.js): three words are exact, in the remaining
+// three only opcode is checked, since offsets there are expected to differ.
 TInt COcEngine::CaptureOriginal()
     {
     iOrigCount = 0;
@@ -1372,11 +1380,11 @@ TInt COcEngine::CaptureOriginal()
     TBool ok = EFalse;
     if (iProfile->iDiscover)
         {
-        // Профіль без адрес: збірка невідома, тож звіряти шість слів із
-        // константою нема з чим. Натомість звіряємо ПРОЛОГ - рівно ту
-        // сигнатуру, за якою адресу й знайдено. Вона ж і відповідає на
-        // головне питання цієї функції: чи тіло ще ціле, чи в ньому вже
-        // лежить наш патч від попереднього прогону, який не відкотився.
+        // Profile without addresses: build is unknown, so there is nothing to compare
+        // six words with against a constant. Instead we verify the PROLOGUE - exactly the
+        // signature by which address was found. It also answers the
+        // main question of this function: is the body still intact, or does it already
+        // contain our patch from a previous run that failed to roll back.
         ok = (w[0] == 0xe92d4ff0u) && (w[1] == 0xe24dd044u)
           && (w[2] == 0xe1a04000u) && (w[3] == 0xe1a06002u);
         }
@@ -1405,10 +1413,10 @@ TInt COcEngine::CaptureOriginal()
         return KErrNone;
         }
 
-    // Не збіглося. Для профілю з прошивковим гейтом це майже напевно слід
-    // попереднього прогону, який не встиг відкотитись: там константа доведено
-    // відповідає саме цій збірці, тож нею й лікуємо. Для тестового профілю
-    // такої опори немає - це просто чужий апарат, і писати в нього не можна.
+    // Mismatched. For a profile with a firmware gate, this is almost certainly a trace
+    // of a previous run that did not have time to roll back: there the constant is proven
+    // to match this specific build, so we heal with it. For a test profile
+    // there is no such anchor - it is simply an alien device, and writing into it is forbidden.
     if (iProfile->iFwVersion && iProfile->iFwVersion[0])
         {
         TInt words = 0;
@@ -1421,31 +1429,34 @@ TInt COcEngine::CaptureOriginal()
     return KErrCorrupt;
     }
 
-// Знаходить адреси на САМОМУ апараті, скануванням живого XIP.
+// Discovers addresses on the device ITSELF, via live XIP scanning.
 //
-// Навіщо це взагалі. Витягнутий із прошивки образ для частини апаратів є лише
-// уламком повного XIP, і зсув у файлі НЕ дорівнює адресі: на E90 те саме тіло
-// DoControl лежить у файлі за 0x80094ac4, а на апараті за 0x800bf874 - різниця
-// 0x2adb0 (findings 47.1). Виведені офлайн константи для таких апаратів
-// недійсні в принципі, і єдиний чесний шлях - шукати на місці.
+// Why do this at all. Image extracted from firmware for some devices is only
+// a fragment of the full XIP, and file offset does NOT equal address: on E90 the same
+// DoControl body is in the file at 0x80094ac4, but on the device at 0x800bf874 - a difference
+// of 0x2adb0 (findings 47.1). Offline-derived constants for such devices are
+// invalid in principle, and the only honest way is to search on-site.
 //
-// Чому це безпечно. Читається XIP із КОРИСТУВАЦЬКОГО режиму, звичайним
-// розіменуванням (findings 34): непримапана сторінка дала б виняток у нашому
-// процесі, а не перезавантаження апарата. Ядро тут не чіпається взагалі.
+// Why it is safe. XIP is read from USER mode, by normal
+// dereferencing (findings 34): an unmapped page would produce an exception in our
+// process, not a device reboot. Kernel is not touched at all here.
 //
-// Збіг мусить бути РІВНО ОДИН. Два збіги означають, що сигнатура не
-// розрізняє потрібну функцію, і вибирати з них навмання - найкоротший шлях
-// пропатчити чуже тіло.
+// Match must be EXACTLY ONE. Two matches mean the signature does not
+// distinguish target function, and picking between them at random is the shortest path
+// to patch an alien body.
 TInt COcEngine::DiscoverRomAddresses()
     {
-    // Пролог DLddUsbcChannel::DoControl: чотири слова поспіль.
+    // DLddUsbcChannel::DoControl prologue: four consecutive words.
     const TUint32 KUsbcProlog[4] =
         { 0xe92d4ff0u, 0xe24dd044u, 0xe1a04000u, 0xe1a06002u };
 
     TInt romSize = 0;
     TUint32 span = 0x00200000u;
+    // HAL reports ROM size in kilobytes on some phones and in bytes on others.
+    // The boundary is inclusive on purpose: 0x10000 as a byte count would be a
+    // 64 KB ROM, which does not exist, while as a kilobyte count it is 64 MB.
     if (HAL::Get(HALData::EMemoryROM, romSize) == KErrNone && romSize > 0)
-        span = (romSize < 0x10000) ? (TUint32)romSize * 1024u : (TUint32)romSize;
+        span = (romSize <= 0x10000) ? (TUint32)romSize * 1024u : (TUint32)romSize;
     if (span > 0x04000000u)
         span = 0x04000000u;
 
@@ -1465,8 +1476,8 @@ TInt COcEngine::DiscoverRomAddresses()
             ++bodyHits;
             body = a;
             }
-        // Relock-рутина power.dll. Два слова з восьми - ldr із PC-відносним
-        // зсувом, і зсув залежить від розташування, тож вони йдуть по масці.
+        // power.dll relock routine. Two of eight words are ldr with PC-relative
+        // offset, and offset depends on placement, so they are matched by mask.
         if (w == KSramRoutineSignature[0]
             && (*(const volatile TUint32*)(a + 4) & 0xfffff000u) == 0xe59f1000u
             && (*(const volatile TUint32*)(a + 8) & 0xfffff000u) == 0xe59f5000u
@@ -1495,8 +1506,8 @@ TInt COcEngine::TryDiscoverRom(TUint32& aBody, TUint32& aSram)
     const TInt r = DiscoverRomAddresses();
     aBody = iFoundBody;
     aSram = iFoundSram;
-    // Пошук викликали заради перевірки, а не заради роботи: не лишаємо
-    // знайденого в полях, інакше наступний Prepare() узяв би його мовчки.
+    // Search was called for verification, not for operation: do not keep
+    // discovered values in fields, otherwise next Prepare() would take them silently.
     iFoundBody = 0;
     iFoundSram = 0;
     return r;
@@ -1512,15 +1523,15 @@ TInt COcEngine::CheckFirmware()
     if (SysUtil::GetSWVersion(v) != KErrNone)
         return KErrNotSupported;
 
-    // Рядок версії багаторядковий: версія, дата, модель, копірайт,
-    // тож у журнал беремо лише перший рядок - решта там ні для чого.
+    // Version string is multiline: version, date, model, copyright,
+    // so we take only the first line for the log - the rest is not needed.
     TInt nl = v.Locate(TChar(10));
     iFirmware.Copy(v.Left(nl == KErrNotFound ? Min(v.Length(), iFirmware.MaxLength())
                                              : Min(nl, iFirmware.MaxLength())));
 
-    // Збірок у профілі може бути кілька, через ';'. Перелік, а не одна версія,
-    // бо адреси між сусідніми збірками часто збігаються - але кожну таку
-    // збірку сюди вписують ЛИШЕ після перевірки, а не за схожістю номера.
+    // There can be several builds in profile, separated by ';'. A list, rather than a single version,
+    // because addresses between adjacent builds often match - but each such
+    // build is entered here ONLY after verification, not by version number similarity.
     TBuf<128> list;
     list.Copy(TPtrC8((const TUint8*)iProfile->iFwVersion));
     TInt pos = 0;
@@ -1544,16 +1555,16 @@ TInt COcEngine::Prepare()
         return KErrNotSupported;
         }
 
-    // Запобіжник переносу: уся ця процедура патчить iDvfsBody і читає ядро через
-    // цей патч. На профілі без dvfs (E90: iRead != EReadDvfs, iDvfsBody == 0)
-    // накладання патча пішло б в адресу 0 чужого ядра й повісило б апарат
-    // (findings §27). Тому відмовляємо ДО будь-якого дотику до ядра. Шлях
-    // читання для таких апаратів - бутстрап Usbc, окрема процедура.
-    // Нулі в цих полях означають "ще не виміряно". Патчити за нульовою адресою
-    // або звіряти SRAM проти нуля - гарантований спосіб покласти апарат, тож
-    // відмовляємо ДО будь-якого дотику до ядра.
-    // Профіль без адрес шукає їх сам, і робить це ПЕРШИМ: доки адреси
-    // невідомі, перевіряти нижче нічого.
+    // Porting guard: this entire procedure patches iDvfsBody and reads kernel through
+    // this patch. On a profile without dvfs (E90: iRead != EReadDvfs, iDvfsBody == 0)
+    // applying patch would go to address 0 of foreign kernel and hang the device
+    // (findings §27). Therefore we reject BEFORE any touch to the kernel. Read
+    // path for such devices is Usbc bootstrap, a separate procedure.
+    // Zeroes in these fields mean "not yet measured". Patching at NULL address
+    // or verifying SRAM against zero is a guaranteed way to crash the device, so
+    // we reject BEFORE any touch to the kernel.
+    // Profile without addresses discovers them itself, and does so FIRST: until addresses
+    // are known, there is nothing below to check.
     if (iProfile->iDiscover && (iFoundBody == 0 || iFoundSram == 0))
         {
         iStep = EOcStepDiscover;
@@ -1577,10 +1588,10 @@ TInt COcEngine::Prepare()
     TInt r = User::LoadLogicalDevice(KPatcherFile);
     if (r != KErrNone && r != KErrAlreadyExists)
         return r;
-    // Носій примітиву обирає профіль; канал має знати про це ДО відкриття.
+    // Primitive host is chosen by profile; channel must know about it BEFORE opening.
     iDvfs.SetHost(iProfile->iHost);
     if (iProfile->iHost == EHostDvfs)
-        User::LoadLogicalDevice(KDvfsFile);   // у ROM уже є, спроба не завадить
+        User::LoadLogicalDevice(KDvfsFile);   // already in ROM, attempt won't hurt
 
     iStep = EOcStepOpenPatcher;
     r = iPatcher.Open();
@@ -1588,7 +1599,7 @@ TInt COcEngine::Prepare()
         return r;
     iPatcherOpen = ETrue;
 
-    // Самоперевірка контракту func 105 на власному буфері: ядро не чіпається.
+    // Self-test of func 105 contract on own buffer: kernel is not touched.
     iStep = EOcStepSelfTest;
     TBuf8<4> target;
     TBuf8<4> bytes;
@@ -1601,8 +1612,8 @@ TInt COcEngine::Prepare()
     if (r != KErrNone || target.Compare(bytes) != 0)
         return (r != KErrNone) ? r : KErrCorrupt;
 
-    // Носій Usbc відкриваємо ДО патча - у тому самому порядку, що й доведений
-    // usbcboot. Якщо канал не відкрився, у ядро не пишеться нічого.
+    // Open Usbc host BEFORE patch - in the same order as proven
+    // usbcboot. If channel failed to open, nothing is written to the kernel.
     if (iProfile->iHost == EHostUsbc)
         {
         iStep = EOcStepOpenDvfs;
@@ -1611,22 +1622,22 @@ TInt COcEngine::Prepare()
             return r;
         }
 
-    // Позначаємо патч накладеним ДО запису: якщо PokeWords ляже частково (драйвер
-    // міг уже створити shadow-сторінку), EndPatchSession нижче все одно відкотить.
+    // Mark patch applied BEFORE write: if PokeWords lands partially (driver
+    // might have already created shadow page), EndPatchSession below will still roll back.
     iStep = EOcStepReadPatch;
     iExecMode = EFalse;
     iPatched = ETrue;
-    // Саме профільний варіант: на носії Usbc адреса приходить у r2, а в r1
-    // лежить опкод. r1-стаб тут розіменував би 69 у режимі ядра - перевірено
-    // на власній шкурі 2026-09-09, апарат ліг миттєво.
+    // Profile-specific variant specifically: on Usbc host address arrives in r2, while r1
+    // holds opcode. r1 stub here would dereference 69 in kernel mode - verified
+    // the hard way on 2026-09-09, device crashed instantly.
     r = PokeWords(HostBody(), HostReadPatch(iProfile), 4);
     if (r == KErrNone)
         r = PrepareProbe();
 
-    // Патч знімаємо ЗАВЖДИ - і на успіху, і на будь-якій помилці проби. Це
-    // головний запобіжник переносу: на апараті з іншими адресами ReopenDvfs або
-    // звірка SRAM обірвуться, і без цього рядка пропатчене чуже тіло ядра
-    // лишилося б жити до перезавантаження (findings §27).
+    // Remove patch ALWAYS - both on success and on any probe error. This is
+    // the main porting guard: on a device with different addresses ReopenDvfs or
+    // SRAM verification will abort, and without this line patched foreign kernel body
+    // would remain alive until reboot (findings §27).
     EndPatchSession();
     if (r != KErrNone)
         return r;
@@ -1643,20 +1654,23 @@ TInt COcEngine::PrepareProbe()
     if (r != KErrNone)
         return r;
 
-    // Носій Usbc: спершу довести, що патч ЖИВИЙ, і лише тоді йому вірити.
-    // Без цієї перевірки нуль від штатного DoControl(69) не відрізнити від
-    // нуля, прочитаного примітивом, - саме на цьому колись згубився бутстрап
-    // (findings §34). Вектор скидання відомий і незмінний.
+    // Usbc host: first prove that patch is ALIVE, and only then trust it.
+    // Without this check, zero from stock DoControl(69) cannot be distinguished from
+    // zero read by primitive - exactly what bootstrap was once lost on
+    // (findings §34). Reset vector is known and immutable.
     if (iProfile->iHost == EHostUsbc)
         {
+        // Own step: the driver did open, so reporting a failure to open it
+        // would send anyone reading the log looking in the wrong place.
+        iStep = EOcStepVerifyBody;
         if ((TUint32)iDvfs.ReadOrCall(0x80000000u) != 0xea00007eu)
             return KErrNotReady;
         }
 
-    // Підпис relock-рутини. Читаємо ЧЕРЕЗ патч, тож один цей блок доводить і
-    // те, що патч живий, і те, що iRomSramRoutine показує куди треба. Для
-    // тестового профілю це головна перевірка: версії збірки ми не знаємо, і
-    // гейт по прошивці там порожній.
+    // Relock routine signature. We read THROUGH patch, so this single block proves both
+    // that patch is alive and that iRomSramRoutine points to the right place. For
+    // a test profile this is the primary check: we do not know build version, and
+    // firmware gate there is empty.
     if (iProfile->iSramSignature)
         {
         iStep = EOcStepVerifySram;
@@ -1664,11 +1678,11 @@ TInt COcEngine::PrepareProbe()
             {
             const TUint32 got =
                 (TUint32)iDvfs.ReadOrCall(SramRoutine() + i * 4);
-            // Слова 1 і 2 - ldr із PC-відносним зсувом, і зсув залежить від
-            // розташування функції. Для доведеного профілю ми знаємо точні
-            // значення саме цієї збірки й вимагаємо їх. Для профілю, який
-            // шукав адресу сам, збірка невідома, тож ці два слова йдуть по
-            // масці - решта шість лишаються точними.
+            // Words 1 and 2 are ldr with PC-relative offset, and offset depends on
+            // function placement. For a proven profile we know exact
+            // values for this specific build and require them. For a profile that
+            // discovered address itself, build is unknown, so these two words go by
+            // mask - remaining six remain exact.
             if (iProfile->iDiscover && (i == 1 || i == 2))
                 {
                 const TUint32 want = (i == 1) ? 0xe59f1000u : 0xe59f5000u;
@@ -1692,12 +1706,12 @@ TInt COcEngine::PrepareProbe()
         }
     else
         {
-        // Профіль без адреси глобала (тестовий). Не вгадуємо: пробуємо вузьке
-        // вікно навколо орієнтира з ROM і беремо ту адресу, ланцюг якої дає
-        // копію SRAM, побайтово тотожну оригіналу. Помилковий кандидат таку
-        // звірку не пройде, а вікно свідомо мале - читання довільної адреси
-        // ядра виконується В РЕЖИМІ ЯДРА, і непримаплена сторінка означала б
-        // не помилку, а перезавантаження.
+        // Profile without global address (test). We do not guess: try a narrow
+        // window around ROM hint and take the address whose chain yields
+        // an SRAM copy byte-for-byte identical to original. Erroneous candidate will not
+        // pass such verification, and window is deliberately small - reading arbitrary
+        // kernel address is executed IN KERNEL MODE, and an unmapped page would mean
+        // not an error, but a reboot.
         r = DiscoverPwrDownGlobal(global, sram);
         if (r != KErrNone)
             return r;
@@ -1713,34 +1727,34 @@ TInt COcEngine::PrepareProbe()
     if (((sel1 >> 12) & 0x3ff) == 0)
         return KErrCorrupt;
     iStockClkSel1 = sel1;
-    // Стан, у якому застали апарат. Він потрібен, щоб знати, звідки починати
-    // рампу, і щоб голосно сказати про нештатний старт, - але опорною точкою
-    // компенсації він НЕ Є.
+    // State in which the device was found. Needed to know where to start
+    // the ramp from, and to report loudly about non-stock start - but it is
+    // NOT a reference point for compensation.
     iBootCore = core;
     iBootMpu = mpud;
     iBootMult = (TInt)((sel1 >> 12) & 0x3ff);
-    // Опорна точка - стала. Чому саме так - у коментарі при KStockClkSel1Core.
-    // Нуль у профілі означає "штатної розкладки для цього апарата ми не знаємо"
-    // - так у тестових профілів. Тоді опорною точкою стає те, що застали на
-    // старті, і саме тому такий апарат мусить бути щойно перезавантажений.
-    // Для доведених профілів опорна точка лишається сталою (див. коментар при
-    // KStockClkSel1Core): живі регістри розігнаного апарата з'їхали б.
+    // Reference point is constant. Why so - see comment at KStockClkSel1Core.
+    // Zero in profile means "we do not know stock layout for this device"
+    // - as in test profiles. Then reference point becomes whatever was found at
+    // start, which is why such a device must be freshly rebooted.
+    // For proven profiles reference point remains constant (see comment at
+    // KStockClkSel1Core): live registers of an overclocked device would have drifted.
     iStockCore = iProfile->iStockClkSel1Core ? iProfile->iStockClkSel1Core : core;
     iStockMpu = iProfile->iStockClkSelMpu ? iProfile->iStockClkSelMpu : mpud;
-    // Дільник DSP. Прошивка його в рантаймі не змінює жодного разу: обидва
-    // штатні сеттери (power.dll @0x800AC59C, ehwaomap.pdd @0x801AE900) в усьому
-    // ROM не викликаються й не експортуються. Тож знятого тут значення досить
-    // як опорного - воно не «попливе» саме собою.
+    // DSP divider. Firmware does not change it in runtime even once: both
+    // stock setters (power.dll @0x800AC59C, ehwaomap.pdd @0x801AE900) across the entire
+    // ROM are neither called nor exported. Therefore value retrieved here is sufficient
+    // as reference - it will not "drift" on its own.
     TUint32 dsel = (TUint32)iDvfs.ReadOrCall(KRegClkSelDsp);
     iStockDspDiv = (TInt)(dsel & KDspFwDivMask);
     if (iStockDspDiv == 0)
         iStockDspDiv = 3;
     iDspDiv = iStockDspDiv;
-    // core_sel читається то як 1, то як 2: губернатор DVFS рухає його в
-    // рантаймі (findings 12, 18). Миттєвий відлік тут брехливий - спіймавши
-    // апарат на нижній OPP, ми показали б 165 МГц замість 330. Тому знімаємо
-    // серію ПІД НАВАНТАЖЕННЯМ і беремо максимум: губернатор піднімає OPP лише
-    // тоді, коли є робота, а сповільнити відлік завада може, завищити - ні.
+    // core_sel reads either as 1 or as 2: DVFS governor moves it in
+    // runtime (findings 12, 18). Instantaneous reading here is deceptive - catching
+    // device at lower OPP would show 165 MHz instead of 330. Therefore we take
+    // a series UNDER LOAD and take maximum: governor raises OPP only
+    // when there is work, and interference can slow reading, but not overestimate.
     TUint32 bestSel2 = sel2 & 3;
     for (TInt k = 0; k < 8; ++k)
         {
@@ -1752,17 +1766,17 @@ TInt COcEngine::PrepareProbe()
             bestSel2 = v;
         }
     sel2 = bestSel2 ? bestSel2 : 2;
-    // Декодуємо ШТАТНУ розкладку, а не застану: sys_clk і дільник DPLL беремо з
-    // заліза (вони незмінні), множник і дільники - з констант.
+    // Decode STOCK layout, not the one found: sys_clk and DPLL divider are taken from
+    // hardware (they are immutable), multiplier and dividers - from constants.
     iStockClocks.Decode(sel1, sel2, iStockMpu, iStockCore);
     iStockClocks.iMult = iProfile->iStockMult ? iProfile->iStockMult : iBootMult;
-    // А ось поточний множник - саме той, що в залізі: рампа має йти звідти, де
-    // апарат стоїть насправді. iApplied при цьому лишається хибним: він означає
-    // "це МИ змінили", і чужий розгін чіпати мовчки, у деструкторі, не можна.
+    // But current multiplier is specifically what is in hardware: ramp must proceed from where
+    // the device actually stands. iApplied remains false here: it means
+    // "WE changed this", and foreign overclock must not be touched silently in the destructor.
     iAppliedMult = iBootMult;
 
-    // Проба завершена. Патч знімає викликач (Prepare) - і тут, і на аварійних
-    // виходах вище, одним EndPatchSession, тож жоден шлях не лишає його в ядрі.
+    // Probe complete. Patch is removed by caller (Prepare) - both here and on emergency
+    // exits above, via single EndPatchSession, so no path leaves it in the kernel.
     return KErrNone;
     }
 
@@ -1772,15 +1786,15 @@ void COcEngine::ClocksFor(TInt aMult, TOcClocks& aOut) const
     aOut.iMult = aMult;
     }
 
-// Підбір дільників під нову CORE. Мета - лишити L3 і DSS1 якнайближче до їхніх
-// ШТАТНИХ частот: саме їхній зсув ламав апарат, а не сама частота ядра.
-// Дільники цілочисельні, тож точна компенсація можлива не завжди; за рівної
-// похибки віддаємо перевагу МЕНШІЙ частоті - вона безпечніша і для панелі,
-// і для памʼяті (refresh рахується в тактах L3, тож повільніша шина означає
-// частіший refresh, а не рідший).
-// aAllowed - бітова маска значень, які приймає САМ АПАРАТ. Пропустити її не
-// можна: недійсне значення хоч в одному полі означає, що запис у
-// CM_CLKSEL1_CORE не проходить ЦІЛКОМ, разом із коректними полями (§26).
+// Selection of dividers for new CORE. Goal is to keep L3 and DSS1 as close to their
+// STOCK frequencies as possible: their drift broke the device, not core frequency itself.
+// Dividers are integers, so exact compensation is not always possible; for equal
+// error we prefer LOWER frequency - it is safer for both panel
+// and memory (refresh is counted in L3 cycles, so slower bus means
+// more frequent refresh, not less frequent).
+// aAllowed is a bitmask of values accepted by the DEVICE ITSELF. It cannot
+// be omitted: an invalid value in even one field means write to
+// CM_CLKSEL1_CORE fails ENTIRELY, along with correct fields (§26).
 static TInt PickDivider(TUint32 aNewCoreKhz, TUint32 aWantKhz, TInt aMin, TInt aMax,
                         TUint32 aAllowed)
     {
@@ -1794,8 +1808,8 @@ static TInt PickDivider(TUint32 aNewCoreKhz, TUint32 aWantKhz, TInt aMin, TInt a
             continue;
         TUint32 got = aNewCoreKhz / (TUint32)d;
         TUint32 err = (got > aWantKhz) ? (got - aWantKhz) : (aWantKhz - got);
-        // Строго менше: за рівної похибки лишається БІЛЬШИЙ дільник, тобто
-        // нижча частота.
+        // Strictly less: for equal error LARGER divider remains, i.e.
+        // lower frequency.
         if (err < bestErr)
             {
             bestErr = err;
@@ -1813,28 +1827,28 @@ TUint32 COcEngine::CompensatedCore(TInt aMult) const
     if (!newCore)
         return iStockCore;
 
-    // DSS1 - точна компенсація до найближчого. Це та частота, зсув якої ламав
-    // відрисовку, і вона нам не потрібна вища: дисплею байдуже до швидкості,
-    // йому потрібна СВОЯ частота.
+    // DSS1 - exact compensation to nearest. This is the frequency whose drift broke
+    // rendering, and we do not need it higher: display does not care about speed,
+    // it needs ITS OWN frequency.
     const TInt dss = PickDivider(newCore, iStockClocks.Dss1Khz(), 1, 31,
                                  KAutoDivAllowed);
 
-    // L3/SDRAM - беремо НАЙВИЩУ шину, яка не перевищує виміряну стелю.
+    // L3/SDRAM - take HIGHEST bus that does not exceed measured ceiling.
     //
-    // ВИПРАВЛЕНО 2026-08-15 - тут був хибний висновок, і він схиляв рішення не в
-    // той бік. Стояло, що повільніша шина безпечніша, бо "refresh рахується в
-    // тактах L3, тож повільніша шина означає частіший refresh". Насправді
-    // навпаки. `SDRC_RFR_CTRL0 = 0x0004DA01`, тобто ARCV = 1242 такти L3: при
-    // 165.12 МГц це 7.5 мкс, рівно вікно авторефрешу для 8192 рядків за 64 мс.
-    // Повільніша шина РОЗТЯГУЄ це вікно в реальному часі, тобто refresh стає
-    // рідшим, а не частішим, і памʼять втрачає заряд. Прошивка свій нижчий OPP
-    // компенсує сама, про наш дільник вона не знає. Отже опускати шину нижче
-    // штатної - це ризик, а не запобіжник.
+    // FIXED 2026-08-15 - there was an erroneous conclusion here, tilting the decision in
+    // wrong direction. It stated that slower bus was safer because "refresh is counted in
+    // L3 cycles, so slower bus means more frequent refresh". In fact
+    // the opposite is true. `SDRC_RFR_CTRL0 = 0x0004DA01`, meaning ARCV = 1242 L3 cycles: at
+    // 165.12 MHz this is 7.5 us, exactly the auto-refresh window for 8192 rows over 64 ms.
+    // Slower bus STRETCHES this window in real time, so refresh becomes
+    // rarer, not more frequent, and memory loses charge. Firmware compensates its lower OPP
+    // itself, knowing nothing of our divider. Therefore dropping bus below
+    // stock is a risk, not a guard.
     //
-    // Стеля 213120 кГц узята не зі стелі: це та частота шини, на якій апарат
-    // фактично працює щодня при mult 111. Компенсація там ніколи не
-    // застосовувалась (§26), тобто шина весь час їхала разом із CORE, і в кожному
-    // лозі перевірка цілісності SDRAM давала нуль помилок.
+    // The 213120 kHz ceiling is not arbitrary: this is the bus frequency at which the device
+    // actually operates daily at mult 111. Compensation was never applied
+    // there (§26), meaning the bus ran together with CORE the entire time, and in every
+    // log SDRAM integrity check yielded zero errors.
     const TUint32 kL3Max = 213120u;
     TInt l3 = iStockClocks.iL3Div ? iStockClocks.iL3Div : 4;
     for (TInt d = 1; d <= 31; ++d)
@@ -1848,18 +1862,18 @@ TUint32 COcEngine::CompensatedCore(TInt aMult) const
             }
         }
 
-    // І ще одна межа, відносна замість абсолютної. Стеля 213120 виміряна на
-    // RM-320, де шина штатно 165.12 МГц; на іншому апараті вона нічого не
-    // означає. E90 при тій самій частоті ядра має штатну шину 110.08 МГц
-    // (l3div=6, findings §35.1), тож ця сама стеля дозволила б йому l3div=4,
-    // тобто 205 МГц - майже вдвічі вище за штат, без жодного заміру.
+    // And one more boundary, relative instead of absolute. The 213120 ceiling was measured on
+    // RM-320, where stock bus is 165.12 MHz; on another device it means
+    // nothing. E90 at the same core frequency has stock bus 110.08 MHz
+    // (l3div=6, findings §35.1), so this same ceiling would allow it l3div=4,
+    // i.e. 205 MHz - almost twice above stock, without any measurement.
     //
-    // Тому дільник L3 НІКОЛИ не опускаємо нижче штатного для ЦЬОГО апарата.
-    // Тоді шина піднімається рівно в тій самій пропорції, що й ядро - режим,
-    // який на RM-320 доведений щоденною роботою (§26), - а повернення не чіпає
-    // дільника взагалі, тобто ми обходимо ту саму операцію, яка на RM-320
-    // тричі валила апарат (§26.12, §26.14, §26.15).
-    // Для RM-320 це не міняє нічого: там стеля й так дає штатний 4.
+    // Therefore L3 divider is NEVER lowered below stock for THIS device.
+    // Then the bus rises in exactly the same proportion as core - a mode
+    // proven on RM-320 by daily operation (§26) - while returning does not touch
+    // the divider at all, meaning we avoid the exact operation that on RM-320
+    // crashed the device three times (§26.12, §26.14, §26.15).
+    // For RM-320 this changes nothing: there the ceiling yields stock 4 anyway.
     if (iStockClocks.iL3Div && l3 < iStockClocks.iL3Div)
         l3 = iStockClocks.iL3Div;
 
@@ -1879,10 +1893,10 @@ TInt COcEngine::LiveMult(TInt& aOut)
     return KErrNone;
     }
 
-// Читання назад ЖИВОГО CM_CLKSEL1_CORE. Довго його бракувало, і саме через це
-// хибний висновок прожив місяць: апаратура відкидає ВЕСЬ запис у цей регістр,
-// якщо хоч одне поле недійсне (§26), а жоден лог того не показував - ми звітували
-// про НАМІР, а не про результат. Тепер кожен прогін каже, чи запис узявся.
+// Read-back of LIVE CM_CLKSEL1_CORE. Missing for a long time, which is why
+// an erroneous conclusion lived for a month: hardware rejects ENTIRE write to this register
+// if even one field is invalid (§26), yet no log showed that - we reported
+// INTENT rather than result. Now every run reports whether write took effect.
 TInt COcEngine::LiveCore(TUint32& aOut)
     {
     return ReadReg(KRegClkSel1Core, aOut);
@@ -1899,9 +1913,9 @@ TInt COcEngine::WriteRelockBlob(TUint32 aClkSel1Value, TUint32 aCoreValue,
     TBuf8<512> blob;
     blob.Copy(p, len);
 
-    // Два слова-заглушки: цільове значення і початкове (для апаратного відкату
-    // всередині критичної секції). Обидва мусять знайтись, інакше блоб не той,
-    // на який ми розраховуємо, і виконувати його не можна.
+    // Two placeholder words: target value and initial (for hardware rollback
+    // inside critical section). Both must be found, otherwise blob is not what
+    // we expect, and executing it is forbidden.
     TInt patched = 0;
     for (TInt i = 0; i + 4 <= len; i += 4)
         {
@@ -1933,9 +1947,9 @@ TInt COcEngine::WriteRelockBlob(TUint32 aClkSel1Value, TUint32 aCoreValue,
     return Poke(iSram + KSramSlot, blob);
     }
 
-// Кладе трамплін до сеттера DSP у той самий SRAM-слот, куди EXEC-патч і
-// стрибає. Слот один, тож relock-блоб і цей блоб просто перезаписують один
-// одного - обидва пишуться безпосередньо перед своїм єдиним викликом.
+// Places trampoline to DSP setter into the same SRAM slot where EXEC patch
+// jumps. Slot is single, so relock blob and this blob simply overwrite
+// each other - both are written immediately before their single invocation.
 TInt COcEngine::WriteDspBlob(TInt aDiv)
     {
     const TUint8* p = (const TUint8*)((TUint32)&OcDspBlobStart & ~1u);
@@ -1964,16 +1978,16 @@ TInt COcEngine::WriteDspBlob(TInt aDiv)
         blob[i+3] = (TUint8)(v >> 24);
         ++patched;
         }
-    // Обидві заглушки мусять знайтись. Якщо асемблер згорнув котрусь у
-    // безпосередній операнд, блоб не той, на який ми розраховуємо, і виконувати
-    // його в режимі ядра не можна.
+    // Both placeholders must be found. If assembler collapsed either into
+    // an immediate operand, the blob is not what we expect, and executing
+    // it in kernel mode is forbidden.
     if (patched != 2)
         return KErrNotFound;
     return Poke(iSram + KSramSlot, blob);
     }
 
-// Той самий слот SRAM, той самий EXEC-патч - але блоб, який лише переписує
-// дільники й фіксує їх латчем, без зупинки DPLL. Обґрунтування - при
+// Same SRAM slot, same EXEC patch - but a blob that only rewrites
+// dividers and commits them with latch, without stopping DPLL. Rationale - at
 // OcDivBlobStart.
 TInt COcEngine::WriteDivBlob(TUint32 aCoreReg, TUint32 aMpuReg)
     {
@@ -2008,11 +2022,11 @@ TInt COcEngine::WriteDivBlob(TUint32 aCoreReg, TUint32 aMpuReg)
     return Poke(iSram + KSramSlot, blob);
     }
 
-// Переписати дільники поверх того, що там стоїть зараз. aRc - результат самого
-// блоба: 0 = латч звільнився, 1 = не звільнився за відведені цикли.
+// Rewrite dividers over whatever is currently set. aRc is the result of the blob
+// itself: 0 = latch cleared, 1 = did not clear within allocated cycles.
 //
-// Множник НЕ чіпається, тож викликати це можна й тоді, коли в системі працює
-// вимірюваний процес із живим дисплеєм, - на відміну від ApplyMultAndCore.
+// Multiplier is NOT touched, so this can be called even when a measured
+// process with a live display runs in the system - unlike ApplyMultAndCore.
 TInt COcEngine::ReassertDividers(TUint32 aCoreReg, TUint32 aMpuReg, TInt& aRc)
     {
     aRc = KErrGeneral;
@@ -2029,9 +2043,9 @@ TInt COcEngine::ReassertDividers(TUint32 aCoreReg, TUint32 aMpuReg, TInt& aRc)
     return KErrNone;
     }
 
-// Виконує довільний блоб ARM-коду в режимі ядра через слот SRAM.
-// aBlob - готові байти коду, до 2048 байтів. aResult - те, що блоб
-// повернув у r0.
+// Executes arbitrary ARM code blob in kernel mode via SRAM slot.
+// aBlob is ready code bytes, up to 2048 bytes. aResult is what the blob
+// returned in r0.
 TInt COcEngine::ExecCustomBlob(const TDesC8& aBlob, TInt& aResult)
     {
     aResult = 0;
@@ -2051,34 +2065,34 @@ TInt COcEngine::ExecCustomBlob(const TDesC8& aBlob, TInt& aResult)
     return KErrNone;
     }
 
-// Змінює дільник домену DSP. aSetterRc - те, що повернув штатний сеттер:
-// 0 = записано, -6 (KErrArgument) = прошивка значення відкинула.
+// Changes DSP domain divider. aSetterRc is what stock setter returned:
+// 0 = written, -6 (KErrArgument) = firmware rejected the value.
 //
-// На відміну від relock DPLL, тут НЕ потрібні ні bypass, ні полінг IDLEST, ні
-// self-refresh SDRAM: це дільник окремого домену, а не PLL. CORE, SDRAM, дисплей
-// і USB не зачіпаються.
+// Unlike DPLL relock, neither bypass nor IDLEST polling nor
+// SDRAM self-refresh is needed here: this is a divider of a separate domain, not PLL. CORE, SDRAM, display,
+// and USB are not affected.
 //
-// ВИПРАВЛЕННЯ попереднього висновку. Тут раніше стояло, що латч
-// PRCM_CLKCFG_CTRL не потрібен, бо обидва штатні сеттери роблять звичайний
-// read-modify-write без коміту. Це виявилось хибним і показано на апараті:
-// сеттер повертав 0, а регістр лишався зі старим значенням. Латч обов'язковий, і
-// його робить наш блоб; заразом це й пояснює, чому обидва штатні сеттери ніде в
-// ROM не викликаються - у такому вигляді вони не працюють. Переривання на час
-// "запис + латч" теж вимикаються, бо той самий латч використовує губернатор.
+// CORRECTION of previous conclusion. Previously it was stated here that PRCM_CLKCFG_CTRL
+// latch is not needed, because both stock setters perform a standard
+// read-modify-write without a commit. This proved false and was shown on the device:
+// the setter returned 0, while the register remained with its old value. The latch is mandatory, and
+// our blob performs it; this also explains why both stock setters are never called
+// anywhere in ROM - in this form they do not work. Interrupts for the duration of
+// "write + latch" are also disabled, because the governor uses the same latch.
 TInt COcEngine::ApplyDspDiv(TInt aDiv, TInt& aSetterRc)
     {
     aSetterRc = KErrGeneral;
     if (!iReady)
         return KErrNotReady;
-    // Профіль без сеттера DSP (E90: адреса не міряна, тому нуль) - відмова ДО
-    // будь-якої дії. Без цієї перевірки блоб виконав би blx 0 у режимі ядра:
-    // нуль тут не "нічого не робити", а перехід за нульовою адресою. Це рівно
-    // той клас помилки, проти якого стоїть заборона "нічого, що може зависнути,
-    // за замовчуванням" - а пункт DSPDIV у GUI доступний завжди.
+    // Profile without DSP setter (E90: address not measured, hence zero) - rejection BEFORE
+    // any action. Without this check, the blob would execute blx 0 in kernel mode:
+    // zero here is not "do nothing", but a jump to NULL address. This is exactly
+    // the class of error guarded against by the rule "nothing that can hang
+    // by default" - yet the DSPDIV item in GUI is always available.
     if (iProfile->iDspSetter == 0)
         return KErrNotSupported;
-    // Перевіряємо і в себе теж. Сеттер пропускає значення >31, а Modify32
-    // маскує їх 0x1F - тобто 32 записало б у поле 0 і зупинило клок DSP.
+    // We check on our side too. The setter accepts values >31, and Modify32
+    // masks them with 0x1F - meaning 32 would write 0 into the field and stop the DSP clock.
     if (aDiv < 1 || aDiv > 31)
         return KErrArgument;
     if (!(KDspDivAllowed & (1u << aDiv)))
@@ -2105,8 +2119,8 @@ TInt COcEngine::RestoreDspDiv(TInt& aSetterRc)
     return ApplyDspDiv(iStockDspDiv, aSetterRc);
     }
 
-// Перечитує CM_CLKSEL_DSP з апарата. Своєму запамʼятованому значенню не
-// віримо - те саме правило, що й для LiveMult.
+// Rereads CM_CLKSEL_DSP from device. We do not trust our remembered
+// value - same rule as for LiveMult.
 TInt COcEngine::LiveDspDiv(TInt& aOut)
     {
     TUint32 v = 0;
@@ -2117,9 +2131,9 @@ TInt COcEngine::LiveDspDiv(TInt& aOut)
     return KErrNone;
     }
 
-// Частота DSP так, як її рахує сама прошивка: CORE / CM_CLKSEL_DSP[3:0]
-// (power.dll ord60 @0x800B1620). Саме це число драйвер ehwaomap.pdd вписує в
-// символ _BRIDGEINIT_DSP_FREQ базового образу DSP.
+// DSP frequency as calculated by firmware itself: CORE / CM_CLKSEL_DSP[3:0]
+// (power.dll ord60 @0x800B1620). This exact number is written by ehwaomap.pdd driver into
+// _BRIDGEINIT_DSP_FREQ symbol of DSP base image.
 TUint32 COcEngine::DspKhz(TInt aDiv) const
     {
     if (aDiv <= 0)
@@ -2141,20 +2155,20 @@ TInt COcEngine::ApplyMultAndCore(TInt aMult, TUint32 aCoreReg, TUint32 aMpuReg,
     if (aMult < KOcMultMin || aMult > KOcMultMax)
         return KErrArgument;
 
-    // Дільник шини йде в залізо таким, яким його задав користувач.
+    // Bus divider goes into hardware as specified by user.
     //
-    // Доти тут стояв запобіжник, який затискав поле l3 живим значенням і не
-    // давав підняти шину. Його прибрано свідомо: підбирати розгін усе одно
-    // доводиться на конкретному апараті, а множник, який ніщо не обмежує,
-    // рівно так само здатний перезавантажити телефон. Обмежувати одну з двох
-    // однаково небезпечних величин і лишати другу вільною сенсу немає.
+    // Until now a guard stood here that clamped l3 field with live value and prevented
+    // raising the bus. It was removed deliberately: tuning overclock still has to be done
+    // on a specific device, and an unrestricted multiplier is just as capable
+    // of rebooting the phone. Restricting one of two equally dangerous quantities while
+    // leaving the other free makes no sense.
     //
-    // Захист лишився там, де він не про свободу вибору: RestoreStock не
-    // повертає вже знижену шину до штатної, бо саме ця операція вбивала апарат
-    // чотири рази з чотирьох (findings §38.2). Ребут повертає штатне тактування
-    // в будь-якому разі, тож ця відмова нічого в користувача не відбирає.
+    // Protection remained where it is not about freedom of choice: RestoreStock does not
+    // restore an already lowered bus back to stock, because that exact operation killed the device
+    // four times out of four (findings §38.2). Reboot restores stock clocking
+    // in any case, so this refusal takes nothing away from user.
 
-    // Міняємо рівно біти [21:12], решту регістра зберігаємо.
+    // Modify exactly bits [21:12], preserve the rest of the register.
     TUint32 target = (iStockClkSel1 & ~0x003ff000u) |
                      (((TUint32)aMult & 0x3ff) << 12);
 
@@ -2169,14 +2183,14 @@ TInt COcEngine::ApplyMultAndCore(TInt aMult, TUint32 aCoreReg, TUint32 aMpuReg,
     TUint32 rc = (TUint32)iDvfs.ReadOrCall(iSram + KSramSlot);
     aStatus = rc >> 28;
 
-    // Знімаємо патч НЕГАЙНО й повністю: далі йдуть заміри, і тримати підмінене
-    // тіло функції ядра весь цей час не можна.
+    // Remove patch IMMEDIATELY and completely: measurements follow, and keeping replaced
+    // kernel function body the entire time is unacceptable.
     EndPatchSession();
 
     iAppliedMult = aMult;
-    // "Ми лишили апарат нештатним" - це не лише про множник. Дільник MPU при
-    // штатному множнику змінює частоту ядра вдвічі, і не помітити цього в
-    // деструкторі означало б віддати апарат наполовину повільнішим.
+    // "We left device non-stock" is not only about multiplier. MPU divider at
+    // stock multiplier changes core frequency by half, and failing to notice this in
+    // destructor would mean leaving the device twice slower.
     iApplied = (aMult != iStockClocks.iMult) ||
                (aCoreReg != 0 && aCoreReg != iStockCore) ||
                (aMpuReg != 0 && aMpuReg != iStockMpu);
@@ -2188,8 +2202,8 @@ TInt COcEngine::ApplyMultRamp(TInt aTarget, TUint32& aStatus)
     return ApplyRampWithCore(aTarget, 0, 0, aStatus);
     }
 
-// aCoreReg == 0 означає автопідбір на кожній сходинці; інакше на всіх сходинках
-// стоять ті самі, задані вручну дільники.
+// aCoreReg == 0 means automatic selection at each step; otherwise the same
+// manually specified dividers stand on all steps.
 TInt COcEngine::ApplyRampWithCore(TInt aTarget, TUint32 aCoreReg,
                                   TUint32 aMpuReg, TUint32& aStatus)
     {
@@ -2199,8 +2213,8 @@ TInt COcEngine::ApplyRampWithCore(TInt aTarget, TUint32 aCoreReg,
     if (aTarget < KOcMultMin || aTarget > KOcMultMax)
         return KErrArgument;
 
-    // Йдемо від ФАКТИЧНОГО множника, а не від запамʼятованого: якщо попередня
-    // спроба відкатилась сама, стан у залізі може не збігатися з нашим.
+    // We step from ACTUAL multiplier, not remembered one: if previous
+    // attempt rolled back on its own, hardware state might not match ours.
     TInt cur = 0;
     TInt r = LiveMult(cur);
     if (r != KErrNone)
@@ -2217,25 +2231,25 @@ TInt COcEngine::ApplyRampWithCore(TInt aTarget, TUint32 aCoreReg,
         aStatus |= st;
         if (r != KErrNone)
             return r;
-        // Ненульовий статус означає, що блоб уже сам відкатився на попереднє
-        // значення. Далі не йдемо: наступна сходинка лише повторила б відмову.
+        // Non-zero status means blob already rolled back to previous
+        // value itself. We go no further: next step would only repeat the failure.
         if (st != 0)
             return KErrAbort;
-        User::After(20000);            // 20 мс на осідання підсистем
+        User::After(20000);            // 20 ms for subsystems to settle
         }
 
-    // Явний фінальний запис розкладки, коли дільники задані.
+    // Explicit final write of layout when dividers are specified.
     //
-    // ЦЕ ВИПРАВЛЕННЯ ПОМИЛКИ (findings §38.1). Цикл вище крутиться, лише поки
-    // множник не дорівнює цільовому. А коли користувач міняє САМІ дільники, не
-    // чіпаючи множника, - а це головний спосіб ними користуватись - цикл не
-    // виконується жодного разу, і в залізо не йде нічого. Зовні це виглядало
-    // рівно як "дільники не працюють": ні шина, ні дисплей не реагували, бо
-    // запису не було. Пробник цього не показував, бо `patcher clocks` завжди
-    // робить такий фінальний запис окремо.
+    // THIS IS A BUG FIX (findings §38.1). The loop above spins only while
+    // multiplier does not equal target. But when user changes ONLY dividers without
+    // touching multiplier - and that is the primary way to use them - the loop
+    // executes zero times, and nothing goes into hardware. Externally this looked
+    // exactly like "dividers don't work": neither bus nor display reacted because
+    // there was no write. The probe did not show this because `patcher clocks` always
+    // performs such final write separately.
     //
-    // Запис ідемпотентний: якщо рампа була, остання сходинка вже поставила ті
-    // самі значення.
+    // The write is idempotent: if ramp took place, the last step already set those
+    // exact values.
     if (aCoreReg)
         {
         TUint32 st = 0;
@@ -2249,13 +2263,13 @@ TInt COcEngine::ApplyRampWithCore(TInt aTarget, TUint32 aCoreReg,
     return KErrNone;
     }
 
-// Повернення штатного стану - у два кроки, і другий обов'язковий.
+// Restoring stock state - in two steps, and second is mandatory.
 //
-// Рампа веде множник до штатного, компенсуючи дільники на кожній сходинці, і
-// цього досить, поки нештатним був сам множник. Але якщо множник уже штатний, а
-// нештатним лишався ДІЛЬНИК (розкладка виду "mult 86, mpu_div 4"), рампа не
-// робить жодного запису: її цикл while одразу закінчується. Тому після неї йде
-// один явний запис штатної розкладки цілком.
+// The ramp brings multiplier to stock, compensating dividers at each step, and
+// this is sufficient while multiplier itself was non-stock. But if multiplier is already stock, while
+// DIVIDER remained non-stock (layout like "mult 86, mpu_div 4"), the ramp performs
+// no write at all: its while loop exits immediately. Therefore it is followed by
+// one explicit write of full stock layout.
 TInt COcEngine::RestoreStock(TUint32& aStatus)
     {
     aStatus = 0;
@@ -2263,10 +2277,10 @@ TInt COcEngine::RestoreStock(TUint32& aStatus)
     if (r != KErrNone)
         return r;
 
-    // Другий крок робимо лише тоді, коли дільники справді не штатні, і
-    // з'ясовуємо це ЧИТАННЯМ, а не з власного обліку. Причина: цей запис -
-    // повний relock, тобто вікно bypass, а при живому дисплеї таке вікно вішало
-    // апарат (§20). Робити його "про всяк випадок" не можна.
+    // The second step is done only when dividers are indeed non-stock, and
+    // we determine this by READING, not from our own tracking. Reason: this write is
+    // a full relock, i.e. bypass window, and with a live display such a window hung
+    // the device (§20). Doing it "just in case" is forbidden.
     const TUint32 regs[2] = { KRegClkSel1Core, KRegClkSelMpu };
     TUint32 v[2] = { 0, 0 };
     if (ReadRegs(regs, v, 2) == KErrNone &&
@@ -2278,50 +2292,50 @@ TInt COcEngine::RestoreStock(TUint32& aStatus)
         return KErrNone;
         }
 
-    // ПІДНІМАТИ ШИНУ НАЗАД МИ БІЛЬШЕ НЕ ПРОБУЄМО (findings §38.2).
+    // WE NO LONGER ATTEMPT TO RAISE BUS BACK (findings §38.2).
     //
-    // Рахунок операції "повернути l3div до меншого значення" - чотири смерті з
-    // чотирьох на двох різних апаратах: тричі на RM-320 (§26.12, §26.14, §26.15)
-    // і раз на E90 сьогодні. Обидва шляхи, і повний relock, і легкий
-    // ReassertDividers, гинуть однаково. Сьогоднішній прогін заразом спростував
-    // пояснення §26.15: на E90 губернатора немає, sel2 весь час 2, шина стояла
-    // рівно на 82.56 МГц, а підйом був лише в 1.33 раза - і все одно смерть.
+    // Score of operation "restore l3div to a smaller value" - four deaths out of
+    // four on two different devices: three times on RM-320 (§26.12, §26.14, §26.15)
+    // and once on E90 today. Both paths, full relock and lightweight
+    // ReassertDividers, die identically. Today's run also disproved
+    // the explanation in §26.15: on E90 there is no governor, sel2 is 2 the whole time, bus was
+    // exactly at 82.56 MHz, and raise was only by 1.33x - and still death.
     //
-    // Зате ПОНИЖЕННЯ шини виміряно як чисте: розкладка тримається, нуль
-    // зіпсованих слів у SDRAM за вікно спостереження. Тобто асиметрія в самій
-    // операції, а не в її величині.
+    // But LOWERING the bus was measured as clean: layout holds, zero
+    // corrupted words in SDRAM during observation window. Meaning asymmetry is in the operation
+    // itself, not in its magnitude.
     //
-    // Отже лишити знижену шину БЕЗПЕЧНО, а піднімати - ні. Ребут повертає апарат
-    // у штатний стан гарантовано (у флеш не пишеться нічого), тож правильна
-    // відповідь тут - не робити фатального запису й сказати про це, а не
-    // «відновити стан» ціною перезавантаження, яке ми ж і спричинили.
-    // Відмовляємось саме від ПІДЙОМУ шини: якщо живий дільник більший за
-    // штатний, повернення до штатного - це той самий фатальний запис. Зворотний
-    // випадок (шина вища за штатну) ми ніколи не створюємо, бо CompensatedCore
-    // затискає l3 знизу штатним значенням, але звужена умова точніша за "будь-яка
-    // різниця" й не заблокує безпечного пониження.
+    // Thus leaving lowered bus is SAFE, while raising it is not. Reboot restores device
+    // to stock state guaranteed (nothing is written to flash), so correct
+    // answer here is not to make fatal write and report this, rather than
+    // "restore state" at the cost of reboot caused by ourselves.
+    // We refuse specifically to RAISE bus: if live divider is larger than
+    // stock, returning to stock is that exact fatal write. The opposite
+    // case (bus higher than stock) we never create because CompensatedCore
+    // clamps l3 from below to stock value, but narrowed condition is more precise than "any
+    // difference" and will not block safe lowering.
     if ((v[0] & KCoreL3Mask) > (iStockCore & KCoreL3Mask))
         {
         iRestoreNeedsReboot = ETrue;
-        iApplied = EFalse;   // ми більше нічого не робитимемо з цим станом
+        iApplied = EFalse;   // we will do nothing more with this state
         return KErrNone;
         }
 
-    // Решту дільників (DSS1, MPU) повертаємо ЛЕГКИМ шляхом: запис плюс латч,
-    // без bypass DPLL. Ці зміни шини не чіпають, і за ними смертей немає.
+    // Remaining dividers (DSS1, MPU) are restored via LIGHTWEIGHT path: write plus latch,
+    // without DPLL bypass. These changes do not touch the bus, and have no deaths behind them.
     //
-    // Множник тут уже штатний - про це подбала рампа вище, - тож повний relock
-    // не додає нічого, крім свого вікна bypass. А саме це вікно, схоже, і вбивало
-    // апарат при поверненні з `l3div=8`: у bypass CORE падає до sys_clk, і шина
-    // при дільнику 8 отримує 2.4 МГц замість 4.8 при штатному дільнику 4. Зміна
-    // 4 -> 8 проходила чисто двічі, зворотна 8 -> 4 двічі вбивала, і вмирала саме
-    // тут (§26.14). Асиметрія вказує на стан ПЕРЕД вікном, а не на цільові
-    // значення.
+    // Multiplier here is already stock - ramp above took care of that - so full relock
+    // adds nothing except its bypass window. And that window, it seems, killed
+    // the device when restoring from `l3div=8`: in bypass CORE drops to sys_clk, and bus
+    // at divider 8 gets 2.4 MHz instead of 4.8 at stock divider 4. The 4 -> 8
+    // change completed cleanly twice, reverse 8 -> 4 killed twice, dying right
+    // here (§26.14). Asymmetry points to state BEFORE the window, not target
+    // values.
     TInt rc = -1;
     r = ReassertDividers(iStockCore, iStockMpu, rc);
     if (r == KErrNone && rc == 0)
         {
-        // Читаємо назад: легкий шлях довіри без перевірки теж не заслуговує.
+        // Read back: lightweight path does not deserve trust without verification either.
         TUint32 w[2] = { 0, 0 };
         if (ReadRegs(regs, w, 2) == KErrNone &&
             (w[0] & (KCoreL3Mask | KCoreDss1Mask)) ==
@@ -2333,8 +2347,8 @@ TInt COcEngine::RestoreStock(TUint32& aStatus)
             }
         }
 
-    // Не вийшло - повний relock як запасний шлях. Він гірший, але лишити апарат
-    // із нештатними дільниками гірше за нього.
+    // Failed - full relock as fallback. It is worse, but leaving device
+    // with non-stock dividers is worse than it.
     TUint32 st = 0;
     r = ApplyMultAndCore(iStockClocks.iMult, iStockCore, iStockMpu, st);
     aStatus |= st;

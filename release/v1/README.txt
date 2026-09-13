@@ -1,12 +1,12 @@
-SymbianOverclock v1.0 - робоча версія, доведена на апараті 2026-08-08.
+SymbianOverclock v1.0 - working version, proven on hardware 2026-08-08.
 
-Досягнуто: множник DPLL 86 -> 111 у рантаймі, 330 -> 426 МГц (+29%),
-шина памяті штатна, апарат стабільний, дзвінки й WiFi працюють.
+Achieved: DPLL multiplier 86 -> 111 at runtime, 330 -> 426 MHz (+29%),
+memory bus stock, device stable, calls and WiFi working.
 SPmark 3D: 62 -> 75 fps.
 
-Дільники CM_CLKSEL1_CORE підбираються АВТОМАТИЧНО (L3 - якнайвище в межах
-+15%, DSS1 - найближче до штатної). Ручного режиму немає - він з'явився у v1.1.
+CM_CLKSEL1_CORE dividers are selected AUTOMATICALLY (L3 - as high as possible within
++15%, DSS1 - closest to stock). No manual mode - it appeared in v1.1.
 
-Файли тут - точний зліпок того, що працювало. Щоб перезібрати саме цю версію,
-покласти ocengine.h/ocengine.cpp/ocgui.cpp назад у src/ і зібрати
+Files here are an exact snapshot of what worked. To rebuild this exact version,
+copy ocengine.h/ocengine.cpp/ocgui.cpp back into src/ and build with
 tools/build_sis.cmd.

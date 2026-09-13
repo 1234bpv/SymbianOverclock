@@ -1,6 +1,6 @@
-// Реєстрація застосунку: без неї EXE лежить у \sys\bin і його нічим запустити
-// з меню. Ім'я мусить бути рівно <app_file>_reg.rsc, інакше apparc запис не
-// підхоплює.
+// Application registration: without it the EXE resides in \sys\bin and cannot be launched
+// from the menu. The name must be exactly <app_file>_reg.rsc, otherwise apparc does not
+// pick up the record.
 
 #include <appinfo.rh>
 
