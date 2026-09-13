@@ -1,5 +1,43 @@
 # Changelog
 
+## 2.3.0
+
+- The application has a name and an icon. The registration resource carried no
+  LOCALISABLE_APP_INFO, so the shell fell back to the name of the executable and
+  listed it as "ocgui" with no icon. It is now "Symbian Overclock" in list view
+  and "Overclock" under the icon, and the icon is a speedometer drawn at three
+  sizes, each with its own amount of detail rather than scaled from the largest.
+- The package vendor fields said "SymbianOverclock", which is the name of the
+  application rather than of whoever published it. They now say "Pavlo
+  Biletskyi". The unique vendor name cannot change once a package has been
+  installed anywhere, so this had to be settled before release.
+- NEW: the overclock can be applied automatically after a restart. It is off
+  after installation and switching it on takes three separate proofs: the
+  setting has to be live in the registers, read back rather than assumed; it has
+  to pass three rounds of every test at the moment it is saved; and it then has
+  to survive a soak period plus one more clean test round before boot will use
+  it at all.
+  The loop this could create is closed by writing the record before touching the
+  clocks. A phone that freezes comes back to a record saying the previous
+  attempt never finished, that attempt is refused, autostart is switched off,
+  and the phone comes up stock - so at most one boot is affected. The
+  application reports it the next time it is opened.
+  Autostart never calls RestoreStock: returning an already lowered bus to stock
+  killed the phone four times out of four, and after a reboot the bus is stock
+  anyway. The DSP divider is recorded but deliberately not applied at boot,
+  because a non-stock DSP divider is held only under a watchdog even inside the
+  application.
+  The work is done by ocboot.exe, a separate executable with no user interface,
+  started from the system startup list. Deleting that one file switches
+  autostart off without removing the application.
+- NEW: the help opens by itself the first time a build is run, and can be
+  skipped with the right soft key. It is keyed on the version rather than on a
+  plain flag, because uninstalling does not reliably remove the private
+  directory and a flag could survive a reinstall.
+- The measurement and stress tests moved from ocgui.cpp into octests.cpp
+  unchanged, so that the boot-time applier runs the same tests rather than a
+  second copy of them.
+
 ## 2.2.1
 
 - FIXED: the DSP watchdog deleted its own timer from inside the timer callback,

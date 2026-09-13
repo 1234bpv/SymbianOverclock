@@ -38,228 +38,19 @@
 
 #include "ocengine.h"
 #include "ocstr.h"
+#include "octests.h"
+#include "ocboot.h"
 
 // Build version. On the device it is otherwise impossible to tell which one is installed.
-_LIT(KAppVersion, "SymbianOverclock 2.2.1");
+_LIT(KAppVersion, "SymbianOverclock 2.3.0");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
-// --- instruments: each is both a stress test and a benchmark ----------------
-//
-// Main requirement for all: SELF-VERIFICATION. Under overclocking, what matters is not speed, but
-// the moment when a subsystem begins to silently fail, and this can only be observed
-// with a test having a known answer. Therefore:
-//   * ALU runs LCG forward, and then exactly the same number of steps backward via
-//     the modular inverse multiplier - any single bit error breaks the return
-//     to the initial value;
-//   * memory and cache write a pseudorandom pattern and verify it back.
-// Neither the former nor the latter require a reference taken at another frequency.
+// The boot-time applier. Started from here only to soak a freshly saved
+// configuration; at boot it is started by the system from the startup list.
+_LIT(KOcBootExe, "ocboot.exe");
+_LIT(KSoakArg, "soak");
 
-const TUint32 KLcgA = 1664525u;
-const TUint32 KLcgC = 1013904223u;
-
-struct TTestResult
-    {
-    TUint32 iValue;        // throughput, in hundredths of a unit
-    TInt    iErrors;       // -1 = test was not executed
-    };
-
-// Modular inverse of KLcgA modulo 2^32 (Newton iteration; for an odd
-// multiplier it always exists). Computed rather than hardcoded: a hand-written constant
-// would turn a correctness test into a test of my arithmetic.
-static TUint32 LcgInverse()
-    {
-    TUint32 inv = 1;
-    for (TInt i = 0; i < 6; ++i)
-        inv = inv * (2u - KLcgA * inv);
-    return inv;
-    }
-
-static TUint32 gFcFreq = 32768;
-
-static TUint32 ElapsedUs(TUint32 aStart, TUint32 aEnd)
-    {
-    TUint32 d = aEnd - aStart;
-    if (!gFcFreq)
-        return 0;
-    return (TUint32)(((TUint64)d * 1000000u) / gFcFreq);
-    }
-
-// Chain of independent additions: 256 one-cycle instructions plus counter and
-// branch. The number of cycles per iteration is known exactly, so time is divided by it
-// and yields the ABSOLUTE core frequency - regardless of what the system reports.
-// This is why assembly is used here: in C the compiler is allowed to rewrite the loop arbitrarily.
-const TUint32 KNopCyclesPerIter = 258;      // 256 add + subs + bne
-
-static void SpinNop(TUint32 aIter)
-    {
-    __asm__ __volatile__(
-        "1:                  \n"
-        ".rept 256           \n"
-        "   add r3, r3, #1   \n"
-        ".endr               \n"
-        "   subs %0, %0, #1  \n"
-        "   bne  1b          \n"
-        : "+r" (aIter) : : "r3", "cc");
-    }
-
-// LCG core in assembly: 32 pairs of multiplication and addition per iteration, i.e. exactly
-// 64 operations. Needed to show the operation cost in cycles: in the C variant this
-// figure is swallowed by the loop counter and constant reloads.
-static void SpinLcgAsm(TUint32 aIter)
-    {
-    __asm__ __volatile__(
-        "   mov r4, #1       \n"
-        "   mov r5, #7       \n"
-        "1:                  \n"
-        ".rept 32            \n"
-        "   mul r3, r4, r3   \n"
-        "   add r3, r3, r5   \n"
-        ".endr               \n"
-        "   subs %0, %0, #1  \n"
-        "   bne  1b          \n"
-        : "+r" (aIter) : : "r3", "r4", "r5", "cc");
-    }
-
-// Absolute core frequency in MHz.
-static TUint32 MeasureCoreMhz()
-    {
-    const TUint32 kIter = 400000;
-    TUint32 t0 = User::FastCounter();
-    SpinNop(kIter);
-    TUint32 t1 = User::FastCounter();
-    TUint32 us = ElapsedUs(t0, t1);
-    return us ? (TUint32)(((TUint64)kIter * KNopCyclesPerIter) / us) : 0;
-    }
-
-// Cost of one LCG core operation in hundredths of a cycle.
-static TUint32 MeasureLcgCycles100(TUint32 aMhz)
-    {
-    const TUint32 kIter = 100000;
-    TUint32 t0 = User::FastCounter();
-    SpinLcgAsm(kIter);
-    TUint32 t1 = User::FastCounter();
-    TUint32 us = ElapsedUs(t0, t1);
-    const TUint64 ops = (TUint64)kIter * 64u;
-    const TUint32 psPer = ops ? (TUint32)(((TUint64)us * 1000000u) / ops) : 0;
-    return (TUint32)(((TUint64)psPer * aMhz) / 10000u);
-    }
-
-// ALU: forward and backward. Returns Mitr/s in hundredths and error count (0 or 1).
-static TTestResult TestAlu(TUint32 aIter)
-    {
-    TTestResult r;
-    const TUint32 seed = 0x12345678u;
-    const TUint32 ainv = LcgInverse();
-
-    TUint32 t0 = User::FastCounter();
-    TUint32 x = seed;
-    TUint32 i;
-    for (i = 0; i < aIter; ++i)
-        x = x * KLcgA + KLcgC;
-    for (i = 0; i < aIter; ++i)
-        x = (x - KLcgC) * ainv;
-    TUint32 t1 = User::FastCounter();
-
-    TUint32 us = ElapsedUs(t0, t1);
-    r.iValue = us ? (TUint32)(((TUint64)aIter * 2u * 100u) / us) : 0;
-    r.iErrors = (x == seed) ? 0 : 1;
-    return r;
-    }
-
-// Memory bandwidth: sequential read of a buffer larger than cache.
-//
-// FIXED 2026-09-12. Previously there was a traversal with a 64-byte step, and read
-// bytes were counted as "reads x 64", i.e. assuming a cache line of
-// 64 bytes. Stepping sweep on the device (findings 46.1) showed a plateau already
-// at a 32-byte step, meaning the line is twice as short, and the number came out exactly
-// twice as high.
-//
-// Now there is no assumption at all: EVERY word is read, and the buffer size goes into
-// bytes. The loop is unrolled by eight, because in rolled form the measurement hit
-// its own loop counter and branch rather than memory.
-static TTestResult TestMemBandwidth(TUint32* aBuf, TInt aWords, TInt aPasses)
-    {
-    TTestResult r;
-    const TInt n = aWords & ~7;
-    TUint32 t0 = User::FastCounter();
-    TUint32 acc = 0;
-    for (TInt p = 0; p < aPasses; ++p)
-        for (TInt i = 0; i < n; i += 8)
-            {
-            acc += aBuf[i]   + aBuf[i+1] + aBuf[i+2] + aBuf[i+3];
-            acc += aBuf[i+4] + aBuf[i+5] + aBuf[i+6] + aBuf[i+7];
-            }
-    TUint32 t1 = User::FastCounter();
-    TUint32 us = ElapsedUs(t0, t1);
-    const TUint64 bytes = (TUint64)n * 4u * (TUint64)aPasses;
-    r.iValue = us ? (TUint32)((bytes * 100u) / us) : 0;   // MB/s in hundredths
-    r.iErrors = (acc == 0) ? 1 : 0;     // zero is impossible: pattern is non-zero
-    return r;
-    }
-
-// SDRAM integrity: write a pattern, read back, count mismatched words.
-// This test specifically catches the primary risk of bus overclocking - silent data corruption.
-static TTestResult TestMemIntegrity(TUint32* aBuf, TInt aWords)
-    {
-    TTestResult r;
-    TUint32 t0 = User::FastCounter();
-    TUint32 x = 0x2545f491u;
-    TInt i;
-    for (i = 0; i < aWords; ++i)
-        {
-        x = x * KLcgA + KLcgC;
-        aBuf[i] = x;
-        }
-    x = 0x2545f491u;
-    TInt bad = 0;
-    for (i = 0; i < aWords; ++i)
-        {
-        x = x * KLcgA + KLcgC;
-        if (aBuf[i] != x)
-            ++bad;
-        }
-    TUint32 t1 = User::FastCounter();
-    TUint32 us = ElapsedUs(t0, t1);
-    TUint32 bytes = (TUint32)aWords * 4u * 2u;          // write + read
-    r.iValue = us ? (TUint32)(((TUint64)bytes * 100u) / us) : 0;
-    r.iErrors = bad;
-    return r;
-    }
-
-// Cache: L1 read bandwidth with a working set of 4 KB (L1 on ARM1136 is 16 KB).
-//
-// FIXED 2026-09-12. Previously an LCG generator ran here with writes and verification,
-// and the result was reported as cache MB/s. In reality this measured arithmetic: for one
-// word there was a multiplication (5 cycles of latency), addition, and verification, so
-// the number reflected the ALU rather than the cache, and could not be compared with the memory test.
-//
-// Now it does exactly the same thing as the memory test, with the sole difference that the working
-// set fits into L1. This makes the two numbers comparable, and their
-// ratio shows how many times faster cache is than external memory.
-// Correctness is not checked separately: TEST sdram integrity exists for that.
-static TTestResult TestCache(TUint32* aBuf, TInt aRounds)
-    {
-    TTestResult r;
-    const TInt kWords = 1024;                            // 4 KB
-    TUint32 acc = 0;
-    TInt i;
-    for (i = 0; i < kWords; ++i)                         // warm-up: fill cache lines
-        acc += aBuf[i];
-    TUint32 t0 = User::FastCounter();
-    for (TInt p = 0; p < aRounds; ++p)
-        for (i = 0; i < kWords; i += 8)
-            {
-            acc += aBuf[i]   + aBuf[i+1] + aBuf[i+2] + aBuf[i+3];
-            acc += aBuf[i+4] + aBuf[i+5] + aBuf[i+6] + aBuf[i+7];
-            }
-    TUint32 t1 = User::FastCounter();
-    TUint32 us = ElapsedUs(t0, t1);
-    const TUint64 bytes = (TUint64)kWords * 4u * (TUint64)aRounds;
-    r.iValue = us ? (TUint32)((bytes * 100u) / us) : 0;
-    r.iErrors = (acc == 0) ? 1 : 0;
-    return r;
-    }
 
 // Next/previous bus divider value.
 //
@@ -305,6 +96,8 @@ enum TRowId
     ERowConfirm,
     ERowRestore,
     ERowKeep,            // whether to keep overclock after exiting the application
+    ERowAutostart,       // state of the boot-time applier
+    ERowSaveBoot,        // save the live configuration for the boot-time applier
     ERowLang,            // interface language
     ERowTestAlu,
     ERowTestMem,
@@ -349,6 +142,12 @@ private:
     void SyncManualFromAuto();
     void RunTest(TRowId aRow);
     void RunCombined();
+    // Saving a configuration for boot. Three conditions have to hold at once:
+    // the overclock must be live in the registers, it must pass three rounds of
+    // tests here and now, and it must then survive a soak before boot will use
+    // it. See ocboot.h for why one proof is not enough.
+    void SaveForBoot();
+    void ReportBootOutcome();
     // DSP divider auto-revert. Measured (findings §24.5): a non-stock divider,
     // left in the system for long, crashes the device into a reboot even without any
     // load on the DSP, whereas a dwell with guaranteed reversion succeeds
@@ -390,6 +189,7 @@ private:
     TBuf<80> iStatus;
     TBool  iKnownDevice;     // profile matched automatically
     TInt   iTestProfile;     // selected test profile; -1 = none
+    TOcBootRecord iBoot;     // autostart record, as read at startup
     TBool  iHelp;            // ETrue = showing help page
     TInt   iHelpTop;         // line of help to draw from
     };
@@ -421,12 +221,13 @@ void COcView::ConstructL(const TRect& aRect)
     // of the log would remain in English, and part would not.
     OcStrInit();
     LoadLanguage();
+    ReportBootOutcome();
     CreateWindowL();
     SetRect(aRect);
 
     TInt fc = 0;
     if (HAL::Get(HALData::EFastCounterFrequency, fc) == KErrNone && fc > 0)
-        gFcFreq = (TUint32)fc;
+        OcTestsInit((TUint32)fc);
 
     iEngine = COcEngine::NewL();
     // Overclock remains after exit: user applied it consciously, and
@@ -935,6 +736,21 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         aOut.Format(OcStr(EStrTestProfileRow), &nm);
         return;
         }
+    if (aRow == ERowAutostart)
+        {
+        if (iBoot.iState == EOcBootCandidate)
+            aOut.Copy(OcStr(EStrRowAutostartSoak));
+        else if (iBoot.iState == EOcBootArmed || iBoot.iState == EOcBootApplied)
+            aOut.Format(OcStr(EStrRowAutostartOn), (TInt)iBoot.iMult);
+        else
+            aOut.Copy(OcStr(EStrRowAutostartOff));
+        return;
+        }
+    if (aRow == ERowSaveBoot)
+        {
+        aOut.Copy(OcStr(EStrRowSaveBoot));
+        return;
+        }
     if (aRow == ERowKeep)
         {
         aOut.Copy(OcStr(iKeep ? EStrKeepRowOn : EStrKeepRowOff));
@@ -1146,6 +962,134 @@ void COcView::RunCombined()
 // Trial connection of untested profile. Lives in a separate method because
 // it is called prior to engine readiness check - on an unknown device it is
 // not ready precisely because there is no profile yet.
+// What the boot-time applier did last time, shown once. The flag is cleared
+// here: a failure that has been read is no longer news. This also decides
+// whether to open on the help page - see below.
+void COcView::ReportBootOutcome()
+    {
+    if (OcBootLoad(iBoot) != KErrNone)
+        {
+        OcBootInit(iBoot);
+        TInt uid = 0;
+        HAL::Get(HALData::EMachineUid, uid);
+        iBoot.iMachineUid = (TUint32)uid;
+        }
+    if (iBoot.iFlags & (KOcBootFlagFailed | KOcBootFlagSoakBad))
+        {
+        AddLog(OcStr((iBoot.iFlags & KOcBootFlagFailed) ? EStrBootFailed
+                                                        : EStrBootSoakBad));
+        AddLogF(OcStr(EStrBootFailedCfg), (TInt)iBoot.iMult,
+                (TInt)(iBoot.iCore & KCoreL3Mask));
+        iBoot.iFlags &= ~(KOcBootFlagFailed | KOcBootFlagSoakBad);
+        OcBootSave(iBoot);
+        }
+    // Help on first run, and again after an update. Keyed on the version rather
+    // than on a plain "already shown" flag: uninstalling does not reliably remove
+    // the private directory, so a flag could survive a reinstall and hide the help
+    // from someone seeing the application for the first time.
+    const TUint32 h = OcBootHash(KAppVersion);
+    if (iBoot.iHelpShown != h)
+        {
+        iHelp = ETrue;
+        iHelpTop = 0;
+        iBoot.iHelpShown = h;
+        OcBootSave(iBoot);
+        }
+    }
+
+// Saves the running configuration for the boot-time applier.
+//
+// Three conditions, and all three have to hold. The overclock must be live -
+// and live means what the registers say, read back, not what the screen shows.
+// It must then pass three rounds of the full test set here and now, because
+// this configuration is going into daily use rather than into one session. And
+// even then it is only a candidate: ocboot soaks it in the background and
+// promotes it only if the phone is still alive afterwards.
+void COcView::SaveForBoot()
+    {
+    if (!iEngine || !iEngine->IsReady())
+        {
+        AddLog(OcStr(EStrEngineDisabled));
+        return;
+        }
+    TInt liveMult = 0;
+    TUint32 liveCore = 0;
+    if (iEngine->LiveMult(liveMult) != KErrNone ||
+        iEngine->LiveCore(liveCore) != KErrNone)
+        {
+        AddLog(OcStr(EStrBootNoRead));
+        return;
+        }
+    if (!iEngine->IsOverclocked() || liveMult <= iEngine->StockMult())
+        {
+        AddLog(OcStr(EStrBootNeedLive));
+        return;
+        }
+    TUint32* buf = Buffer();
+    if (!buf)
+        {
+        AddLog(OcStr(EStrNoMemory));
+        return;
+        }
+
+    const TInt kRounds = 3;
+    TInt errors = 0;
+    for (TInt round = 0; round < kRounds; ++round)
+        {
+        iStatus.Format(OcStr(EStrBootTesting), round + 1, kRounds);
+        Repaint();
+        TTestResult r = TestAlu(800000);
+        if (r.iErrors > 0) errors += r.iErrors;
+        r = TestCache(buf, 200);
+        if (r.iErrors > 0) errors += r.iErrors;
+        r = TestMemBandwidth(buf, iBufWords, 4);
+        if (r.iErrors > 0) errors += r.iErrors;
+        r = TestMemIntegrity(buf, iBufWords);
+        if (r.iErrors > 0) errors += r.iErrors;
+        }
+    iStatus.Zero();
+    if (errors != 0)
+        {
+        AddLog(OcStr(EStrBootTestFailed));
+        Repaint();
+        return;
+        }
+
+    iBoot.iMult = (TUint32)liveMult;
+    iBoot.iCore = liveCore;
+    // The engine exposes no read-back for CM_CLKSEL_MPU, so this value is
+    // composed exactly the way the apply path composes it. The multiplier and
+    // CLKSEL1_CORE, which can be read, are read.
+    iBoot.iMpu = (iEngine->StockMpu() & ~KMpuDivMask) |
+                 ((TUint32)iMpuDiv & KMpuDivMask);
+    iBoot.iDspDiv = (TUint32)iEngine->DspDiv();
+    iBoot.iState = EOcBootCandidate;
+    iBoot.iFlags = 0;
+    if (!iBoot.iDelaySec)
+        iBoot.iDelaySec = KOcBootDefaultDelaySec;
+    if (!iBoot.iHoldSec)
+        iBoot.iHoldSec = KOcBootDefaultHoldSec;
+    if (OcBootSave(iBoot) != KErrNone)
+        {
+        AddLog(OcStr(EStrBootSaveFailed));
+        return;
+        }
+
+    // The soak runs in its own process so that the phone can be used normally
+    // while it waits, and so that closing this window does not cancel it.
+    {
+    RProcess p;
+    if (p.Create(KOcBootExe, KSoakArg) == KErrNone)
+        {
+        p.Resume();
+        p.Close();
+        }
+    }
+    AddLogF(OcStr(EStrBootSaved), (TInt)(iBoot.iHoldSec / 60));
+    AddLog(OcStr(EStrBootSoakWarn));
+    AddLogF(OcStr(EStrBootApplyWarn), (TInt)iBoot.iDelaySec);
+    }
+
 void COcView::ActivateTestProfile()
     {
     if (iKnownDevice || !iEngine)
@@ -1204,6 +1148,23 @@ void COcView::Activate(TRowId aRow)
         ActivateTestProfile();
         return;
         }
+    // Switching autostart off has to work even with no engine: this row is the
+    // way out of a configuration that misbehaves, and making it depend on a
+    // working patcher would be backwards.
+    if (aRow == ERowAutostart)
+        {
+        if (iBoot.iState == EOcBootOff)
+            {
+            AddLog(OcStr(EStrBootUseSave));
+            }
+        else
+            {
+            iBoot.iState = EOcBootOff;
+            OcBootSave(iBoot);
+            AddLog(OcStr(EStrBootOff));
+            }
+        return;
+        }
     if (!iEngine || !iEngine->IsReady())
         {
         if (aRow >= ERowTestAlu && aRow != ERowHelp && aRow != ERowTestProfile)
@@ -1238,6 +1199,10 @@ void COcView::Activate(TRowId aRow)
             AddLog(OcStr(iKeep ? EStrKeepRowOn : EStrKeepRowOff));
             if (iKeep)
                 AddLog(OcStr(EStrKeepNote));
+            break;
+
+        case ERowSaveBoot:
+            SaveForBoot();
             break;
 
         case ERowLang:

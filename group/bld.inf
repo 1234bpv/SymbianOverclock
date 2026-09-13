@@ -5,4 +5,5 @@ PRJ_MMPFILES
 gnumakefile icons.mk
 
 ocprobe.mmp
+ocboot.mmp
 ocgui.mmp

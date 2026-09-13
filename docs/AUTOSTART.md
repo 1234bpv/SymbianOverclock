@@ -1,89 +1,161 @@
-# Overclock autostart: scheme proposal
+# Overclock autostart
 
-Status: **proposal, not implemented.** The application does not apply anything by itself and is not in the startup list.
+Status: **implemented in 2.3.0.** Off after installation; switching it on takes
+three separate proofs. This file records why the scheme is shaped the way it is.
+The code is `src/ocboot.h`, `src/ocbootcfg.cpp`, `src/ocbootmain.cpp` and the
+two rows added to `src/ocgui.cpp`.
 
-This revision incorporates four amendments from 2026-09-11, and each of them revokes a decision of the previous revision. **All** user settings are applied, including the bus. There is no countdown with key cancellation. Mass Storage is no longer the primary recovery path. And overclocking now survives exiting the application, and this is already done (the `KEEP ON EXIT` line).
+Earlier revisions of this document proposed a step-down ladder and a hardware
+kill switch. Both were dropped, and the reasons are recorded below rather than
+deleted, because each was rejected on an argument worth keeping.
 
 ## Why this is the most dangerous feature of the project
 
-Everything else in the application has one property: the worst consequence is a reboot, after which the device is stock. Autostart destroys this property. A bad value causes a reboot, the reboot starts the application, the application applies the same value again — and the device loops in a cycle with no user entry point.
+Everything else in the application has one property: the worst consequence is a
+reboot, after which the phone is stock. Autostart destroys that property. A bad
+value causes a reboot, the reboot starts the applier, the applier applies the
+same value again, and the phone loops with no way in.
 
-That is, one must design not "how to apply overclock at startup", but "how to reliably exit the loop". Everything else is secondary.
+So the thing to design is not "how to apply an overclock at startup" but "how to
+make the loop impossible". Everything else is secondary.
 
-## 1. Everything configured by the user is applied
+## The record, and the order in which it is written
 
-The previous revision excluded the bus from auto-application as too dangerous. This has been revoked, and not just because the user decided so — upon closer inspection, the reasoning was simply flawed.
+The configuration lives in `C:\private\e0001011\boot.dat`: magic, format
+version, the machine UID it was written on, a state, the multiplier, the whole
+`CM_CLKSEL1_CORE` and `CM_CLKSEL_MPU` values, the delay and hold periods, a
+timestamp, and a CRC32 over all of it. Anything that fails a check - a missing
+file, an unreadable disk, a wrong magic, a wrong version, a bad CRC, a machine
+UID from another phone - means nothing is applied, and the file is renamed to
+`boot.bad` so that it can be examined and can never be used.
 
-The fatal operation is **returning an already reduced bus back to stock**: it was specifically this that killed the device four times out of four (§38.2). Raising the bus from stock upward has been measured, and it works. And on the autostart path, returning does not happen at all: after a reboot the bus is already stock, application goes only upward, and if the next boot deems the configuration failed, it simply **does not apply** it — there is nothing to roll back, because the reboot has already rolled everything back.
+It lives on `C:` rather than `E:`, because `E:` disappears in mass storage mode,
+and a record that cannot be read is a record that cannot be switched off.
 
-Hence autostart does not merely "have the right" to touch the bus — it touches it in the only direction proven safe, and has no access to the direction that kills. The only condition that must be strictly maintained: **autostart never calls `RestoreStock`.** The recovery path here is only one — a reboot.
+At boot the order is strict: write the state `EApplied` together with the
+current time, `Flush`, `Close`, and only then touch a register. Symbian buffers
+writes, and a phone that dies before the data reaches flash would come back to
+the old record and try the same value again - which is exactly the loop.
 
-## 2. Instead of a countdown — automatic confirmation
+## Four states, and why a configuration has to prove itself twice
 
-The previous revision brought the application to the foreground and showed a 60-second countdown with cancellation by any key. User amendment: this is not a solution, but merely extending the phone's startup by a minute.
+`Off` is the state after installation. `Candidate` is what saving produces.
+`Armed` is a configuration boot will apply. `Applied` means it was applied this
+boot and the hold period has not finished yet.
 
-The objection is valid, and the reason goes deeper than inconvenience. The countdown protects against something that does not happen here: the user does not "change their mind" — they configured the settings deliberately the previous time. The dangerous case is different: the setting turned out to be fatal, and the person is not looking at anything at that moment. The countdown in this case saves no one, while taking a toll on every normal boot.
+Saving requires the overclock to be **live** - and live means what the registers
+say when read back, not what the screen shows - and then three rounds of the
+full test set. A single error and nothing is written. What is written is a
+candidate, which boot ignores.
 
-Therefore, confirmation must be automatic and rely on fact, not on attention.
+`ocboot soak`, started by the application as a separate process, then waits out
+the hold period while the phone is used normally, runs one more round of tests,
+and only then promotes the record to `Armed`. A restart during the soak leaves a
+candidate, and candidates are never applied.
 
-The application writes a marker, applies the settings, and **remains in memory**. If the device survived a holding period after application (I suggest three minutes), the application rewrites the marker: this configuration held out. The next boot sees one of two things. The marker says "held out" — we apply without any questions and without a delay noticeable to a human. The marker says "applied, but not confirmed" — the previous session did not survive the holding period, and the configuration is deemed failed.
+The first revision of this document put the soak at twenty minutes. Pavlo's
+amendment on 2026-09-13 cut it to three, on the grounds that a setting meant for
+daily use is better proven by the tests than by waiting, and three minutes is
+what the record now defaults to.
 
-The holding period costs nothing: the application remains a background process anyway, and from the user's perspective nothing happens.
+## Refusal, not a ladder
 
-## 3. Step down instead of refusal
+A failed configuration is not adjusted. The earlier revision proposed stepping
+down one notch at a time - first the bus raise, then the DSP divider, then the
+multiplier - so that the phone would converge on something stable by itself.
 
-A failed configuration does not disable auto-application, but steps down by one step, in descending order of risk: first the bus raise is removed, then the non-stock DSP divider, and only then the multiplier goes down in steps of one.
+That is revoked. The user sets a frequency deliberately and expects that
+frequency; a machine-chosen approximation of it is no longer the thing they
+configured, and presenting it as "your overclock" would be untrue. So a
+configuration that fails is refused outright, autostart is switched off, and the
+application says so the next time it is opened.
 
-The cycle becomes self-correcting, and corrects from the end where the win is cheapest. Stopping condition — when the stock state is reached or five steps have been spent; then auto-application is disabled, and the application shows where it stopped.
+This also makes the scheme easier to reason about. A bad configuration costs
+exactly one boot: the phone freezes, the user holds the power button, the next
+boot sees `Applied`, refuses it, switches autostart off, and comes up stock.
 
-## 4. Two independent loop detectors
+## Two detectors
 
-The application counter lives in the marker. If the marker did not manage to be written to flash, this detector is gone — precisely in the case for which everything was built.
+The first is the `Applied` state itself, and it catches everything that dies
+before the hold finishes.
 
-Therefore, the second detector takes data from another source: the **wall-clock time** at the moment of application is put into the marker, and the clock survives a reboot. If at startup it turns out that less than five minutes have elapsed since the last application, the previous session was short, and this is a conclusion independent of both the counter and the completeness of the marker.
+The second is the timestamp. A configuration that survives the hold and dies a
+minute later would otherwise be applied on every boot for ever, and the first
+detector would never see it. So if a boot finds an `Armed` record whose
+confirmation is less than five minutes old, the previous session ended almost as
+soon as it was confirmed, and the configuration is refused on that ground alone.
 
-## 5. Write order without which everything is in vain
+## What is not applied at boot
 
-The marker must land in flash **before** application: Symbian buffers writes, and a hardware reboot may occur before the data reaches the disk. Thus `RFile::Write`, `RFile::Flush`, `RFile::Close` — and only then application.
+`RestoreStock` is never called. Returning an already lowered bus to stock killed
+the phone four times out of four across two devices (findings 38.2). On the boot
+path it is not needed: after a restart the bus is stock, application only ever
+goes upward, and the recovery path is the reboot itself.
 
-The marker resides on `C:`, in the application's private directory. Not on `E:`: this drive is unmounted in Mass Storage mode, and the marker would become unreadable when it is needed most.
+The DSP divider is recorded but not applied. A non-stock DSP divider rebooted
+the phone twice out of two at idle (findings 24.5), which is why even the
+application holds it only under a watchdog. A watchdog that must run for ever is
+not a watchdog.
 
-## 6. Manual path: window before application, not a countdown
+## The window, and the phone that lives without its screen
 
-The application applies settings not immediately after boot, but after approximately forty seconds. This is **not** the countdown from item 2 of the previous revision: the screen is not occupied by anything, the phone is fully operational, no one is pressing anything.
+The frequency is applied about forty-five seconds after boot, not immediately.
+On a normal boot nobody notices, because the system is still loading. On a phone
+that a configuration brings down, those forty-five seconds are the same window
+every time: enough to open the application and switch autostart off, or to
+remove the application through the application manager, which needs neither a
+memory card nor any patch.
 
-The difference is in who pays. The countdown took a minute from every normal boot. The delay takes nothing: in the normal case, the user does not notice it at all, because during these forty seconds the phone is loading the rest of the system anyway.
+Note what does **not** work as a way out, contrary to the obvious guess.
+Removing the memory card does nothing, because the application, the applier and
+the record are all on `C:`. Mass storage mode does nothing for the same reason.
+And a file manager cannot reach `C:\sys\bin` on a freshly booted phone, because
+RomPatcher+ patches are not applied at that point; removal therefore goes
+through the application manager.
 
-On the other hand, in the corrupted case, these forty seconds are a working window. If the configuration crashes the device, it crashes it every time at approximately the same second, and each time forty seconds remain to open the application and disable auto-application or delete the application altogether. This is enough, and it requires neither a card nor Mass Storage mode.
+There is also a failure that no detector here can see. The phone can stay alive
+while its screen does not - the software is fine, the hold completes, the
+configuration is confirmed, and the user is left with a dark screen. Symbian
+cannot tell us that the panel is dead, so the answer is an instruction rather
+than a mechanism: if the screen stays dark after a restart, or during the soak
+that follows a save, restart the phone by hand within the next few minutes. A
+restart during the hold leaves `Applied`, and a restart during the soak leaves
+`Candidate`; neither is ever applied again. The application says this when a
+configuration is saved, and the built-in help says it as well.
 
-## 7. Hardware kill switch: why Mass Storage is not suitable
+## The hardware kill switch that was rejected
 
-The previous revision called USB Mass Storage mode the primary recovery path: the application resides on `E:`, the drive is handed over to the PC, the application physically cannot start. The user amendment removes this from the role of primary path, and in essence rightfully so. The phone asks the user for the connection mode, by default it is often not Mass Storage, and on the N95 8GB there is no card that could simply be removed. On the E90 there is a card, and removing it indeed works there — but a scheme that works on only one of the two devices cannot be the primary one.
+The earlier revision proposed skipping auto-application when the phone was
+booted with external power connected: one rule, identical on both devices, no
+card and no mode dialog needed. A measurement on 2026-09-11 showed
+`EPowerExternal` readable without capabilities and returning 1, while
+`EPowerBatteryStatus` and `ECaseState` are not supported on this hardware at
+all.
 
-Therefore, Mass Storage remains as a nice bonus where it works, while we need to look for a switch that depends neither on the mode selection dialog nor on the presence of a card.
+Pavlo rejected it on 2026-09-13, and correctly: people charge phones overnight
+and switch them on while plugged in, so the switch would cancel the overclock
+constantly and by accident. It is not in the code, and the second data point
+that would have confirmed the attribute was never taken.
 
-### Candidate: external power at boot time
+With refusal instead of a ladder, nothing is lost by dropping it. A bad
+configuration already costs at most one boot.
 
-Idea: if the device was booted with external power connected, auto-application is skipped. The rule is easy to remember, it is identical on both devices, requires neither a card nor connection mode selection, and can be done from a powered-off phone.
+## What is installed, and what is off by default
 
-**Measured 2026-09-11 on N95 8GB** (`ocprobe`, HAL dump):
-
-```
-EPowerExternal = 1
-EPowerBatteryStatus -> err -5
-ECaseState -> err -5
-```
-
-That is, cover state and battery status are not supported by this device at all, and as a switch they are ruled out. Meanwhile `EPowerExternal` is read without any capabilities and returned `1`.
-
-**What this measurement does NOT prove.** A one by itself does not mean that the attribute tracks the cable: it could be a constant. A second point is needed — the same line with power disconnected. Until it is available, the switch remains a candidate rather than a solution, and taking it into code is premature.
-
-## What remains by default
-
-Autostart is disabled. SIS always puts an entry into the startup list (it cannot be created from the application — it is a private directory of another process, requiring `AllFiles`), but at startup the application reads its own setting and, if auto-application is disabled, quietly terminates doing nothing.
+The package installs `ocboot.exe` into `C:\sys\bin` and a `STARTUP_ITEM_INFO`
+resource into `C:\private\101f875a\import\[E0001011].rsc`. The resource cannot
+be created by the application - it is another process's private directory and
+needs `AllFiles` - so it is always installed, and the switch is the record
+instead. With autostart off, `ocboot` reads `boot.dat`, sees `Off` and exits
+before opening a single driver. Uninstalling removes both files.
 
 ## Honest assessment
 
-The risk-to-benefit ratio here is worse than in the rest of the application, and this revision does not change that. The gain is "no need to open the application after a reboot". The price is the only scenario in the entire project that can leave the device in a state from which the user cannot recover on their own.
+The gain is that the phone comes up at the frequency the user chose. The price
+is the only scenario in the project that can leave a phone in a state the user
+has to act on, inside a known window, rather than simply rebooting out of.
 
-What changed: the recovery path now does not rely on a hardware quirk that is not present on every phone, and the loop itself is cured automatically and without human intervention. What did not change: enabling this by default must never be done.
+What changed since the first revision is that the recovery no longer depends on
+a hardware quirk that is not present on every phone, and that a failure costs
+one boot rather than a sequence of them. What has not changed: this must never
+be enabled by default.

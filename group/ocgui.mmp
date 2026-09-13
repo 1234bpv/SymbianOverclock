@@ -33,6 +33,8 @@ SOURCEPATH      ..\src
 SOURCE          ocgui.cpp
 SOURCE          ocengine.cpp
 SOURCE          ocstr.cpp
+SOURCE          octests.cpp
+SOURCE          ocbootcfg.cpp
 
 // Application resource. Name must match app_file in ocgui_reg.rss -
 // the framework looks specifically for \resource\apps\<app_file>.rsc.

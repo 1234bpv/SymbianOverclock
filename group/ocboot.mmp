@@ -1,0 +1,43 @@
+// Boot-time applier. No user interface, no registration file: it never appears
+// in the menu and is started only from the startup list, or by the application
+// with the "soak" argument.
+//
+// The same SECUREID as ocgui.exe, because both read and write the one record in
+// \private\e0001011. Capabilities are the same set as well: the applier opens
+// the same kernel channels and would otherwise fail exactly where the
+// application succeeds.
+
+TARGET          ocboot.exe
+TARGETTYPE      exe
+UID             0 0xE0001012
+SECUREID        0xE0001011
+VENDORID        0
+
+CAPABILITY      PowerMgmt WriteDeviceData ReadDeviceData ReadUserData WriteUserData ProtServ CommDD
+
+// Same reason as in ocgui.mmp: the relock blob and the clock measurements rely
+// on fixed ARM encoding.
+ALWAYS_BUILD_AS_ARM
+
+EPOCSTACKSIZE   0x5000
+EPOCHEAPSIZE    0x10000 0x800000
+
+SOURCEPATH      ..\src
+SOURCE          ocbootmain.cpp
+SOURCE          ocbootcfg.cpp
+SOURCE          ocengine.cpp
+SOURCE          octests.cpp
+
+// Startup list entry. The compiled name does not matter: the package installs
+// it into the Startup import directory under the application UID.
+START RESOURCE  ocboot_startup.rss
+TARGET          ocboot_startup
+TARGETPATH      \private\101f875a\import
+END
+
+SYSTEMINCLUDE   \epoc32\include
+
+LIBRARY         euser.lib
+LIBRARY         efsrv.lib
+LIBRARY         hal.lib
+LIBRARY         sysutil.lib

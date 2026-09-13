@@ -24,13 +24,17 @@
 ; the USB client driver, and opening that channel without CommDD returns -46,
 ; which shows up as an engine that never becomes ready.
 ;
-; Nothing here runs at boot: no startup-list resource, no autostart. The
-; overclock is applied only by hand, from inside the application, and any
-; reboot returns the phone to stock.
+; ocboot.exe is the boot-time applier, and the resource installed into the
+; Startup import directory is what makes the system run it. Neither does
+; anything by default: the record in \private\e0001011 starts out switched
+; off, and ocboot reads it and exits before opening a single driver. A
+; configuration only reaches that record after the user saves a live overclock
+; that has passed three rounds of tests, and only becomes usable at boot after
+; it has also survived a soak. Uninstalling removes both files.
 
 &EN
 
-#{"Symbian Overclock"},(0xE0001011),2,2,1
+#{"Symbian Overclock"},(0xE0001011),2,3,0
 
 %{"Pavlo Biletskyi"}
 :"Pavlo Biletskyi"
@@ -41,3 +45,5 @@
 "\VsCodeProjects\SymbianProjects\S60_3rd_FP1\Epoc32\data\z\resource\apps\ocgui.RSC"-"c:\resource\apps\ocgui.rsc"
 "\VsCodeProjects\SymbianProjects\S60_3rd_FP1\Epoc32\data\z\resource\apps\ocgui_aif.mbm"-"c:\resource\apps\ocgui_aif.mbm"
 "\VsCodeProjects\SymbianProjects\S60_3rd_FP1\Epoc32\data\z\private\10003a3f\import\apps\ocgui_reg.RSC"-"c:\private\10003a3f\import\apps\ocgui_reg.rsc"
+"\VsCodeProjects\SymbianProjects\S60_3rd_FP1\Epoc32\release\gcce\urel\ocboot.exe"-"c:\sys\bin\ocboot.exe"
+"\VsCodeProjects\SymbianProjects\S60_3rd_FP1\Epoc32\data\z\private\101f875a\import\ocboot_startup.RSC"-"c:\private\101f875a\import\[E0001011].rsc"

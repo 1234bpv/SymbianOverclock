@@ -1,0 +1,22 @@
+// Startup list entry for ocboot.exe.
+//
+// The file is installed into \private\101f875a\import, which is the import
+// directory of the Startup application; entries there cannot be created by the
+// application itself, because that is another process's private directory and
+// writing to it needs AllFiles. So the entry is always installed, and the
+// switch is the record instead: with autostart off, ocboot reads boot.dat,
+// finds EOcBootOff and exits without opening a single driver.
+//
+// "!:" means "whatever drive the executable is on". ocboot.exe is installed to
+// C: along with the application, for the same reason: executables on C: skip
+// the removable media hash check and the path does not move with a memory card.
+
+#include <startupitem.rh>
+
+UID2 0x101F4A6B
+
+RESOURCE STARTUP_ITEM_INFO r_ocboot_startup
+	{
+	executable_name = "!:\\sys\\bin\\ocboot.exe";
+	recovery = EStartupItemExPolicyNone;
+	}

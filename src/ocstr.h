@@ -80,6 +80,23 @@ enum TOcStrId
     EStrKeepRowOff,
     EStrKeepNote,
     EStrRowLanguage,
+    EStrRowAutostartOff,
+    EStrRowAutostartSoak,
+    EStrRowAutostartOn,
+    EStrRowSaveBoot,
+    EStrBootUseSave,
+    EStrBootOff,
+    EStrBootNeedLive,
+    EStrBootNoRead,
+    EStrBootTesting,
+    EStrBootTestFailed,
+    EStrBootSaveFailed,
+    EStrBootSaved,
+    EStrBootSoakWarn,
+    EStrBootApplyWarn,
+    EStrBootFailed,
+    EStrBootSoakBad,
+    EStrBootFailedCfg,
     EStrCount
     };
 
