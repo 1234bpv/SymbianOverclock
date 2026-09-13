@@ -36,9 +36,12 @@ SOURCE          ocstr.cpp
 
 // Application resource. Name must match app_file in ocgui_reg.rss -
 // the framework looks specifically for \resource\apps\<app_file>.rsc.
+// HEADER generates ocgui.rsg, which ocgui_reg.rss includes to name the
+// localisable resource holding the caption and the icon.
 START RESOURCE  ocgui.rss
 TARGET          ocgui
 TARGETPATH      \resource\apps
+HEADER
 END
 
 START RESOURCE  ocgui_reg.rss

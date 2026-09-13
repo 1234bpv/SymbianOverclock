@@ -3,6 +3,7 @@
 // pick up the record.
 
 #include <appinfo.rh>
+#include <ocgui.rsg>
 
 UID2 KUidAppRegistrationResourceFile
 UID3 0xE0001011
@@ -10,6 +11,11 @@ UID3 0xE0001011
 RESOURCE APP_REGISTRATION_INFO
 	{
 	app_file = "ocgui";
+	// Caption and icon live in the application resource, not here: apparc reads
+	// them from there, and without this pair the shell falls back to the name of
+	// the executable and shows the application as "ocgui" with no icon.
+	localisable_resource_file = "\\resource\\apps\\ocgui";
+	localisable_resource_id = R_LOCALISABLE_APP_INFO;
 	hidden = KAppNotHidden;
 	embeddability = KAppNotEmbeddable;
 	newfile = KAppDoesNotSupportNewFile;

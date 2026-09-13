@@ -25,6 +25,9 @@
 *.pkg text eol=crlf
 
 # Binary artefacts
+*.bmp binary
+*.mbm binary
+*.mif binary
 *.sis binary
 *.sisx binary
 *.exe binary

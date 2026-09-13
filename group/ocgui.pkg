@@ -30,13 +30,14 @@
 
 &EN
 
-#{"SymbianOverclock"},(0xE0001011),2,2,1
+#{"Symbian Overclock"},(0xE0001011),2,2,1
 
-%{"SymbianOverclock"}
-:"SymbianOverclock"
+%{"Pavlo Biletskyi"}
+:"Pavlo Biletskyi"
 
 [0x101F7961],0,0,0,{"Series60ProductID"}
 
 "\VsCodeProjects\SymbianProjects\S60_3rd_FP1\Epoc32\release\gcce\urel\ocgui.exe"-"c:\sys\bin\ocgui.exe"
 "\VsCodeProjects\SymbianProjects\S60_3rd_FP1\Epoc32\data\z\resource\apps\ocgui.RSC"-"c:\resource\apps\ocgui.rsc"
+"\VsCodeProjects\SymbianProjects\S60_3rd_FP1\Epoc32\data\z\resource\apps\ocgui_aif.mbm"-"c:\resource\apps\ocgui_aif.mbm"
 "\VsCodeProjects\SymbianProjects\S60_3rd_FP1\Epoc32\data\z\private\10003a3f\import\apps\ocgui_reg.RSC"-"c:\private\10003a3f\import\apps\ocgui_reg.rsc"

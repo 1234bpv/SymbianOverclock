@@ -2,5 +2,7 @@ PRJ_PLATFORMS
 GCCE
 
 PRJ_MMPFILES
+gnumakefile icons.mk
+
 ocprobe.mmp
 ocgui.mmp
