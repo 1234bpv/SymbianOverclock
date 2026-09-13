@@ -34,12 +34,13 @@
 #include <w32std.h>
 #include <hal.h>
 #include <sysutil.h>
+#include <f32file.h>
 
 #include "ocengine.h"
 #include "ocstr.h"
 
 // Версія збірки. На апараті інакше неможливо сказати, яка саме стоїть.
-_LIT(KAppVersion, "SymbianOverclock 2.1.0");
+_LIT(KAppVersion, "SymbianOverclock 2.2.0");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -296,7 +297,6 @@ enum TRowId
     ERowSlider = 0,      // множник DPLL
     ERowMpu,             // дільник MPU (окремий регістр CM_CLKSEL_MPU)
     ERowL3,              // дільник шини памʼяті - поле L3 у CM_CLKSEL1_CORE
-    ERowBusGuard,        // запобіжник підйому шини; типово увімкнений
     ERowDsp,             // дільник домену DSP (окремий регістр CM_CLKSEL_DSP)
     ERowMode,            // AUTO / MANUAL для дільників CLKSEL1_CORE
     ERowDivFirst,        // 7 рядків дільників CM_CLKSEL1_CORE
@@ -305,6 +305,7 @@ enum TRowId
     ERowConfirm,
     ERowRestore,
     ERowKeep,            // чи лишати розгін після виходу із застосунку
+    ERowLang,            // мова інтерфейсу
     ERowTestAlu,
     ERowTestMem,
     ERowTestIntegrity,
@@ -329,6 +330,7 @@ public:
     TInt HelpVisibleLines() const;
     TKeyResponse OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aType);
     void ShutdownL();
+    void SetLanguage(TInt aIndex);
 
 private:
     COcView();
@@ -374,7 +376,6 @@ private:
     TInt   iL3Div;           // дільник шини; 0 = лишити на автопідборі
     TInt   iLiveL3;          // дільник шини, який СТОЇТЬ у залізі (0 = не читали)
     TBool  iKeep;            // розгін лишається після виходу
-    TBool  iBusGuard;        // ETrue = підйом шини заборонено (типово)
     TInt   iDspDiv;          // редагований дільник DSP (окремий від iArmed шлях)
     CPeriodic* iDspTimer;    // сторож автоповернення дільника DSP
     TInt   iDspLeftSec;      // скільки секунд лишилось до автоповернення
@@ -395,7 +396,7 @@ private:
 
 COcView::COcView()
   : iEngine(NULL), iRow(ERowSlider), iTop(0), iMult(0), iManual(EFalse),
-    iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iKeep(ETrue), iBusGuard(ETrue), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
+    iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iKeep(ETrue), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
     iArmed(EFalse), iArmedMult(0), iArmedCore(0),
     iArmedMpu(0),
     iLogCount(0), iBuf(NULL), iBufWords(0), iKnownDevice(EFalse), iTestProfile(0), iHelp(EFalse), iHelpTop(0)
@@ -411,11 +412,15 @@ COcView* COcView::NewL(const TRect& aRect)
     return self;
     }
 
+// Визначені нижче, поруч із рештою роботи з файлом налаштування.
+static void LoadLanguage();
+
 void COcView::ConstructL(const TRect& aRect)
     {
     // Мову беремо один раз і до першого видимого рядка: інакше частина
     // журналу лишилась би англійською, а частина - ні.
     OcStrInit();
+    LoadLanguage();
     CreateWindowL();
     SetRect(aRect);
 
@@ -575,6 +580,63 @@ TInt COcView::DspRevertTick(TAny* aSelf)
 // повертає ребут. Заразом це прибирає єдину справді небезпечну операцію зі
 // шляху виходу: повернення зниженої шини до штатної вбило апарат чотири рази
 // з чотирьох, а тепер вихід його просто не робить.
+// Ім'я файлу, у якому лежить вибрана мова. Приватний каталог застосунку на C:,
+// тобто звичайний файл даних - до прошивки й до розгону він не має стосунку.
+_LIT(KLangFile, "C:\\private\\e0001011\\lang.txt");
+
+// Читає збережену мову. Помилка на будь-якому кроці означає "нічого не
+// збережено", і тоді лишається та мова, яку обрав OcStrInit за мовою апарата.
+static void LoadLanguage()
+    {
+    RFs fs;
+    if (fs.Connect() != KErrNone)
+        return;
+    RFile f;
+    if (f.Open(fs, KLangFile, EFileRead) == KErrNone)
+        {
+        TBuf8<16> buf;
+        if (f.Read(buf) == KErrNone && buf.Length() > 0)
+            {
+            TLex8 lex(buf);
+            TInt v = -1;
+            if (lex.Val(v) == KErrNone && v >= 0 && v < OcStrLanguageCount())
+                OcStrSetLanguage(v);
+            }
+        f.Close();
+        }
+    fs.Close();
+    }
+
+// Зберігає вибрану мову. Мовчить про помилки свідомо: незбережений вибір -
+// це незручність, а не привід зупиняти роботу застосунку.
+static void SaveLanguage(TInt aIndex)
+    {
+    RFs fs;
+    if (fs.Connect() != KErrNone)
+        return;
+    fs.MkDirAll(KLangFile);
+    RFile f;
+    if (f.Replace(fs, KLangFile, EFileWrite) == KErrNone)
+        {
+        TBuf8<16> buf;
+        buf.Num(aIndex);
+        f.Write(buf);
+        f.Close();
+        }
+    fs.Close();
+    }
+
+// Перемикає мову інтерфейсу. Індекс замикається по колу всередині OcStr, тож
+// сюди можна передавати будь-яке число.
+void COcView::SetLanguage(TInt aIndex)
+    {
+    OcStrSetLanguage(aIndex);
+    SaveLanguage(OcStrLanguageIndex());
+    // Журнал лишається таким, яким його записали: рядки в ньому вже готовий
+    // текст, а не ідентифікатори, і заднім числом вони не перекладаються.
+    AddLog(OcStrActiveLanguageName());
+    }
+
 void COcView::ShutdownL()
     {
     if (!iEngine)
@@ -838,14 +900,6 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         // не пропустить (findings §38.2). Рядок мусить називати те
         // значення, яке справді піде в залізо, інакше інтерфейс бреше про
         // власну роботу, і виглядає це рівно як "дільник не працює".
-        if (iBusGuard && iLiveL3 && v < iLiveL3)
-            {
-            TOcClocks cc;
-            iEngine->ClocksFor(iMult, cc);
-            aOut.Format(OcStr(EStrRowBusClamped), v, iLiveL3,
-                        cc.CoreKhz() / (TUint32)iLiveL3 / 1000);
-            return;
-            }
         const TUint32 got = BusKhz();
         const TUint32 want = iEngine->StockClocks().L3Khz();
         const TInt d = want ? (TInt)(((TInt64)got - want) * 1000 / want) : 0;
@@ -883,14 +937,10 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         aOut.Copy(OcStr(iKeep ? EStrKeepRowOn : EStrKeepRowOff));
         return;
         }
-    if (aRow == ERowBusGuard)
+    if (aRow == ERowLang)
         {
-        // Рядок каже не лише стан, а й ціну: чотири смерті з чотирьох -
-        // це єдина цифра, яка тут щось важить.
-        if (iBusGuard)
-            aOut.Copy(OcStr(EStrGuardRowOn));
-        else
-            aOut.Copy(OcStr(EStrGuardRowOff));
+        TPtrC nm(OcStrActiveLanguageName());
+        aOut.Format(OcStr(EStrRowLanguage), &nm);
         return;
         }
     if (aRow == ERowDsp)
@@ -1181,17 +1231,10 @@ void COcView::Activate(TRowId aRow)
                 AddLog(OcStr(EStrKeepNote));
             break;
 
-        case ERowBusGuard:
-            iBusGuard = !iBusGuard;
-            iEngine->SetBusGuard(iBusGuard);
-            iArmed = EFalse;
-            if (iBusGuard)
-                AddLog(OcStr(EStrGuardOn));
-            else
-                {
-                AddLog(OcStr(EStrGuardOff));
-                AddLog(OcStr(EStrGuardNote));
-                }
+        case ERowLang:
+            // OK гортає мову так само, як стрілки: у списку з двадцяти восьми
+            // позицій шукати потрібну зручніше обома способами.
+            SetLanguage(OcStrLanguageIndex() + 1);
             break;
 
         case ERowL3:
@@ -1304,12 +1347,7 @@ void COcView::Activate(TRowId aRow)
             TOcClocks c;
             iEngine->ClocksFor(iArmedMult, c);
             c.iMpuDiv = iMpuDiv;
-            TInt l3 = CoreFieldValue(iArmedCore, ECoreL3);
-            if (iBusGuard && iLiveL3 && l3 < iLiveL3)
-                {
-                AddLogF(OcStr(EStrBusStaysClamped), iLiveL3);
-                l3 = iLiveL3;
-                }
+            const TInt l3 = CoreFieldValue(iArmedCore, ECoreL3);
             AddLogF(_L("armed m%d CPU %u BUS %u"), iArmedMult, c.MpuKhz() / 1000,
                     l3 ? c.CoreKhz() / (TUint32)l3 / 1000 : 0);
             if (iArmedMult > KOcMultTested)
@@ -1506,13 +1544,9 @@ TKeyResponse COcView::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aTyp
                     AddLog(OcStr(EStrTestProfilePick));
                     }
                 }
-            else if (iRow == ERowBusGuard)
+            else if (iRow == ERowLang)
                 {
-                iBusGuard = !iBusGuard;
-                iEngine->SetBusGuard(iBusGuard);
-                iArmed = EFalse;
-                if (!iBusGuard)
-                    AddLog(OcStr(EStrGuardOff));
+                SetLanguage(OcStrLanguageIndex() + dir);
                 }
             else if (iRow == ERowDsp)
                 {

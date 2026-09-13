@@ -1334,7 +1334,7 @@ static TInt WatchLayout(COcEngine *aE, TInt aSec, TInt aSampleSec, TBool aHold)
 // запис потрібної розкладки. На кінцевому множнику вона коректна за побудовою.
 static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
                       TInt aChild, const TDesC &aChildArgs, TInt aSampleSec,
-                      TBool aHold, TBool aBusGuard)
+                      TBool aHold)
     {
     LogF(_L8("--- CLOCKS: mult=%d mpu=%d l3=%d dss=%d sec=%d child=%d hold=%d ---"),
          aMult, aMpu, aL3, aDss, aSec, aChild, aHold ? 1 : 0);
@@ -1358,11 +1358,6 @@ static void RunClocks(TInt aMult, TInt aMpu, TInt aL3, TInt aDss, TInt aSec,
     COcEngine *e = PrepareEngine();
     if (!e)
         return;
-
-    // Запобіжник підйому шини знімається лише явним guard=0 і лише на цей прогін.
-    e->SetBusGuard(aBusGuard);
-    if (!aBusGuard)
-        Log(_L8("  guard=0: BUS GUARD OFF - raising the bus killed 4 of 4 (findings 38.2)"));
 
     TUint32 coreReg = CoreFieldSet(e->StockCore(), ECoreL3, aL3);
     coreReg = CoreFieldSet(coreReg, ECoreDss1, aDss);
@@ -2922,12 +2917,7 @@ static void RunL()
         // вимкнене за замовчуванням: цей блоб на апараті ще не виконувався.
         TInt hold = 0;
         KeyVal(cmd, _L("hold="), hold);
-        // guard=0 знімає запобіжник підйому шини. Окремим ключем і ввімкнене
-        // за замовчуванням: підйом шини убив апарат чотири рази з чотирьох.
-        TInt guard = 1;
-        KeyVal(cmd, _L("guard="), guard);
-        RunClocks(mult, mpu, l3, dss, sec, child, childArgs, sample, hold != 0,
-                  guard != 0);
+        RunClocks(mult, mpu, l3, dss, sec, child, childArgs, sample, hold != 0);
         }
     else if (cmd.Find(_L("patcher dspset")) != KErrNotFound ||
              cmd.Find(_L("patcher dsphold")) != KErrNotFound)

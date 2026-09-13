@@ -864,7 +864,7 @@ COcEngine::COcEngine()
   : iProfile(&KProfileRM320),
     iOrigCount(0), iPatcherOpen(EFalse), iDvfsOpen(EFalse), iReady(EFalse), iExecMode(EFalse), iPatched(EFalse), iShadowed(EFalse),
     iApplied(EFalse), iKeep(EFalse), iRestoreNeedsReboot(EFalse),
-    iBusGuard(ETrue), iFoundGlobal(0), iFoundBody(0), iFoundSram(0), iLastCoreWritten(0), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
+    iFoundGlobal(0), iFoundBody(0), iFoundSram(0), iLastCoreWritten(0), iAppliedMult(0), iSram(0), iStockClkSel1(0), iStockCore(0), iStockMpu(0),
     iBootCore(0), iBootMpu(0), iBootMult(0),
     iStockDspDiv(0), iDspDiv(0), iStep(EOcStepIdle)
     {
@@ -2141,27 +2141,18 @@ TInt COcEngine::ApplyMultAndCore(TInt aMult, TUint32 aCoreReg, TUint32 aMpuReg,
     if (aMult < KOcMultMin || aMult > KOcMultMax)
         return KErrArgument;
 
-    // Єдина точка, крізь яку проходить БУДЬ-ЯКИЙ запис розкладки, тож
-    // запобіжник шини стоїть саме тут, а не лише в RestoreStock.
+    // Дільник шини йде в залізо таким, яким його задав користувач.
     //
-    // Підйом шини (зменшення l3div проти живого) убив апарат чотири рази з
-    // чотирьох (findings §38.2). Але просто відмовити в записі означало б
-    // заблокувати розгін після будь-якої зміни шини, тож ми не відмовляємо, а
-    // ЗАТИСКАЄМО поле l3 живим значенням: множник міняється як просили, шина
-    // лишається зниженою, і про це видно з прапорця. Ребут поверне штатну.
-    if (aCoreReg && iBusGuard)
-        {
-        TUint32 liveCore = 0;
-        if (ReadReg(KRegClkSel1Core, liveCore) == KErrNone)
-            {
-            const TUint32 liveL3 = liveCore & KCoreL3Mask;
-            if ((aCoreReg & KCoreL3Mask) < liveL3)
-                {
-                aCoreReg = (aCoreReg & ~KCoreL3Mask) | liveL3;
-                iRestoreNeedsReboot = ETrue;
-                }
-            }
-        }
+    // Доти тут стояв запобіжник, який затискав поле l3 живим значенням і не
+    // давав підняти шину. Його прибрано свідомо: підбирати розгін усе одно
+    // доводиться на конкретному апараті, а множник, який ніщо не обмежує,
+    // рівно так само здатний перезавантажити телефон. Обмежувати одну з двох
+    // однаково небезпечних величин і лишати другу вільною сенсу немає.
+    //
+    // Захист лишився там, де він не про свободу вибору: RestoreStock не
+    // повертає вже знижену шину до штатної, бо саме ця операція вбивала апарат
+    // чотири рази з чотирьох (findings §38.2). Ребут повертає штатне тактування
+    // в будь-якому разі, тож ця відмова нічого в користувача не відбирає.
 
     // Міняємо рівно біти [21:12], решту регістра зберігаємо.
     TUint32 target = (iStockClkSel1 & ~0x003ff000u) |
@@ -2309,7 +2300,7 @@ TInt COcEngine::RestoreStock(TUint32& aStatus)
     // випадок (шина вища за штатну) ми ніколи не створюємо, бо CompensatedCore
     // затискає l3 знизу штатним значенням, але звужена умова точніша за "будь-яка
     // різниця" й не заблокує безпечного пониження.
-    if (iBusGuard && (v[0] & KCoreL3Mask) > (iStockCore & KCoreL3Mask))
+    if ((v[0] & KCoreL3Mask) > (iStockCore & KCoreL3Mask))
         {
         iRestoreNeedsReboot = ETrue;
         iApplied = EFalse;   // ми більше нічого не робитимемо з цим станом

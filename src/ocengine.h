@@ -476,8 +476,6 @@ public:
     // Вимикати можна ЛИШЕ явно, і це той самий принцип "усе ризиковане за явним
     // аргументом", за яким тут живе решта небезпечних шляхів. Вимкнення нічого
     // не псує назавжди: у флеш не пишеться нічого, найгірше - миттєвий ребут.
-    void SetBusGuard(TBool aOn) { iBusGuard = aOn; }
-    TBool BusGuard() const { return iBusGuard; }
 
     // Версія прошивки, ПРОЧИТАНА з апарата (перший рядок SysUtil::GetSWVersion).
     // Порожня, доки Prepare() не викликали.
@@ -551,7 +549,6 @@ private:
     // апаратах (findings 38.2). Тому RestoreStock відмовляється це робити
     // й лишає апарат на зниженій шині, а користувачеві каже перезавантажитись.
     TBool    iRestoreNeedsReboot;
-    TBool    iBusGuard;
     TBuf<64> iFirmware;
     TUint32  iFoundGlobal;     // що знайшов пошук; 0 = профіль знав адресу сам
     TUint32  iFoundBody;       // тіло DoControl носія, знайдене скануванням XIP

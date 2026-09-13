@@ -26,11 +26,6 @@ enum TOcStrId
     EStrNoMemory,
     EStrPressConfirm,
     EStrNothingArmed,
-    EStrGuardOn,
-    EStrGuardOff,
-    EStrGuardNote,
-    EStrGuardRowOn,
-    EStrGuardRowOff,
     EStrBusLeftLowered,
     EStrWarnBusBelow,
     EStrWarnBusReturn,
@@ -64,11 +59,9 @@ enum TOcStrId
     EStrDspMismatch,
     EStrDspNoTimer,
     EStrDspHeld,
-    EStrBusStaysClamped,
     EStrBusClamped,
     EStrRowDspRevert,
     EStrRowDspLive,
-    EStrRowBusClamped,
     EStrRowBusManual,
     EStrRowBusAuto,
     EStrDspReverted,
@@ -86,6 +79,7 @@ enum TOcStrId
     EStrKeepRowOn,
     EStrKeepRowOff,
     EStrKeepNote,
+    EStrRowLanguage,
     EStrCount
     };
 
@@ -99,5 +93,12 @@ TPtrC OcHelpLine(TInt aIndex);
 // Скільки мов у збірці і код активної - для діагностики.
 TInt OcStrLanguageCount();
 TPtrC OcStrActiveLanguage();
+// Ручний вибір мови. Індекс замикається по колу, тож викликач може просто
+// додавати або віднімати одиницю, не дбаючи про межі.
+void OcStrSetLanguage(TInt aIndex);
+TInt OcStrLanguageIndex();
+// Власна назва мови за індексом; без аргументу - активної.
+TPtrC OcStrLanguageName(TInt aIndex);
+TPtrC OcStrActiveLanguageName();
 
 #endif

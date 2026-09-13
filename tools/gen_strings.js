@@ -35,6 +35,21 @@ function esc(s) {
 }
 function cmt(s) { return s.replace(/\*\//g, '* /'); }
 
+// Власна назва кожної мови - саме так її бачить користувач у списку. Код
+// ("uk") нічого не каже тому, хто шукає свою мову, а «українська» каже.
+const LNAME = {
+    en: 'English',      uk: 'Українська',   ru: 'Русский',
+    pl: 'Polski',       de: 'Deutsch',      fr: 'Français',
+    es: 'Español',      it: 'Italiano',     pt: 'Português',
+    cs: 'Čeština',      nl: 'Nederlands',   sv: 'Svenska',
+    tr: 'Türkçe',       ro: 'Română',       hu: 'Magyar',
+    el: 'Ελληνικά',     fi: 'Suomi',        da: 'Dansk',
+    no: 'Norsk',        sk: 'Slovenčina',   bg: 'Български',
+    hr: 'Hrvatski',     sl: 'Slovenščina',  sr: 'Srpski',
+    et: 'Eesti',        lv: 'Latviešu',     lt: 'Lietuvių',
+    ca: 'Català',
+};
+
 // Symbian TLanguage для кожного коду. Мова без відповідника тут не збереться -
 // це навмисно, щоб мовчки не з'явилась таблиця, до якої неможливо дійти.
 const TLANG = {
@@ -94,6 +109,13 @@ TPtrC OcHelpLine(TInt aIndex);
 // Скільки мов у збірці і код активної - для діагностики.
 TInt OcStrLanguageCount();
 TPtrC OcStrActiveLanguage();
+// Ручний вибір мови. Індекс замикається по колу, тож викликач може просто
+// додавати або віднімати одиницю, не дбаючи про межі.
+void OcStrSetLanguage(TInt aIndex);
+TInt OcStrLanguageIndex();
+// Власна назва мови за індексом; без аргументу - активної.
+TPtrC OcStrLanguageName(TInt aIndex);
+TPtrC OcStrActiveLanguageName();
 
 #endif
 `;
@@ -136,7 +158,64 @@ helpLangs.forEach(lang => {
 c += `static const TUint16* const* gStr = KOcStr_${base};
 static const TUint16* const* gHelp = KOcHelp_${base};
 static TInt gHelpCount = KOcHelpCount_${base};
-static const TUint16* gActiveName = (const TUint16*)L"${esc(base)}";
+static const TUint16* gActiveName = (const TUint16*)L"${esc(LNAME[base])}";
+
+// Таблиці всіх мов в одному масиві: саме він робить можливим ручний вибір.
+// Порядок той самий, що в src/strings.json, і англійська стоїть першою.
+static const TUint16* const* const KOcStrTable[] =
+    {
+LANGTABLE    };
+
+static const TUint16* const* const KOcHelpTable[] =
+    {
+HELPTABLE    };
+
+static const TInt KOcHelpCountTable[] =
+    {
+HELPCOUNT    };
+
+static const TUint16* const KOcLangName[] =
+    {
+LANGNAMES    };
+
+static TInt gLang = 0;
+
+static void OcStrUse(TInt aIndex)
+    {
+    gLang = aIndex;
+    gStr = KOcStrTable[aIndex];
+    gHelp = KOcHelpTable[aIndex];
+    gHelpCount = KOcHelpCountTable[aIndex];
+    gActiveName = KOcLangName[aIndex];
+    }
+
+void OcStrSetLanguage(TInt aIndex)
+    {
+    const TInt n = OcStrLanguageCount();
+    // Замикаємо по колу в обидва боки: гортання списку не мусить упиратись
+    // у край, а від'ємний індекс у C++ дає від'ємний залишок.
+    TInt i = aIndex % n;
+    if (i < 0)
+        i += n;
+    OcStrUse(i);
+    }
+
+TInt OcStrLanguageIndex()
+    {
+    return gLang;
+    }
+
+TPtrC OcStrLanguageName(TInt aIndex)
+    {
+    if (aIndex < 0 || aIndex >= OcStrLanguageCount())
+        return TPtrC();
+    return TPtrC(KOcLangName[aIndex]);
+    }
+
+TPtrC OcStrActiveLanguageName()
+    {
+    return TPtrC(KOcLangName[gLang]);
+    }
 
 void OcStrInit()
     {
@@ -150,13 +229,7 @@ langs.slice(1).forEach(lang => {
 `;
     (ALIAS[lang] || []).forEach(a => { c += `        case ${a}:
 `; });
-    c += `            gStr = KOcStr_${lang};
-`;
-    if (data.help[lang])
-        c += `            gHelp = KOcHelp_${lang};
-            gHelpCount = KOcHelpCount_${lang};
-`;
-    c += `            gActiveName = (const TUint16*)L"${esc(lang)}";
+    c += `            OcStrUse(${langs.indexOf(lang)});
             break;
 `;
 });
@@ -197,6 +270,22 @@ TPtrC OcStrActiveLanguage()
     return TPtrC(gActiveName);
     }
 `;
+// Тіла таблиць. Мова без довідки бере англійську: NULL тут означав би
+// порожній екран замість тексту, а не «перекладу немає».
+let langTable = '', helpTable = '', helpCount = '', langNames = '';
+langs.forEach(l => {
+    langTable += `    KOcStr_${l},\n`;
+    const hl = data.help[l] ? l : base;
+    helpTable += `    KOcHelp_${hl},\n`;
+    helpCount += `    KOcHelpCount_${hl},\n`;
+    if (!LNAME[l]) throw new Error('немає власної назви для ' + l);
+    langNames += `    // ${cmt(LNAME[l])}\n    (const TUint16*)L"${esc(LNAME[l])}",\n`;
+});
+c = c.replace('LANGTABLE', langTable)
+     .replace('HELPTABLE', helpTable)
+     .replace('HELPCOUNT', helpCount)
+     .replace('LANGNAMES', langNames);
+
 fs.writeFileSync('src/ocstr.cpp', c, 'utf8');
 
 const filled = {};
