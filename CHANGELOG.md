@@ -45,6 +45,19 @@
   application in the menu is unchanged. Confirmed on the N95: the clock is
   applied 45 seconds after boot and the multiplier reads back as asked.
   Findings 50 has the sequence, including three explanations that were wrong.
+- FIXED: autostart switched itself off after the very first restart, saying
+  nothing, on a phone where the configuration had just been saved and confirmed.
+  The loop detector that refuses a configuration whose previous session ended
+  right after it was confirmed counted the soak as such a session, and rebooting
+  straight after a soak is what anyone would do - on the E90 it happened twice
+  out of two. It now counts only confirmations that came from a boot, which is
+  the case it was built for.
+- The application now says which of the two refusals happened, rather than
+  reporting both as a boot the phone did not survive, and it also reports the
+  paths that give up before touching a register - engine not ready, apply
+  failed, no profile. Those left the record armed and said nothing anywhere,
+  which is exactly what a phone whose unlock patches are not applied at boot
+  will do every time.
 - The soak that follows a save now shows a countdown in the autostart row and
   asks not to restart the phone, and the row updates itself when the soak ends
   instead of waiting for the application to be opened again. Saving also

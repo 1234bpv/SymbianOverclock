@@ -168,11 +168,21 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
     // the configuration and then ended almost at once. A configuration that
     // survives the hold and dies a minute later would otherwise be applied on
     // every boot for ever, and the first detector would never see it.
+    //
+    // It applies only when the previous confirmation came from a boot. A soak
+    // confirms a configuration the application applied and the user is sitting
+    // in front of, and rebooting straight afterwards to see it work is the
+    // obvious thing to do - so obvious that on the E90 it happened twice out of
+    // two, and both times this detector read it as a session that had died and
+    // switched autostart off. There is nothing to detect in that case: the clock
+    // came from the application, not from boot, and a short session proves only
+    // that someone pressed a button.
     const TInt64 then = RecordSeconds(aRec);
     TUint32 lo = 0, hi = 0;
     NowSeconds(lo, hi);
     const TInt64 now = MAKE_TINT64(hi, lo);
-    if (then > 0 && now > then && (now - then) < (TInt64)KOcBootMinSessionSec)
+    if (aRec.iLastResult == (TUint32)EOcBootResConfirmed &&
+        then > 0 && now > then && (now - then) < (TInt64)KOcBootMinSessionSec)
         {
         Disable(aRec, KOcBootFlagFailed, EOcBootResRefusedRecent,
                 _L8("boot: previous session too short after confirming, autostart off"));

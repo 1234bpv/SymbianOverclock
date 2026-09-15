@@ -101,6 +101,8 @@ enum TOcStrId
     EStrBootApplyWarn,
     EStrBootFailed,
     EStrBootSoakBad,
+    EStrBootRefusedRecent,
+    EStrBootNotApplied,
     EStrBootFailedCfg,
     EStrCount
     };

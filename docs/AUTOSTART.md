@@ -94,6 +94,14 @@ detector would never see it. So if a boot finds an `Armed` record whose
 confirmation is less than five minutes old, the previous session ended almost as
 soon as it was confirmed, and the configuration is refused on that ground alone.
 
+That second detector counts only confirmations that came from a boot. A soak
+confirms a configuration the application applied and the user is watching, and
+restarting straight afterwards to see it work is the obvious thing to do -
+obvious enough that on the E90 it happened twice out of two, and both times the
+detector read it as a session that had died and switched autostart off, which is
+how this was found. A short session after a soak proves only that someone
+pressed a button; a short session after a boot is the thing worth refusing.
+
 ## What is not applied at boot
 
 `RestoreStock` is never called. Returning an already lowered bus to stock killed

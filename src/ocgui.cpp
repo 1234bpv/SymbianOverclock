@@ -992,11 +992,29 @@ void COcView::ReportBootOutcome()
         }
     if (iBoot.iFlags & (KOcBootFlagFailed | KOcBootFlagSoakBad))
         {
-        AddLog(OcStr((iBoot.iFlags & KOcBootFlagFailed) ? EStrBootFailed
-                                                        : EStrBootSoakBad));
+        // Which of the two refusals it was matters to whoever is reading: one
+        // says the phone did not survive, the other says only that it was
+        // restarted too soon after a check, which is not the same news at all.
+        TInt id = EStrBootSoakBad;
+        if (iBoot.iFlags & KOcBootFlagFailed)
+            id = (iBoot.iLastResult == (TUint32)EOcBootResRefusedRecent)
+                 ? EStrBootRefusedRecent : EStrBootFailed;
+        AddLog(OcStr(id));
         AddLogF(OcStr(EStrBootFailedCfg), (TInt)iBoot.iMult,
                 (TInt)(iBoot.iCore & KCoreL3Mask));
         iBoot.iFlags &= ~(KOcBootFlagFailed | KOcBootFlagSoakBad);
+        OcBootSave(iBoot);
+        }
+    // The paths that give up before writing a register leave the record armed
+    // and set no flag, so without this they say nothing anywhere and autostart
+    // looks simply ignored. That is what a phone whose unlock patches are not
+    // applied at boot will do every time.
+    else if (iBoot.iLastResult == (TUint32)EOcBootResNotReady ||
+             iBoot.iLastResult == (TUint32)EOcBootResApplyFailed ||
+             iBoot.iLastResult == (TUint32)EOcBootResNoProfile)
+        {
+        AddLog(OcStr(EStrBootNotApplied));
+        iBoot.iLastResult = (TUint32)EOcBootResNone;
         OcBootSave(iBoot);
         }
     // Help on first run, and again after an update. Keyed on the version rather
