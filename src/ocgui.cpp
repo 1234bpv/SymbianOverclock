@@ -757,7 +757,21 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         else if (iBoot.iState == EOcBootCandidate)
             aOut.Copy(OcStr(EStrRowAutostartSoak));
         else if (iBoot.iState == EOcBootArmed || iBoot.iState == EOcBootApplied)
+            {
             aOut.Format(OcStr(EStrRowAutostartOn), (TInt)iBoot.iMult);
+            // The dividers belong here as much as the multiplier does. Without
+            // them the row says what the record holds only in part, and a record
+            // saved before the dividers were set is indistinguishable from one
+            // saved after - which is exactly the question the E90 raised. The
+            // field names are register fields and stay as they are in any
+            // language, like the other technical suffixes in this list.
+            TBuf<24> div;
+            div.Format(_L("  l3/%d l4/%d"),
+                       CoreFieldValue(iBoot.iCore, ECoreL3),
+                       CoreFieldValue(iBoot.iCore, ECoreL4));
+            if (aOut.MaxLength() - aOut.Length() >= div.Length())
+                aOut.Append(div);
+            }
         else
             aOut.Copy(OcStr(EStrRowAutostartOff));
         return;
@@ -1176,6 +1190,13 @@ void COcView::SaveForBoot()
         AddLog(OcStr(EStrBootSaveFailed));
         return;
         }
+
+    // What went into the record, in the same shape as the "ready: stock" line
+    // above, so that the two can be compared by eye. The record is what boot
+    // applies, and until this line existed nothing on the phone said whether the
+    // dividers had been part of it.
+    AddLogF(_L("boot cfg: m%d core %08x mpu %08x"),
+            (TInt)iBoot.iMult, iBoot.iCore, iBoot.iMpu);
 
     // The soak measures the configuration that is live, so the configuration has
     // to stay live: with KEEP off, closing this window would put the phone back

@@ -241,6 +241,13 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
         // whole project rule is that what the hardware says is the answer.
         TInt liveAfter = 0;
         engine->LiveMult(liveAfter);
+        // The dividers are read back for the same reason, and for one more: they
+        // are the part of the configuration a running system has its own opinion
+        // about. A multiplier that holds while CM_CLKSEL1_CORE comes back stock
+        // looks, from the outside, exactly like dividers that were never written,
+        // and the log is the only place the two can be told apart.
+        TUint32 coreAfter = 0;
+        engine->LiveCore(coreAfter);
         // The DSP divider is deliberately not applied here. A non-stock DSP
         // divider rebooted the phone twice out of two at idle (findings 24.5),
         // which is why even the application holds it only under a watchdog. It
@@ -249,9 +256,9 @@ static void BootApply(TOcBootRecord& aRec, TBool aDry)
         delete engine;                  // keeps the clocks, removes the patch
 
         {
-        TBuf8<96> line;
-        line.Format(_L8("boot: apply m%d core %08x r=%d status=%u live=%d"),
-                    (TInt)aRec.iMult, aRec.iCore, r, status, liveAfter);
+        TBuf8<128> line;
+        line.Format(_L8("boot: apply m%d core %08x r=%d status=%u live m=%d core=%08x"),
+                    (TInt)aRec.iMult, aRec.iCore, r, status, liveAfter, coreAfter);
         OcBootLog(line);
         }
         if (r != KErrNone && !applied)
