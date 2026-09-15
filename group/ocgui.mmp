@@ -6,8 +6,16 @@
 
 TARGET          ocgui.exe
 TARGETTYPE      exe
+// UID3 is the identity of the application and stays 0xE0001011: the menu, the
+// registration file and the installed package are all keyed on it.
+//
+// The SECUREID is deliberately a different number. ocboot.exe has to carry
+// 0xE0001011 as its SID for the system to launch it at boot (findings 50), two
+// executables in one package may not share a SID (findings 49), and nothing here
+// depends on what our own SID is, because the only file the two share lives in a
+// public directory. 0xE0001014 is unused on both phones.
 UID             0 0xE0001011
-SECUREID        0xE0001011
+SECUREID        0xE0001014
 VENDORID        0
 
 // The same set as the probe: PowerMgmt is the most likely check in

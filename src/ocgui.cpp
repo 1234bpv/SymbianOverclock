@@ -148,6 +148,14 @@ private:
     // it. See ocboot.h for why one proof is not enough.
     void SaveForBoot();
     void ReportBootOutcome();
+    // Watching the soak that follows a save. The soak runs in ocboot.exe, in a
+    // process of its own, so the record changes behind our back and the row
+    // would otherwise keep saying CHECKING until the application was next
+    // opened - which is what it did, and what made a working save look broken.
+    // The countdown is the same number the record holds, so what is on screen
+    // is what ocboot is actually waiting for.
+    static TInt SoakTick(TAny* aSelf);
+    void StartSoakWatch(TInt aSeconds);
     // DSP divider auto-revert. Measured (findings §24.5): a non-stock divider,
     // left in the system for long, crashes the device into a reboot even without any
     // load on the DSP, whereas a dwell with guaranteed reversion succeeds
@@ -178,6 +186,9 @@ private:
     TInt   iDspDiv;          // edited DSP divider (path separate from iArmed)
     CPeriodic* iDspTimer;    // watchdog for DSP divider auto-revert
     TInt   iDspLeftSec;      // seconds remaining until auto-revert
+    CPeriodic* iSoakTimer;   // watches the soak running in ocboot.exe
+    TInt   iSoakLeftSec;     // seconds left of the soak, 0 = past it
+    TInt   iSoakPollSec;     // seconds left of waiting for the verdict
     TBool  iArmed;           // "APPLY SETTING" pressed, awaiting confirmation
     TInt   iArmedMult;
     TUint32 iArmedCore;
@@ -197,6 +208,7 @@ private:
 COcView::COcView()
   : iEngine(NULL), iRow(ERowSlider), iTop(0), iMult(0), iManual(EFalse),
     iCoreReg(0), iMpuDiv(2), iL3Div(0), iLiveL3(0), iKeep(ETrue), iDspDiv(3), iDspTimer(NULL), iDspLeftSec(0),
+    iSoakTimer(NULL), iSoakLeftSec(0), iSoakPollSec(0),
     iArmed(EFalse), iArmedMult(0), iArmedCore(0),
     iArmedMpu(0),
     iLogCount(0), iBuf(NULL), iBufWords(0), iKnownDevice(EFalse), iTestProfile(0), iHelp(EFalse), iHelpTop(0)
@@ -321,6 +333,7 @@ void COcView::ConstructL(const TRect& aRect)
 COcView::~COcView()
     {
     delete iDspTimer;
+    delete iSoakTimer;
     User::Free(iBuf);
     delete iEngine;
     }
@@ -738,7 +751,10 @@ void COcView::RowLabel(TInt aRow, TDes& aOut) const
         }
     if (aRow == ERowAutostart)
         {
-        if (iBoot.iState == EOcBootCandidate)
+        if (iBoot.iState == EOcBootCandidate && iSoakLeftSec > 0)
+            aOut.Format(OcStr(EStrRowAutostartSoakLeft),
+                        iSoakLeftSec / 60, iSoakLeftSec % 60);
+        else if (iBoot.iState == EOcBootCandidate)
             aOut.Copy(OcStr(EStrRowAutostartSoak));
         else if (iBoot.iState == EOcBootArmed || iBoot.iState == EOcBootApplied)
             aOut.Format(OcStr(EStrRowAutostartOn), (TInt)iBoot.iMult);
@@ -995,6 +1011,74 @@ void COcView::ReportBootOutcome()
         iBoot.iHelpShown = h;
         OcBootSave(iBoot);
         }
+    // Opened while a soak started earlier is still running: there is no way to
+    // know how much of the hold is left, so only the verdict is waited for.
+    if (iBoot.iState == EOcBootCandidate)
+        StartSoakWatch(0);
+    }
+
+// How long the verdict is waited for once the countdown has run out, and how
+// much is added to the hold to cover the round of tests that follows it. Both
+// are generous on purpose: overrunning the estimate costs a row that says
+// CHECKING slightly too long, while cutting it short would report a soak as
+// lost while ocboot is still working.
+const TInt KSoakPollSec = 300;
+const TInt KSoakMarginSec = 30;
+
+// One second of the soak. The countdown is cosmetic; the verdict is not, and
+// it comes from the record rather than from anything this process knows, since
+// the soak runs in ocboot.exe and may outlive this window.
+TInt COcView::SoakTick(TAny* aSelf)
+    {
+    COcView* self = (COcView*)aSelf;
+    if (self->iSoakLeftSec > 0)
+        {
+        --self->iSoakLeftSec;
+        self->Repaint();
+        return 0;
+        }
+    TOcBootRecord rec;
+    if (OcBootLoad(rec) == KErrNone && rec.iState != EOcBootCandidate)
+        {
+        self->iSoakTimer->Cancel();
+        self->iSoakPollSec = 0;
+        self->iBoot = rec;
+        if (rec.iState == EOcBootArmed)
+            self->AddLog(OcStr(EStrBootSoakArmed));
+        else
+            self->AddLog(OcStr((rec.iFlags & KOcBootFlagSoakBad)
+                               ? EStrBootSoakBad : EStrBootOff));
+        // Reported here, so it is not reported again at the next start.
+        if (self->iBoot.iFlags & (KOcBootFlagFailed | KOcBootFlagSoakBad))
+            {
+            self->iBoot.iFlags &= ~(KOcBootFlagFailed | KOcBootFlagSoakBad);
+            OcBootSave(self->iBoot);
+            }
+        self->Repaint();
+        return 0;
+        }
+    // Nothing was written and the budget is spent: ocboot is gone without a
+    // verdict, which the record already shows by staying a candidate - and a
+    // candidate is exactly what boot ignores, so there is nothing to repair.
+    if (--self->iSoakPollSec <= 0)
+        self->iSoakTimer->Cancel();
+    return 0;
+    }
+
+// Starts, or restarts, the watch. aSeconds is what is left of the hold; zero
+// means the application was opened in the middle of a soak started earlier and
+// only the verdict is waited for.
+void COcView::StartSoakWatch(TInt aSeconds)
+    {
+    TInt err = KErrNone;
+    if (!iSoakTimer)
+        TRAP(err, iSoakTimer = CPeriodic::NewL(CActive::EPriorityStandard));
+    if (err != KErrNone || !iSoakTimer)
+        return;                 // no countdown; the soak itself is unaffected
+    iSoakTimer->Cancel();
+    iSoakLeftSec = aSeconds;
+    iSoakPollSec = KSoakPollSec;
+    iSoakTimer->Start(1000000, 1000000, TCallBack(COcView::SoakTick, this));
     }
 
 // Saves the running configuration for the boot-time applier.
@@ -1075,6 +1159,16 @@ void COcView::SaveForBoot()
         return;
         }
 
+    // The soak measures the configuration that is live, so the configuration has
+    // to stay live: with KEEP off, closing this window would put the phone back
+    // to stock and the soak would then certify a stock clock as an overclock.
+    if (!iKeep)
+        {
+        iKeep = ETrue;
+        iEngine->KeepOnExit(ETrue);
+        AddLog(OcStr(EStrBootKeepForced));
+        }
+
     // The soak runs in its own process so that the phone can be used normally
     // while it waits, and so that closing this window does not cancel it.
     {
@@ -1086,8 +1180,11 @@ void COcView::SaveForBoot()
         }
     }
     AddLogF(OcStr(EStrBootSaved), (TInt)(iBoot.iHoldSec / 60));
+    AddLog(OcStr(EStrBootSoakNoReboot));
+    AddLog(OcStr(EStrBootSoakWatchNote));
     AddLog(OcStr(EStrBootSoakWarn));
     AddLogF(OcStr(EStrBootApplyWarn), (TInt)iBoot.iDelaySec);
+    StartSoakWatch((TInt)iBoot.iHoldSec + KSoakMarginSec);
     }
 
 void COcView::ActivateTestProfile()

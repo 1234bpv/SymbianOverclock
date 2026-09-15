@@ -37,6 +37,19 @@
   own, and the record they share moved to C:\Data\Overclock, which both can
   reach. The full account, including the two explanations that turned out to be
   wrong, is in findings 49.
+- FIXED: the startup entry was registered and then never ran, so autostart did
+  nothing at all and said nothing either. The package UID, the name of the file
+  installed into the startup import directory and the secure identifier of the
+  executable being launched all have to be one number; ocboot.exe now carries
+  0xE0001011 and ocgui.exe moved to 0xE0001014, keeping UID3 0xE0001011 so the
+  application in the menu is unchanged. Confirmed on the N95: the clock is
+  applied 45 seconds after boot and the multiplier reads back as asked.
+  Findings 50 has the sequence, including three explanations that were wrong.
+- The soak that follows a save now shows a countdown in the autostart row and
+  asks not to restart the phone, and the row updates itself when the soak ends
+  instead of waiting for the application to be opened again. Saving also
+  switches KEEP ON EXIT on: the soak measures the configuration that is live, so
+  closing the window must not put the phone back to stock underneath it.
 - NEW: the help opens by itself the first time a build is run, and can be
   skipped with the right soft key. It is keyed on the version rather than on a
   plain flag, because uninstalling does not reliably remove the private

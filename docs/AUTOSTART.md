@@ -155,7 +155,15 @@ The package installs `ocboot.exe` into `C:\sys\bin` and a `STARTUP_ITEM_INFO`
 resource into `C:\private\101f875a\import\[E0001011].rsc`. The resource cannot
 be created by the application - it is another process's private directory and
 needs `AllFiles` - so it is always installed, and the switch is the record
-instead. With autostart off, `ocboot` reads `boot.dat`, sees `Off` and exits
+instead.
+
+That file name is not a choice. The installer registers the entry only if the
+file is named after the UID of the package, and the system launches the entry
+only if the executable it names carries that same number as its secure
+identifier. This is why `ocboot.exe` has SID `0xE0001011` while `ocgui.exe`,
+which cannot share it, moved to `0xE0001014`; the application keeps
+`UID3 0xE0001011` and is the same application in the menu. Both rules fail
+silently, and finding out cost four reboots - findings 50. With autostart off, `ocboot` reads `boot.dat`, sees `Off` and exits
 before opening a single driver. Uninstalling removes both files.
 
 ## Honest assessment

@@ -2,13 +2,23 @@
 // in the menu and is started only from the startup list, or by the application
 // with the "soak" argument.
 //
-// Its own UID3 and SECUREID, both unused on these phones. They cannot be shared
-// with ocgui.exe, however convenient a shared private directory would be: the
-// installer refuses the whole package when two executables claim one SID, and
-// says only "unable to install" (measured on the N95, findings 49). 0xE0001012
-// is taken on this phone as well - it belongs to Hexen II GL from this same
-// tree - so the next free number is used. This is also why the record lives in
-// a public directory rather than a private one; see ocbootcfg.cpp.
+// The SECUREID here is the package UID, 0xE0001011, and that is not a
+// convenience but the condition for autostart working at all. The installer
+// registers the startup entry from a file named after the package UID, and the
+// system then launches what that entry names only if the executable carries the
+// same identifier as its SID. Both halves were measured on the N95, each by its
+// own silent failure; findings 50 has the sequence.
+//
+// So ocgui.exe is the one that moved. Two executables may not claim one SID -
+// the installer refuses the whole package and says only "unable to install"
+// (findings 49) - and of the two, only ocboot.exe is constrained in which number
+// it may take. ocgui.exe keeps 0xE0001011 as its UID3, so the application in the
+// menu is the same application as before; only its SID changed, and nothing
+// depends on that since the record moved to a public directory (ocbootcfg.cpp).
+//
+// UID3 stays 0xE0001013, which is free on both phones. It is not what the
+// startup mechanism reads, and two executables in one package sharing a UID3 is
+// trouble already paid for once.
 //
 // Capabilities are the same set as ocgui.exe: the applier opens the same kernel
 // channels and would otherwise fail exactly where the application succeeds.
@@ -16,7 +26,7 @@
 TARGET          ocboot.exe
 TARGETTYPE      exe
 UID             0 0xE0001013
-SECUREID        0xE0001013
+SECUREID        0xE0001011
 VENDORID        0
 
 CAPABILITY      PowerMgmt WriteDeviceData ReadDeviceData ReadUserData WriteUserData ProtServ CommDD

@@ -4138,3 +4138,78 @@ can read another executable's private directory, so the record moved to
 `C:\Data\Overclock\boot.dat`, where both can reach it. What that costs and what
 still protects the boot is written where the paths are defined, in
 `src/ocbootcfg.cpp`.
+
+## 50. Autostart: the package UID, the file name and the SID are one number
+
+The startup entry installed with version 2.3.0 registered correctly and then
+never ran. Nothing anywhere said so: the phone booted normally, the clock stayed
+stock, and the only sign was the absence of a line in `boot.log`. Four reboots
+went into finding out why, on the N95 on 2026-09-15, and three explanations were
+wrong before the right one.
+
+Two rules turned out to be at work, each with its own silent failure, and each
+of them hid the other.
+
+The first belongs to the installer. The startup resource is installed into
+`C:\private\101f875a\import\`, and the file has to be named after the **UID of
+the package**. Named `[E0001011].rsc`, it produced the store entry
+`C:\private\101f875a\startup\[e0001011].dat` holding the path to the
+executable. Named `[E0001013].rsc`, after the SID of `ocboot.exe` instead, it was
+consumed on installation exactly the same way and registered nothing at all. The
+import file is read by the installer, not by the startup server at boot: a file
+placed there by hand survived a reboot untouched.
+
+The second belongs to the startup server. It launches a registered entry only if
+the executable named inside carries the entry's number as its **secure
+identifier**. `[e0001011].dat` pointed at `c:\sys\bin\ocboot.exe`, whose SID was
+then `0xE0001013`, and it was never launched - through four boots, with the entry
+sitting in the store the whole time.
+
+Together they mean the package UID, the name of the import file and the SID of
+the launched executable have to be the same number. The working example on the
+same phone is `SymbianDeployDaemon`: package `0xE0001004`, import file
+`[E0001004].rsc`, `ps1daemon.exe` with SID `0xE0001004` - and it comes up thirty
+seconds after boot, which is how it served as the control here.
+
+So `ocboot.exe` took `0xE0001011` as its SID and `ocgui.exe` gave it up for
+`0xE0001014`. The application keeps `UID3 0xE0001011`, which is what its
+registration file, the menu entry and the installed package are keyed on, so it
+is the same application as before; only the SID moved, and nothing depends on it
+now that the shared record lives in a public directory (findings 49). The result,
+from the phone's own log:
+
+```
+2026-09-15 02:14:15 boot: apply m111 core 04360844 r=0 status=0 live=111
+```
+
+`live=111` is the multiplier read back out of `CM_CLKSEL1_PLL` after the write,
+not the value that was asked for.
+
+Three explanations were tested and refuted along the way, and they are worth
+keeping because each looked convincing.
+
+The first was that the file name had to match the SID of the executable, which
+is the exact opposite of the first rule above. It was tested by placing a
+correctly named `.rsc` into the import directory by hand; the file was still
+there, unread, after the reboot, which is how the installer's role became clear.
+
+The second was that `ocboot.exe`, having a SID of its own, could no longer read
+the record in the application's private directory and was exiting silently
+before writing anything. The record was moved to the public `C:\Data\Overclock`
+and nothing changed, so the applier was not being started at all. (On this phone
+the point is moot anyway: `Open4all` is applied at boot and the private-directory
+check is not enforced. It would matter on a phone patched differently, which is
+one more reason the record stays public.)
+
+The third was that the startup list was not working on this phone at all. It
+came from the neighbouring daemon's log, which showed it starting three minutes
+after boot rather than thirty seconds - and that turned out to be the user
+starting it by hand. The control was only worth anything once that was ruled out.
+
+The cheapest diagnostic here is the log itself. Every path in `ocbootmain.cpp`
+after the record is loaded writes a line, so an empty log distinguishes "never
+launched" from "launched and refused" - and it was the empty log, four times
+over, that finally pointed at the launch rather than at anything inside the
+applier. The second cheapest is `C:\private\101f875a\startup\`: the presence of
+the `.dat` file says whether the installer accepted the import file, and its
+contents say which executable the system thinks it should run.

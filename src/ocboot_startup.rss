@@ -7,6 +7,14 @@
 // switch is the record instead: with autostart off, ocboot reads boot.dat,
 // finds EOcBootOff and exits without opening a single driver.
 //
+// The NAME of the installed file is not free, and it cost four reboots to learn
+// what it has to be. It is [<package UID>].rsc, 0xE0001011 here: named after
+// anything else, the installer consumes the file and registers nothing at all.
+// And the executable it names must carry that same number as its SID, or the
+// entry is registered and then never launched. Both failures are silent, and
+// together they mean the package UID, the file name and the SID of the launched
+// executable are one number; see findings 50.
+//
 // "!:" means "whatever drive the executable is on". ocboot.exe is installed to
 // C: along with the application, for the same reason: executables on C: skip
 // the removable media hash check and the path does not move with a memory card.
