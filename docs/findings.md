@@ -4213,3 +4213,11 @@ over, that finally pointed at the launch rather than at anything inside the
 applier. The second cheapest is `C:\private\101f875a\startup\`: the presence of
 the `.dat` file says whether the installer accepted the import file, and its
 contents say which executable the system thinks it should run.
+
+Autostart is now confirmed on both phones. The N95 line above is from its own
+log; on the E90 it took one further fix - the second loop detector counted the
+soak as a boot session and refused the record twice out of two - and the owner
+confirmed on 2026-09-15 that the clock comes up by itself there as well. Two
+phones matter here because the E90 hosts the primitive on `Usbc` rather than
+`dvfs_interface`, so the launch path is the only part of autostart the two share
+unchanged.

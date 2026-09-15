@@ -20,6 +20,33 @@ homebrew (dev-unlocked), connected over local WiFi. Context and scope —
 
 ## Where We Are Now
 
+### Version 2.3.0: autostart works on both phones (2026-09-15)
+
+The overclock can now be applied after a restart without touching the phone, and
+it is confirmed end to end on the N95 and on the E90. It is off after
+installation and switching it on takes three proofs - the configuration has to
+be live in the registers, pass three rounds of tests when it is saved, and then
+survive a soak plus one more clean round before boot will use it. The applier is
+a separate executable, `ocboot.exe`, with no user interface; deleting that one
+file switches autostart off without removing the application. The design, and
+the loop it has to make impossible, are in `docs/AUTOSTART.md`.
+
+Two defects stood between the feature and a working phone, and both were silent.
+The package would not install at all while `ocboot.exe` shared a secure
+identifier with `ocgui.exe`, because an identifier has to be unique across the
+device (findings 49). Then the startup entry registered and never ran, because
+the package UID, the name of the file installed into the startup import
+directory and the SID of the launched executable all have to be one number
+(findings 50). `ocboot.exe` therefore carries `0xE0001011` and `ocgui.exe` moved
+to `0xE0001014`, keeping `UID3 0xE0001011` so the menu entry is unchanged.
+
+A third defect showed up only on the E90: our own second loop detector read the
+soak as a boot session that had died and refused the configuration twice out of
+two. It now counts only confirmations that came from a boot. Along with it the
+application learned to report the paths that used to give up in silence - engine
+not ready, apply failed, no profile - which is exactly what a phone whose unlock
+patches are not applied at boot does every time.
+
 ### Version 2.0.1: rollback with live words, working test profile (2026-09-11)
 
 The final pre-release review found five discrepancies, and all five
