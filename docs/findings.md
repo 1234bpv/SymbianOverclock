@@ -4265,8 +4265,19 @@ retention, where the CORE domain loses context and the operating system restores
 what it believes the dividers are. The next boot with the new build separates
 the two, and until it has run this is a guess either way.
 
-There is a second, probably unrelated observation in the same report: the L4
-divider does not stick in the application either. The record has `l4=2` although
-the owner had lowered it, and a lowered L4 with `l3=4` already in the register
-is exactly the shape of write that hardware refuses whole while leaving the
-previous value standing. This has not been measured yet.
+The paragraph that stood here said the L4 divider had not been saved either,
+and it was wrong on both counts. The E90 stock register is `0x04360626` -
+`l3=6 l4=1 dss1=6` - so the record's `l4=2` is the owner's own setting, a
+raised divider that lowers the L4 frequency and, by their measurement, steadies the
+screens. Every field they changed is in the record: the bus, L4, and the DSS1
+compensation that follows from raising the bus. Nothing about the saved
+configuration is wrong, which leaves the register write at boot as the only
+place left to look.
+
+One argument bears on which of the two remaining explanations is more likely,
+and it is an inference rather than a measurement. A multiplier ramp that raised
+CORE from 86 to 105 while `CM_CLKSEL1_CORE` stayed stock would have left DSS1
+uncompensated, and an uncompensated DSS1 shifts the display pixel clock, which
+froze rendering when it was measured (findings 21). The phone came up and was
+used normally, so the dividers were probably applied during the ramp and undone
+later, rather than refused at every step. The readback settles it either way.
