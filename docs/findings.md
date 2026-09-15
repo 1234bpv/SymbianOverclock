@@ -4221,3 +4221,52 @@ confirmed on 2026-09-15 that the clock comes up by itself there as well. Two
 phones matter here because the E90 hosts the primitive on `Usbc` rather than
 `dvfs_interface`, so the launch path is the only part of autostart the two share
 unchanged.
+
+## 51. Autostart on the E90 applies the multiplier and comes up with a stock bus
+
+Reported on 2026-09-15: after an autostart boot the E90 runs at the saved
+multiplier while the bus and L4 dividers are at stock. The first suspicion was
+the record - that it had been saved before the dividers were set - and it is
+refuted. The record, read off the phone with the daemon, is
+
+```
+state 2 (armed)  mult 105  core 04360844  mpu 00000002  dspDiv 3
+core fields: l3=4 l4=2 dss1=8 dss2=0
+```
+
+and the E90 stock L3 divider is 6, so `l3=4` is the raised bus, saved. The
+phone's own log shows that value going to the apply path at boot:
+
+```
+2026-09-15 11:52:44 boot: apply m105 core 04360844 r=0 status=0 live=105
+2026-09-15 11:55:45 boot: held for the whole period, confirmed
+```
+
+So the dividers were in the record and were requested. Boot and the application
+reach the hardware through exactly the same call, `ApplyRampWithCore`, and the
+relock blob writes `CM_CLKSEL1_PLL` and `CM_CLKSEL1_CORE` under one
+`CLKCFG_CTRL` commit, so there is no path that writes a multiplier without the
+dividers beside it. What remains is a write that hardware refused as a whole -
+it does that silently when any field in `CM_CLKSEL1_CORE` is invalid
+(findings 38) - or a write that took effect and was undone afterwards.
+
+Neither left a trace, because `ocboot` logged the value it asked for and never
+read the register back. It does now, and the line carries `core=%08x` beside
+`live m=%d`. The application also logs the record as it saves it and shows `l3`
+and `l4` from the record in the autostart row, so a record missing its dividers
+is now visible on the phone without a PC.
+
+Against the second explanation stands the supervised evidence already in this
+file: on the E90 a non-stock `l3div` held through a whole watched window with
+zero drift samples (§§ above), and the same on the N95. For it stands the one
+difference between those windows and a boot: the probe kept the phone busy,
+while a phone that has just started up and is not being touched goes into
+retention, where the CORE domain loses context and the operating system restores
+what it believes the dividers are. The next boot with the new build separates
+the two, and until it has run this is a guess either way.
+
+There is a second, probably unrelated observation in the same report: the L4
+divider does not stick in the application either. The record has `l4=2` although
+the owner had lowered it, and a lowered L4 with `l3=4` already in the register
+is exactly the shape of write that hardware refuses whole while leaving the
+previous value standing. This has not been measured yet.
