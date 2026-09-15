@@ -146,6 +146,7 @@ private:
     // the overclock must be live in the registers, it must pass three rounds of
     // tests here and now, and it must then survive a soak before boot will use
     // it. See ocboot.h for why one proof is not enough.
+    void SeedFromLive();
     void SaveForBoot();
     void ReportBootOutcome();
     // Watching the soak that follows a save. The soak runs in ocboot.exe, in a
@@ -292,18 +293,9 @@ void COcView::ConstructL(const TRect& aRect)
     TInt r = iEngine->Prepare();
     if (r == KErrNone)
         {
-        // Slider is set to the ACTUAL multiplier of the device, whereas the reference point
-        // (StockCore/StockMpu) is constant. If device is found already overclocked, this is shown
-        // in the log as a separate line, rather than silently becoming the new normal.
-        iMult = iEngine->BootMult();
-        iArmedMult = iMult;
-        iCoreReg = iEngine->StockCore();
-        iArmedCore = iCoreReg;
-        iMpuDiv = (TInt)(iEngine->BootMpu() & KMpuDivMask);
-        iArmedMpu = iEngine->StockMpu();
-        iDspDiv = iEngine->StockDspDiv();
-        iLiveL3 = (TInt)(iEngine->BootCore() & KCoreL3Mask);
-        AddLogF(_L("ready: stock m%d core %08x"), iEngine->StockMult(), iCoreReg);
+        SeedFromLive();
+        AddLogF(_L("ready: stock m%d core %08x"), iEngine->StockMult(),
+                iEngine->StockCore());   // the reference, not the editor
         if (iEngine->BootedNonStock())
             AddLogF(_L("NON-STOCK at start: m%d core %08x mpu %08x"),
                     iEngine->BootMult(), iEngine->BootCore(), iEngine->BootMpu());
@@ -533,6 +525,37 @@ _LIT(KNameAlu, "ALU");
 _LIT(KNameMem, "MEM");
 _LIT(KNameInt, "SDRAM");
 _LIT(KNameCache, "CACHE");
+
+// Sets the editable configuration to what the registers hold right now.
+//
+// The multiplier was always taken from the live register; the dividers were
+// taken from the profile, and on a phone that autostart had already
+// overclocked the two disagreed. The multiplier row said 105 while the bus and
+// L4 rows said stock, because the dividers shown were either the profile
+// constant or what auto-compensation would propose - never the register. That
+// looked exactly like an autostart that had applied the multiplier and dropped
+// the dividers, and it cost an evening to find out that the hardware had them
+// all along (findings 51).
+//
+// A phone that booted non-stock also switches to manual: the layout in the
+// registers was chosen by someone, and auto-compensation would quietly offer a
+// different one under rows that are supposed to describe the phone as it is.
+void COcView::SeedFromLive()
+    {
+    iMult = iEngine->BootMult();
+    iArmedMult = iMult;
+    iCoreReg = iEngine->BootCore();
+    iArmedCore = iCoreReg;
+    iMpuDiv = (TInt)(iEngine->BootMpu() & KMpuDivMask);
+    iArmedMpu = iEngine->BootMpu();
+    iDspDiv = iEngine->StockDspDiv();
+    iLiveL3 = (TInt)(iEngine->BootCore() & KCoreL3Mask);
+    if (iEngine->BootedNonStock())
+        {
+        iManual = ETrue;
+        iL3Div = iLiveL3;
+        }
+    }
 
 // In manual mode edited register is used, in auto - one chosen by engine.
 // Beyond that: as soon as the user touches the BUSDIV row, its value overrides
@@ -1249,14 +1272,7 @@ void COcView::ActivateTestProfile()
         AddLog(OcStr(EStrTestProfileOk));
         if (iEngine->FoundGlobal())
             AddLogF(OcStr(EStrTestProfileFoundGlobal), iEngine->FoundGlobal());
-        iMult = iEngine->BootMult();
-        iArmedMult = iMult;
-        iCoreReg = iEngine->StockCore();
-        iArmedCore = iCoreReg;
-        iMpuDiv = (TInt)(iEngine->BootMpu() & KMpuDivMask);
-        iArmedMpu = iEngine->StockMpu();
-        iDspDiv = iEngine->StockDspDiv();
-        iLiveL3 = (TInt)(iEngine->BootCore() & KCoreL3Mask);
+        SeedFromLive();
         }
     else
         {

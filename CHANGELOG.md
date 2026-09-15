@@ -70,6 +70,18 @@
 - The measurement and stress tests moved from ocgui.cpp into octests.cpp
   unchanged, so that the boot-time applier runs the same tests rather than a
   second copy of them.
+- FIXED: after an autostart boot the application showed the bus and L4 dividers
+  at stock while the hardware held the ones that had been applied. The multiplier
+  row was seeded from the live register and the divider rows from the profile, so
+  the two described different phones, and the phone the screen described did not
+  exist. Every field is now seeded from the registers, and a phone that booted
+  non-stock starts in manual mode rather than under automatic compensation, which
+  would propose a layout of its own. The clock itself was correct all along -
+  findings 51 has the register dump that shows it.
+- ocboot reads CM_CLKSEL1_CORE back after applying it and logs what it found, the
+  application logs the configuration as it writes it to the record, and the
+  autostart row shows the saved l3 and l4 beside the multiplier. Between them,
+  the question "was it actually applied" is now answerable on the phone.
 
 ## 2.2.1
 

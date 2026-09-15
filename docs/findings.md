@@ -4222,10 +4222,10 @@ phones matter here because the E90 hosts the primitive on `Usbc` rather than
 `dvfs_interface`, so the launch path is the only part of autostart the two share
 unchanged.
 
-## 51. Autostart on the E90 applies the multiplier and comes up with a stock bus
+## 51. The dividers were applied at boot all along; the application showed stock
 
-Reported on 2026-09-15: after an autostart boot the E90 runs at the saved
-multiplier while the bus and L4 dividers are at stock. The first suspicion was
+Reported on 2026-09-15: after an autostart boot the E90 appeared to run at the
+saved multiplier with the bus and L4 dividers back at stock. The first suspicion was
 the record - that it had been saved before the dividers were set - and it is
 refuted. The record, read off the phone with the daemon, is
 
@@ -4234,8 +4234,11 @@ state 2 (armed)  mult 105  core 04360844  mpu 00000002  dspDiv 3
 core fields: l3=4 l4=2 dss1=8 dss2=0
 ```
 
-and the E90 stock L3 divider is 6, so `l3=4` is the raised bus, saved. The
-phone's own log shows that value going to the apply path at boot:
+The stock register on that phone is `0x04360626`, so `l3=4` is the raised bus
+and `l4=2` is a divider the owner raised deliberately: raising L4 lowers its
+frequency, which by their measurement steadies the E90 screens. Every field they
+had changed was in the record, and the phone's own log shows that value going to
+the apply path at boot:
 
 ```
 2026-09-15 11:52:44 boot: apply m105 core 04360844 r=0 status=0 live=105
@@ -4256,28 +4259,38 @@ read the register back. It does now, and the line carries `core=%08x` beside
 and `l4` from the record in the autostart row, so a record missing its dividers
 is now visible on the phone without a PC.
 
-Against the second explanation stands the supervised evidence already in this
-file: on the E90 a non-stock `l3div` held through a whole watched window with
-zero drift samples (§§ above), and the same on the N95. For it stands the one
-difference between those windows and a boot: the probe kept the phone busy,
-while a phone that has just started up and is not being touched goes into
-retention, where the CORE domain loses context and the operating system restores
-what it believes the dividers are. The next boot with the new build separates
-the two, and until it has run this is a guess either way.
+The answer came from the phone, and it is neither of the two. The new build
+logged the register it had just written, and a read-only register dump taken
+twenty-eight minutes into that same session found the same value still there:
 
-The paragraph that stood here said the L4 divider had not been saved either,
-and it was wrong on both counts. The E90 stock register is `0x04360626` -
-`l3=6 l4=1 dss1=6` - so the record's `l4=2` is the owner's own setting, a
-raised divider that lowers the L4 frequency and, by their measurement, steadies the
-screens. Every field they changed is in the record: the bus, L4, and the DSS1
-compensation that follows from raising the bus. Nothing about the saved
-configuration is wrong, which leaves the register write at boot as the only
-place left to look.
+```
+2026-09-15 18:39:38 boot: apply m105 core 04360844 r=0 status=0 live m=105 core=04360844
 
-One argument bears on which of the two remaining explanations is more likely,
-and it is an inference rather than a measurement. A multiplier ramp that raised
-CORE from 86 to 105 while `CM_CLKSEL1_CORE` stayed stock would have left DSS1
-uncompensated, and an uncompensated DSS1 shifts the display pixel clock, which
-froze rendering when it was measured (findings 21). The phone came up and was
-used normally, so the dividers were probably applied during the ramp and undone
-later, rather than refused at every step. The readback settles it either way.
+  NOT STOCK AT START: m=105 CLKSEL1_CORE=04360844 CLKSEL_MPU=00000002
+  CM_CLKSEL1_CORE @c6008240 = 04360844
+```
+
+So autostart applies the whole configuration - multiplier, bus, L4 and the DSS1
+compensation - and the phone holds it. Nothing was refused and nothing drifted.
+What was wrong was the application's own display of it.
+
+The multiplier row has always been seeded from the live register, while the
+divider rows were seeded from the profile's stock constant and, in automatic
+mode, showed what compensation would propose for the multiplier on screen. On a
+phone that had just autostarted, that meant the multiplier row said 105 while
+the bus and L4 rows described a phone that did not exist. The register was
+right and the screen was wrong, which is the exact inversion of the project's
+own rule about trusting what the system reports - and this time the thing
+reporting was us.
+
+`COcView::SeedFromLive` now seeds every field from the live registers, and a
+phone that booted non-stock starts in manual mode, because the layout in the
+registers was chosen by someone and automatic compensation would quietly offer a
+different one under rows meant to describe the phone as it is.
+
+The useful general lesson is about the instrument rather than the bug. Three
+explanations were on the table - a record without dividers, a write refused by
+hardware, a write undone by the operating system - and all three were wrong,
+while the one thing nobody suspected was the readout. The dump that settled it
+took one command and no reboot, and it should have been the first step rather
+than the fourth.
