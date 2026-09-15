@@ -64,7 +64,7 @@ SIS is not needed: on this device already unlocked for homebrew, the daemon puts
 
 - **DO NOT write to flash.** Everything is runtime; reboot must restore the device as it was.
 - **DO NOT enable anything by default that can hang.** The daemon is single-threaded and waits for process exit, so a hung probe blocks the entire delivery channel, and driver state in the kernel is only cleared by rebooting the device. Everything risky must be behind an explicit argument.
-- **DO NOT believe what the system reports without independent measurement.** `HAL::ECPUSpeed` lies on this device (206438 kHz vs real 330 MHz). This is not a curiosity, but a working rule: all known Symbian "overclocks" failed precisely because they measured a label, not actual work.
+- **DO NOT believe what the system reports without independent measurement.** `HAL::ECPUSpeed` lies on this device (206438 kHz vs real 330 MHz). This is not a curiosity, but a working rule: every public Symbian "overclock" that could be examined offers a number the system reports about itself and no measured work (`docs/WALKTHROUGH.md` §8). Do not describe this project as the first Symbian overclock - it is not, and the SX1 case in particular looks like a real one.
 - **DO NOT repeat the same thing after two failures.** Stop, lay out the facts, ask. A device hung twice is already too much.
 - DO NOT add AI authorship markers or emojis in commits, code, or comments.
 - DO NOT proliferate files beyond what is necessary.

@@ -617,7 +617,10 @@ Real-world application result, not synthetic: **SPmark 3D 62 → 75 fps (+21%)**
 This is the most transferable part of the experience — it is barely about Symbian.
 
 1. **Measure actual work, not the label.** `HAL::ECPUSpeed` lies consistently and
-   convincingly. All public "Symbian overclocks" failed precisely here.
+   convincingly, and so do the benchmark applications that ask it. Every public
+   "Symbian overclock" we were able to examine reports a number of that kind and
+   no measured work; see section 8 for what was and was not verifiable. That is
+   a statement about the evidence offered, not about whether the clock moved.
 2. **Two independent instruments.** A chain of independent `add` instructions (absolute frequency) and an
    ALU loop with data dependency. When both yield the same percentage and it
    matches the calculation `19.2*mult/5` — it is no longer a coincidence.
@@ -758,3 +761,42 @@ PowerShell to `signsis` without `-s`, which returns 0 and produces an unsigned f
 4. **`SDRC_ACTIM_CTRLA` `+0x9C`** — offset taken from the datasheet from memory and not
    verified against code. Does not affect overclocking (we do not write timings), but is marked
    as a guess and must remain so until verified.
+
+---
+
+## 8. Prior Art
+
+This is not the first attempt to raise the clock on a Symbian phone, and the
+project should not be described as if it were. Two cases were put to us on
+2026-09-15 and are recorded here with what could be checked about them, which is
+less than one would like in both instances.
+
+**Siemens SX1** (Symbian OS 6.1, Series 60 v1, OMAP310). The *Reborn* custom
+firmware advertises itself as "ready for overclocking and underclocking CPU via
+SX1Speed app", so the clock is changed from software by a separate application
+on top of a patched firmware, not by a hardware modification. The page carries no
+frequencies, no benchmark and no register detail, so nothing about it can be
+confirmed or refuted from the outside. One line in its change list is worth more
+than the claim itself: "fixed colors when overclocked". A display whose colours
+break when the clock rises is a display whose pixel clock rides on the same
+domain, which is exactly the DSS1 divider problem of section 3.15. Whoever wrote
+that had a real device in front of them.
+
+**Nokia N8** (Symbian^3/Belle, 680 MHz ARM11). The n8fanclub guide applies a
+RomPatcher+ patch named `OverClock_CPU_Nokia_Belle.rmp` after jailbreaking, and
+states no frequency, before-and-after figure or mechanism of its own. The only
+number anywhere on the page is in a comment - "as a result of b-m app it was
+1048 MHz" - and it comes from a benchmark application, which is to say from a
+number the system reports about itself. On our own phone that number is
+`206438` kHz against a real 330 MHz, so it is precisely the evidence this
+project treats as worthless. The patch may well do something; the page does not
+show that it does.
+
+What we can say about our own work is narrower and better supported: the
+multiplier is read back out of `CM_CLKSEL1_PLL` after the write, the frequency
+is measured with two independent instruments that agree with each other and with
+`19.2 * mult / 5`, and the result shows up in a third-party 3D benchmark as
+frames per second. That is a claim about method, not about priority.
+
+Sources: <https://avalibeyaz.com/sx1/>,
+<https://www.n8fanclub.com/2013/04/how-to-overclock-enhance-boost-nokia-n8.html>
