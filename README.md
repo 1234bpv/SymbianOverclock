@@ -53,7 +53,7 @@ The application offers the following:
   back the factory frequency, and the one operation known to crash the phone is
   blocked.
 - **Underclocking** is possible too, down to 165 MHz.
-- **28 interface languages**, chosen automatically from the phone's language
+- **33 interface languages**, chosen automatically from the phone's language
   setting or by hand in the `LANGUAGE` row, and a full built-in help text in
   every one of them.
 - **Protection against wrong phones.** The application changes nothing on a
@@ -483,11 +483,14 @@ full reasoning is in [`docs/AUTOSTART.md`](docs/AUTOSTART.md).
 
 ## Translations
 
-The interface and the built-in help are available in 28 languages: English,
+The interface and the built-in help are available in 33 languages, the same
+set as [PS1Emulator](https://github.com/1234bpv/PS1Emulator): English,
 Ukrainian, Russian, Polish, German, French, Spanish, Italian, Portuguese, Czech,
 Dutch, Swedish, Turkish, Romanian, Hungarian, Greek, Finnish, Danish,
 Norwegian, Slovak, Bulgarian, Croatian, Slovenian, Serbian, Estonian, Latvian,
-Lithuanian and Catalan. All translations live in `src/strings.json`; the
+Lithuanian, Catalan, Chinese, Japanese, Korean, Hindi and Arabic. The phone's
+fonts have no Chinese, Japanese or Korean characters on the tested phones, so
+those three languages need a phone whose firmware includes them. All translations live in `src/strings.json`; the
 command `node tools/gen_strings.js` regenerates the tables in `src/ocstr.cpp`.
 A missing string falls back to English.
 

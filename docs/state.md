@@ -20,6 +20,16 @@ homebrew (dev-unlocked), connected over local WiFi. Context and scope —
 
 ## Where We Are Now
 
+### Five more languages: 33, the same set as PS1Emulator (2026-10-06)
+
+Chinese, Japanese, Korean, Hindi and Arabic were added (98 strings and 65 help
+lines each, translated by the agy subagent and checked automatically for keys,
+format specifiers, line count and characters outside the BMP). The generator
+gained their LNAME/TLANG entries and the Taiwan/Hong Kong Chinese aliases;
+toolsuild_sis.cmd builds and signs. NOT checked on a phone: the tested
+N95 and E90 fonts have no CJK glyphs, so those three languages only render on
+firmware that has them. The language list order is append-only.
+
 ### Version 2.3.2: help formula fixed, README rewritten (2026-10-06)
 
 The built-in help gave `DPLL = 19.2 MHz x MULT / 4` in all 28 languages; the

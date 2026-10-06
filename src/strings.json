@@ -28,7 +28,12 @@
     "et",
     "lv",
     "lt",
-    "ca"
+    "ca",
+    "ar",
+    "hi",
+    "ja",
+    "ko",
+    "zh"
   ],
   "strings": {
     "RowApply": {
@@ -59,7 +64,12 @@
       "et": "RAKENDA SÄTE",
       "lv": "LIETOT IESTATĪJUMU",
       "lt": "TAIKYTI NUSTATYMĄ",
-      "ca": "APLICA LA CONFIGURACIÓ"
+      "ca": "APLICA LA CONFIGURACIÓ",
+      "ar": "تطبيق الإعداد",
+      "hi": "सेटिंग लागू करें",
+      "ja": "設定を適用",
+      "ko": "설정 적용",
+      "zh": "应用设置"
     },
     "RowConfirmArmed": {
       "en": "CONFIRM OVERCLOCK <<",
@@ -89,7 +99,12 @@
       "et": "KINNITA KIIRENDUS <<",
       "lv": "APSTIPRINĀT PĀRTAKTĒŠANU <<",
       "lt": "PATVIRTINTI PAGREITINIMĄ <<",
-      "ca": "CONFIRMA L'OVERCLOCK <<"
+      "ca": "CONFIRMA L'OVERCLOCK <<",
+      "ar": "تأكيد رفع التردد <<",
+      "hi": "ओवरक्लॉक पुष्टि करें <<",
+      "ja": "オーバークロック確定 <<",
+      "ko": "오버클록 확인 <<",
+      "zh": "确认超频 <<"
     },
     "RowConfirmIdle": {
       "en": "CONFIRM (use APPLY SETTING first)",
@@ -119,7 +134,12 @@
       "et": "CONFIRM (esmalt APPLY SETTING)",
       "lv": "CONFIRM (vispirms APPLY SETTING)",
       "lt": "CONFIRM (pirma APPLY SETTING)",
-      "ca": "CONFIRM (primer APPLY SETTING)"
+      "ca": "CONFIRM (primer APPLY SETTING)",
+      "ar": "تأكيد (استخدم تطبيق الإعداد أولاً)",
+      "hi": "पुष्टि (पहले सेटिंग लागू करें)",
+      "ja": "確定 (先に「設定を適用」)",
+      "ko": "확인 (먼저 설정 적용 필요)",
+      "zh": "确认 (请先应用设置)"
     },
     "RowRestore": {
       "en": "RESTORE STOCK",
@@ -149,7 +169,12 @@
       "et": "TAASTA TEHASESÄTTED",
       "lv": "ATJAUNOT RŪPNĪCAS",
       "lt": "ATKURTI GAMYKLINIUS",
-      "ca": "RESTAURA DE FÀBRICA"
+      "ca": "RESTAURA DE FÀBRICA",
+      "ar": "استعادة التردد الأصلي",
+      "hi": "मूल स्थिति बहाल करें",
+      "ja": "定格に戻す",
+      "ko": "기본값 복원",
+      "zh": "恢复默认主频"
     },
     "RowTestAlu": {
       "en": "TEST cpu/alu",
@@ -179,7 +204,12 @@
       "et": "TEST cpu/alu",
       "lv": "TESTS cpu/alu",
       "lt": "TESTAS cpu/alu",
-      "ca": "PROVA cpu/alu"
+      "ca": "PROVA cpu/alu",
+      "ar": "اختبار cpu/alu",
+      "hi": "परीक्षण cpu/alu",
+      "ja": "テスト cpu/alu",
+      "ko": "cpu/alu 테스트",
+      "zh": "测试 cpu/alu"
     },
     "RowTestMem": {
       "en": "TEST mem bandwidth",
@@ -209,7 +239,12 @@
       "et": "TEST mälu ribalaius",
       "lv": "TESTS atmiņas caurlaide",
       "lt": "TESTAS atminties pralaidumas",
-      "ca": "PROVA amplada de memòria"
+      "ca": "PROVA amplada de memòria",
+      "ar": "اختبار نطاق الذاكرة",
+      "hi": "परीक्षण मेमोरी बैंडविड्थ",
+      "ja": "テスト メモリ帯域幅",
+      "ko": "메모리 대역폭 테스트",
+      "zh": "测试 内存带宽"
     },
     "RowTestInt": {
       "en": "TEST sdram integrity",
@@ -239,7 +274,12 @@
       "et": "TEST sdram terviklikkus",
       "lv": "TESTS sdram integritāte",
       "lt": "TESTAS sdram vientisumas",
-      "ca": "PROVA integritat sdram"
+      "ca": "PROVA integritat sdram",
+      "ar": "اختبار سلامة sdram",
+      "hi": "परीक्षण sdram अखंडता",
+      "ja": "テスト SDRAM整合性",
+      "ko": "SDRAM 무결성 테스트",
+      "zh": "测试 SDRAM完整性"
     },
     "RowTestCache": {
       "en": "TEST cache",
@@ -269,7 +309,12 @@
       "et": "TEST vahemälu",
       "lv": "TESTS kešatmiņa",
       "lt": "TESTAS podėlis",
-      "ca": "PROVA memòria cau"
+      "ca": "PROVA memòria cau",
+      "ar": "اختبار cache",
+      "hi": "परीक्षण कैश",
+      "ja": "テスト キャッシュ",
+      "ko": "캐시 테스트",
+      "zh": "测试 缓存"
     },
     "RowTestAll": {
       "en": "TEST combined (all)",
@@ -299,7 +344,12 @@
       "et": "TEST koond (kõik)",
       "lv": "TESTS kopējais (viss)",
       "lt": "TESTAS bendras (viskas)",
-      "ca": "PROVA combinada (tot)"
+      "ca": "PROVA combinada (tot)",
+      "ar": "اختبار شامل (الكل)",
+      "hi": "संयुक्त परीक्षण (सभी)",
+      "ja": "テスト 総合 (すべて)",
+      "ko": "종합 테스트 (전체)",
+      "zh": "测试 综合(全部)"
     },
     "RowHelp": {
       "en": "HELP / how to use",
@@ -329,7 +379,12 @@
       "et": "ABI / kasutusjuhend",
       "lv": "PALĪDZĪBA / kā lietot",
       "lt": "ŽINYNAS / kaip naudoti",
-      "ca": "AJUDA / com usar-ho"
+      "ca": "AJUDA / com usar-ho",
+      "ar": "تعليمات / كيفية الاستخدام",
+      "hi": "मदद / उपयोग निर्देश",
+      "ja": "ヘルプ / 使い方",
+      "ko": "도움말 / 사용 방법",
+      "zh": "帮助 / 使用说明"
     },
     "ModeAuto": {
       "en": "AUTO (track stock)",
@@ -359,7 +414,12 @@
       "et": "AUTO (jälgib tehaseoma)",
       "lv": "AUTO (seko rūpnīcas)",
       "lt": "AUTO (seka gamyklinius)",
-      "ca": "AUTO (segueix la de fàbrica)"
+      "ca": "AUTO (segueix la de fàbrica)",
+      "ar": "تلقائي (تتبع الأصلي)",
+      "hi": "AUTO (मूल अनुसार)",
+      "ja": "自動 (定格追従)",
+      "ko": "자동 (기본값 추종)",
+      "zh": "自动 (跟随默认)"
     },
     "ModeManual": {
       "en": "MANUAL",
@@ -389,7 +449,12 @@
       "et": "KÄSITSI",
       "lv": "MANUĀLI",
       "lt": "RANKINIS",
-      "ca": "MANUAL"
+      "ca": "MANUAL",
+      "ar": "يدوي",
+      "hi": "MANUAL",
+      "ja": "手動",
+      "ko": "수동",
+      "zh": "手动"
     },
     "Applied": {
       "en": "APPLIED",
@@ -419,7 +484,12 @@
       "sv": "TILLAMPAT",
       "tr": "UYGULANDI",
       "ro": "APLICAT",
-      "hu": "BEALLITVA"
+      "hu": "BEALLITVA",
+      "ar": "تم التطبيق",
+      "hi": "लागू किया गया",
+      "ja": "適用完了",
+      "ko": "적용됨",
+      "zh": "已应用"
     },
     "Rejected": {
       "en": "REJECTED",
@@ -449,7 +519,12 @@
       "sv": "AVVISAT",
       "tr": "REDDEDILDI",
       "ro": "RESPINS",
-      "hu": "ELUTASITVA"
+      "hu": "ELUTASITVA",
+      "ar": "مرفوض",
+      "hi": "अस्वीकृत",
+      "ja": "拒否",
+      "ko": "거부됨",
+      "zh": "已拒绝"
     },
     "Running": {
       "en": "running...",
@@ -479,7 +554,12 @@
       "et": "töötab...",
       "lv": "darbojas...",
       "lt": "vykdoma...",
-      "ca": "executant..."
+      "ca": "executant...",
+      "ar": "قيد التشغيل...",
+      "hi": "चल रहा है...",
+      "ja": "実行中...",
+      "ko": "실행 중...",
+      "zh": "正在运行..."
     },
     "NotReady": {
       "en": "ENGINE NOT READY - tests only",
@@ -509,7 +589,12 @@
       "et": "MOOTOR POLE VALMIS - ainult testid",
       "lv": "DZINĒJS NAV GATAVS - tikai testi",
       "lt": "VARIKLIS NEPARUOŠTAS - tik testai",
-      "ca": "MOTOR NO PREPARAT - només proves"
+      "ca": "MOTOR NO PREPARAT - només proves",
+      "ar": "المحرك غير جاهز - اختبارات فقط",
+      "hi": "इंजन तैयार नहीं - केवल परीक्षण",
+      "ja": "エンジン未準備 - テストのみ",
+      "ko": "엔진 미준비 - 테스트만 가능",
+      "zh": "引擎未就绪 - 仅供测试"
     },
     "EngineDisabled": {
       "en": "engine not ready - overclock disabled",
@@ -539,7 +624,12 @@
       "sv": "motorn inte redo - overklockning avstangd",
       "tr": "motor hazir degil - hiz asirtma kapali",
       "ro": "motor nepregatit - overclock dezactivat",
-      "hu": "motor nem kesz - orajelnoveles letiltva"
+      "hu": "motor nem kesz - orajelnoveles letiltva",
+      "ar": "المحرك غير جاهز - رفع التردد معطل",
+      "hi": "इंजन तैयार नहीं - ओवरक्लॉक अक्षम",
+      "ja": "エンジン未準備 - オーバークロック無効",
+      "ko": "엔진 미준비 - 오버클록 비활성화",
+      "zh": "引擎未就绪 - 超频已禁用"
     },
     "NoMemory": {
       "en": "no memory for buffer",
@@ -569,7 +659,12 @@
       "sv": "inget minne for buffert",
       "tr": "tampon icin bellek yok",
       "ro": "fara memorie pt buffer",
-      "hu": "nincs memoria pufferhez"
+      "hu": "nincs memoria pufferhez",
+      "ar": "لا توجد ذاكرة كافية للمخزن",
+      "hi": "बफ़र के लिए मेमोरी नहीं",
+      "ja": "バッファ用メモリ不足",
+      "ko": "버퍼 메모리 부족",
+      "zh": "缓冲区内存不足"
     },
     "PressConfirm": {
       "en": "press CONFIRM to apply",
@@ -599,7 +694,12 @@
       "et": "vajutage KINNITA",
       "lv": "nospiediet APSTIPRINĀT",
       "lt": "spauskite PATVIRTINTI",
-      "ca": "premeu CONFIRMA"
+      "ca": "premeu CONFIRMA",
+      "ar": "اضغط تأكيد للتطبيق",
+      "hi": "लागू करने के लिए CONFIRM दबाएं",
+      "ja": "確定を押して適用",
+      "ko": "적용하려면 확인을 누르세요",
+      "zh": "按 确认 以应用"
     },
     "NothingArmed": {
       "en": "nothing armed - use APPLY first",
@@ -629,7 +729,12 @@
       "et": "midagi pole valmis - kasuta RAKENDA",
       "lv": "nekas nav sagatavots - vispirms LIETOT",
       "lt": "niekas neparuošta - pirma TAIKYTI",
-      "ca": "res preparat - useu APLICA primer"
+      "ca": "res preparat - useu APLICA primer",
+      "ar": "لا شيء مجهز - استخدم تطبيق أولاً",
+      "hi": "कुछ तैयार नहीं - पहले APPLY करें",
+      "ja": "未設定 - 先に「設定を適用」してください",
+      "ko": "준비된 항목 없음 - 먼저 적용을 누르세요",
+      "zh": "未就绪 - 请先使用应用"
     },
     "BusLeftLowered": {
       "en": "BUS LEFT LOWERED - reboot for stock",
@@ -659,7 +764,12 @@
       "et": "SIIN JÄI ALANDATUKS - taaskäivitage",
       "lv": "KOPNE PALIKA PAZEMINĀTA - pārstartējiet",
       "lt": "MAGISTRALĖ LIKO SUMAŽINTA - perkraukite",
-      "ca": "EL BUS HA QUEDAT ABAIXAT - reinicieu"
+      "ca": "EL BUS HA QUEDAT ABAIXAT - reinicieu",
+      "ar": "الناقل لا يزال مخفضاً - أعد التشغيل للأصلي",
+      "hi": "बस धीमी रह गई - मूल मान के लिए रीबूट करें",
+      "ja": "バス低速のまま - 再起動で定格復帰",
+      "ko": "버스 클록 낮아짐 - 재부팅 시 기본값 복원",
+      "zh": "总线保持降频 - 重启恢复默认"
     },
     "WarnBusBelow": {
       "en": "WARNING: bus below stock",
@@ -689,7 +799,12 @@
       "sv": "VARNING: buss under standard",
       "tr": "UYARI: veri yolu stoktan dusuk",
       "ro": "ATENTIE: bus sub standard",
-      "hu": "FIGYELEM: a busz gyari alatti"
+      "hu": "FIGYELEM: a busz gyari alatti",
+      "ar": "تحذير: الناقل أقل من الأصلي",
+      "hi": "चेतावनी: बस मूल से नीचे है",
+      "ja": "警告: バスが定格未満です",
+      "ko": "경고: 버스가 기본값보다 낮음",
+      "zh": "警告: 总线低于默认频率"
     },
     "WarnBusReturn": {
       "en": "return to stock rebooted 3 of 3",
@@ -719,7 +834,12 @@
       "sv": "atertagande till standard: omstart 3/3",
       "tr": "varsayilana donus 3/3 reboot verdi",
       "ro": "revenirea la standard a repornit 3/3",
-      "hu": "gyarira visszaallitas: 3/3 ujraindult"
+      "hu": "gyarira visszaallitas: 3/3 ujraindult",
+      "ar": "العودة للأصلي أعادت التشغيل 3 من 3",
+      "hi": "मूल पर वापसी: 3 में से 3 बार रीबूट हुआ",
+      "ja": "定格復帰で3回中3回再起動しました",
+      "ko": "기본값 복원 시 3회 중 3회 재부팅됨",
+      "zh": "恢复默认导致重启 3 次(共 3 次)"
     },
     "WarnBusAbove": {
       "en": "bus above stock - measured on E90, works",
@@ -749,7 +869,12 @@
       "sv": "buss over standard - matt pa E90, fungerar",
       "tr": "veri yolu varsayilan ustu - E90'da calisiyor",
       "ro": "bus peste standard - masurat pe E90, merge",
-      "hu": "busz a gyari felett - E90-en merve, mukodik"
+      "hu": "busz a gyari felett - E90-en merve, mukodik",
+      "ar": "الناقل أعلى من الأصلي - قيس على E90 ويعمل",
+      "hi": "बस मूल से ऊपर - E90 पर जांची गई, काम करती है",
+      "ja": "バスが定格超え - E90で動作確認済み",
+      "ko": "버스가 기본값보다 높음 - E90 측정 완료, 정상 동작",
+      "zh": "总线高于默认频率 - 在 E90 实测正常工作"
     },
     "AboveTested": {
       "en": "above 129: untested, DPLL may not lock",
@@ -779,7 +904,12 @@
       "sv": "over 129: otestat, DPLL kanske inte laser",
       "tr": "129 ustu: test edilmedi, DPLL kilitlenmeyebilir",
       "ro": "peste 129: netestat, DPLL poate rata blocarea",
-      "hu": "129 felett: nem tesztelt, DPLL nem biztos zar"
+      "hu": "129 felett: nem tesztelt, DPLL nem biztos zar",
+      "ar": "أعلى من 129: غير مختبر، قد لا يقفل DPLL",
+      "hi": "129 से ऊपर: अपरीक्षित, DPLL लॉक नहीं हो सकता",
+      "ja": "129超: 未テスト、DPLLがロックしない可能性あり",
+      "ko": "129 초과: 미검증, DPLL 락 실패 가능",
+      "zh": "高于 129: 未测试，DPLL 可能无法锁定"
     },
     "RelockFailed": {
       "en": "relock FAILED - rolled back in blob",
@@ -809,7 +939,12 @@
       "sv": "relock MISSLYCKADES - aterstallt i blob",
       "tr": "relock BASARISIZ - blob icinde geri alindi",
       "ro": "relock A ESUAT - revenit in blob",
-      "hu": "relock SIKERTELEN - visszavonva a blobban"
+      "hu": "relock SIKERTELEN - visszavonva a blobban",
+      "ar": "فشل إعادة القفل - تم التراجع في blob",
+      "hi": "relock विफल - ब्लॉब में वापस लाया गया",
+      "ja": "再ロック失敗 - ブロブ内でロールバック",
+      "ko": "재락 실패 - blob 내부에서 롤백됨",
+      "zh": "重新锁定失败 - 已在 blob 中回滚"
     },
     "HelpTitle": {
       "en": "HELP - BACK to return, up/down to scroll",
@@ -839,7 +974,12 @@
       "et": "ABI - TAGASI väljub, üles/alla kerib",
       "lv": "PALĪDZĪBA - ATPAKAĻ iziet, augšup/lejup ritina",
       "lt": "ŽINYNAS - ATGAL išeiti, aukštyn/žemyn slinkti",
-      "ca": "AJUDA - ENRERE per sortir, amunt/avall desplaça"
+      "ca": "AJUDA - ENRERE per sortir, amunt/avall desplaça",
+      "ar": "تعليمات - رجوع للعودة، أعلى/أسفل للتمرير",
+      "hi": "मदद - वापस के लिए BACK, स्क्रॉल के लिए ऊपर/नीचे",
+      "ja": "ヘルプ - 戻るで復帰、上下でスクロール",
+      "ko": "도움말 - BACK 뒤로, 위/아래 스크롤",
+      "zh": "帮助 - 返回退出，上/下滚动"
     },
     "VerdictClean": {
       "en": "VERDICT: all subsystems clean",
@@ -869,7 +1009,12 @@
       "sv": "VERDIKT: alla delsystem felfria",
       "tr": "SONUC: tum alt sistemler temiz",
       "ro": "VERDICT: toate subsistemele curate",
-      "hu": "ITELET: minden alrendszer tiszta"
+      "hu": "ITELET: minden alrendszer tiszta",
+      "ar": "النتيجة: جميع الأنظمة الفرعية سليمة",
+      "hi": "परिणाम: सभी सबसिस्टम ठीक हैं",
+      "ja": "判定: 全サブシステム正常",
+      "ko": "판정: 모든 서브시스템 정상",
+      "zh": "结论: 所有子系统正常"
     },
     "VerdictWeakBus": {
       "en": "VERDICT: WEAK LINK = SDRAM/bus",
@@ -899,7 +1044,12 @@
       "sv": "VERDIKT: SVAG LANK = SDRAM/buss",
       "tr": "SONUC: ZAYIF HALKA = SDRAM/veri yolu",
       "ro": "VERDICT: PUNCT SLAB = SDRAM/bus",
-      "hu": "ITELET: GYENGE PONT = SDRAM/busz"
+      "hu": "ITELET: GYENGE PONT = SDRAM/busz",
+      "ar": "النتيجة: الحلقة الأضعف = SDRAM/الناقل",
+      "hi": "परिणाम: कमज़ोर कड़ी = SDRAM/बस",
+      "ja": "判定: ボトルネック = SDRAM/バス",
+      "ko": "판정: 취약 지점 = SDRAM/버스",
+      "zh": "结论: 薄弱环节 = SDRAM/总线"
     },
     "VerdictWeakCache": {
       "en": "VERDICT: WEAK LINK = cache",
@@ -929,7 +1079,12 @@
       "sv": "VERDIKT: SVAG LANK = cache",
       "tr": "SONUC: ZAYIF HALKA = cache",
       "ro": "VERDICT: PUNCT SLAB = cache",
-      "hu": "ITELET: GYENGE PONT = cache"
+      "hu": "ITELET: GYENGE PONT = cache",
+      "ar": "النتيجة: الحلقة الأضعف = cache",
+      "hi": "परिणाम: कमज़ोर कड़ी = कैश",
+      "ja": "判定: ボトルネック = キャッシュ",
+      "ko": "판정: 취약 지점 = 캐시",
+      "zh": "结论: 薄弱环节 = 缓存"
     },
     "VerdictWeakCpu": {
       "en": "VERDICT: WEAK LINK = CPU core",
@@ -959,7 +1114,12 @@
       "sv": "VERDIKT: SVAG LANK = CPU-karna",
       "tr": "SONUC: ZAYIF HALKA = CPU cekirdegi",
       "ro": "VERDICT: PUNCT SLAB = nucleu CPU",
-      "hu": "ITELET: GYENGE PONT = CPU-mag"
+      "hu": "ITELET: GYENGE PONT = CPU-mag",
+      "ar": "النتيجة: الحلقة الأضعف = نُواة CPU",
+      "hi": "परिणाम: कमज़ोर कड़ी = CPU कोर",
+      "ja": "判定: ボトルネック = CPUコア",
+      "ko": "판정: 취약 지점 = CPU 코어",
+      "zh": "结论: 薄弱环节 = CPU核心"
     },
     "HintArrows": {
       "en": "use left/right, then APPLY",
@@ -989,7 +1149,12 @@
       "sv": "vanster/hoger, sedan APPLY",
       "tr": "sol/sag tuslar, sonra APPLY",
       "ro": "stanga/dreapta, apoi APPLY",
-      "hu": "bal/jobb nyilak, majd APPLY"
+      "hu": "bal/jobb nyilak, majd APPLY",
+      "ar": "استخدم يسار/يمين، ثم تطبيق",
+      "hi": "बाएं/दाएं का उपयोग करें, फिर APPLY",
+      "ja": "左右キーで選択後、設定を適用",
+      "ko": "좌/우로 변경 후 적용을 누르세요",
+      "zh": "使用左/右调节，然后应用"
     },
     "BusBackToAuto": {
       "en": "bus divider back to auto",
@@ -1019,7 +1184,12 @@
       "sv": "bussdelare ater till auto",
       "tr": "veri yolu bolucusu oto modda",
       "ro": "divizor bus inapoi pe auto",
-      "hu": "buszoszto vissza auto modba"
+      "hu": "buszoszto vissza auto modba",
+      "ar": "قاسم الناقل عاد إلى تلقائي",
+      "hi": "बस डिवाइडर वापस स्वतः पर",
+      "ja": "バス分周器を自動に戻しました",
+      "ko": "버스 분주비가 자동으로 복귀됨",
+      "zh": "总线分频恢复为自动"
     },
     "WarnDspAbove": {
       "en": "WARNING: DSP above stock CRASHES on any DSP use",
@@ -1049,7 +1219,12 @@
       "sv": "VARNING: DSP over standard KRASCHAR vid DSP-bruk",
       "tr": "UYARI: Varsayilan ustu DSP kullanilirsa COKER",
       "ro": "ATENTIE: DSP peste standard CRASHEAZA la uz DSP",
-      "hu": "VIGYAZAT: a gyari feletti DSP azonnal OSSZEOMLIK"
+      "hu": "VIGYAZAT: a gyari feletti DSP azonnal OSSZEOMLIK",
+      "ar": "تحذير: DSP أعلى من الأصلي ينهار عند أي استخدام لـ DSP",
+      "hi": "चेतावनी: मूल से अधिक DSP किसी भी DSP उपयोग पर क्रैश करता है",
+      "ja": "警告: 定格超えのDSPはDSP使用時にクラッシュします",
+      "ko": "경고: DSP 기본값 초과 시 DSP 사용 즉시 충돌",
+      "zh": "警告: DSP高于默认频率在调用DSP时会导致崩溃"
     },
     "WarnDspUseMult": {
       "en": "use MULT instead - it raises DSP safely",
@@ -1079,7 +1254,12 @@
       "sv": "anvand MULT istallet - hojer DSP sakert",
       "tr": "yerine MULT kullanin - DSP'yi guvenle artirir",
       "ro": "folositi MULT - mareste DSP in siguranta",
-      "hu": "hasznalja a MULT-ot - biztonsagos DSP-re"
+      "hu": "hasznalja a MULT-ot - biztonsagos DSP-re",
+      "ar": "استخدم MULT بدلاً منه - يرفع DSP بأمان",
+      "hi": "इसके बजाय MULT का उपयोग करें - यह DSP सुरक्षित बढ़ाता है",
+      "ja": "代わりにMULTを使用してください - DSPを安全に昇格",
+      "ko": "대신 MULT 사용 권장 - DSP를 안전하게 올림",
+      "zh": "请改用 MULT - 可安全提高 DSP 频率"
     },
     "UnknownSend": {
       "en": "send these two lines to add a profile",
@@ -1109,7 +1289,12 @@
       "sv": "skicka dessa 2 rader for att lagga till profil",
       "tr": "profil eklemek icin bu iki satiri gonderin",
       "ro": "trimiteti aceste 2 linii pt a adauga profil",
-      "hu": "kuldje el e ket sort a profil hozzaadasahoz"
+      "hu": "kuldje el e ket sort a profil hozzaadasahoz",
+      "ar": "أرسل هذين السطرين لإضافة ملف تعريف",
+      "hi": "प्रोफ़ाइल जोड़ने के लिए ये दो पंक्तियाँ भेजें",
+      "ja": "プロファイル追加のためこの2行を送信してください",
+      "ko": "프로필 추가를 위해 이 두 줄을 전송하세요",
+      "zh": "发送这两行以添加配置文件"
     },
     "UnknownSeeDocs": {
       "en": "see docs/PORTING.md in the source",
@@ -1139,7 +1324,12 @@
       "sv": "se docs/PORTING.md i kallkoden",
       "tr": "kaynakta docs/PORTING.md dosyasina bakin",
       "ro": "vedeti docs/PORTING.md in surse",
-      "hu": "lasd: docs/PORTING.md a forrasban"
+      "hu": "lasd: docs/PORTING.md a forrasban",
+      "ar": "انظر docs/PORTING.md في المصدر",
+      "hi": "स्रोत में docs/PORTING.md देखें",
+      "ja": "ソースの docs/PORTING.md を参照",
+      "ko": "소스 코드의 docs/PORTING.md 참조",
+      "zh": "请参阅源码中的 docs/PORTING.md"
     },
     "UnknownDevice": {
       "en": "UNKNOWN DEVICE (uid %08x) - refusing",
@@ -1169,7 +1359,12 @@
       "sv": "UNKNOWN DEVICE (uid %08x) - nekas",
       "tr": "UNKNOWN DEVICE (uid %08x) - reddedildi",
       "ro": "UNKNOWN DEVICE (uid %08x) - refuzat",
-      "hu": "UNKNOWN DEVICE (uid %08x) - elutasitva"
+      "hu": "UNKNOWN DEVICE (uid %08x) - elutasitva",
+      "ar": "جهاز غير معروف (uid %08x) - تم الرفض",
+      "hi": "अज्ञात उपकरण (uid %08x) - अस्वीकार",
+      "ja": "未知の端末 (uid %08x) - 拒否",
+      "ko": "알 수 없는 기기 (uid %08x) - 거부됨",
+      "zh": "未知设备 (uid %08x) - 已拒绝"
     },
     "NoProfileUid": {
       "en": "no profile for machine uid %08x; nothing touched",
@@ -1199,7 +1394,12 @@
       "sv": "inget profil for maskin-uid %08x; inget rort",
       "tr": "makine uid %08x icin profil yok; dokunulmadi",
       "ro": "fara profil pt masina uid %08x; nimic atins",
-      "hu": "nincs profil a gephez (uid %08x); valtozatlan"
+      "hu": "nincs profil a gephez (uid %08x); valtozatlan",
+      "ar": "لا يوجد ملف تعريف للجهاز uid %08x؛ لم يتم تعديل شيء",
+      "hi": "मशीन uid %08x के लिए कोई प्रोफ़ाइल नहीं; कुछ नहीं बदला",
+      "ja": "端末 uid %08x 用のプロファイルがありません。変更なし",
+      "ko": "기기 uid %08x 의 프로필 없음 - 변경 없음",
+      "zh": "机器 uid %08x 无配置文件；未作任何更改"
     },
     "NoProfileBuild": {
       "en": "no profile for THIS build - nothing touched",
@@ -1229,7 +1429,12 @@
       "sv": "inget profil for DENNA build - inget rort",
       "tr": "BU derleme icin profil yok - dokunulmadi",
       "ro": "fara profil pt ACEST build - nimic atins",
-      "hu": "nincs profil EHHEZ a buildhez - valtozatlan"
+      "hu": "nincs profil EHHEZ a buildhez - valtozatlan",
+      "ar": "لا يوجد ملف تعريف لهذا الإصدار - لم يتم تعديل شيء",
+      "hi": "इस बिल्ड के लिए कोई प्रोफ़ाइल नहीं - कुछ नहीं बदला",
+      "ja": "このビルド用のプロファイルがありません - 変更なし",
+      "ko": "이 빌드용 프로필 없음 - 변경 없음",
+      "zh": "该版本无配置文件 - 未作任何更改"
     },
     "PatcherMissing": {
       "en": "patcher.ldd missing or driver refused",
@@ -1259,7 +1464,12 @@
       "sv": "patcher.ldd saknas eller drivrutin nekade",
       "tr": "patcher.ldd eksik veya surucu reddetti",
       "ro": "patcher.ldd lipseste sau driver refuzat",
-      "hu": "patcher.ldd hianyzik vagy driver hiba"
+      "hu": "patcher.ldd hianyzik vagy driver hiba",
+      "ar": "patcher.ldd مفقود أو السائق رفض",
+      "hi": "patcher.ldd गायब है या ड्राइवर ने मना कर दिया",
+      "ja": "patcher.ldd がないかドライバが拒否しました",
+      "ko": "patcher.ldd 가 없거나 드라이버가 거부함",
+      "zh": "缺少 patcher.ldd 或驱动程序拒绝"
     },
     "HintArrowsDiv": {
       "en": "use left/right to change divider",
@@ -1289,7 +1499,12 @@
       "sv": "vanster/hoger for att andra delare",
       "tr": "bolucuyu degistirmek icin sol/sag",
       "ro": "stanga/dreapta pt a schimba divizor",
-      "hu": "bal/jobb nyilakkal modositsa osztot"
+      "hu": "bal/jobb nyilakkal modositsa osztot",
+      "ar": "استخدم يسار/يمين لتغيير القاسم",
+      "hi": "डिवाइडर बदलने के लिए बाएं/दाएं उपयोग करें",
+      "ja": "左右キーで分周器を変更",
+      "ko": "좌/우로 분주비 변경",
+      "zh": "使用左/右键修改分频比"
     },
     "NeedManual": {
       "en": "switch DIVIDERS to MANUAL first",
@@ -1319,7 +1534,12 @@
       "sv": "stall DIVIDERS till MANUAL forst",
       "tr": "once DIVIDERS ayarini MANUAL yapin",
       "ro": "comutati intai DIVIDERS pe MANUAL",
-      "hu": "elobb allitsa a DIVIDERS-t MANUAL-ra"
+      "hu": "elobb allitsa a DIVIDERS-t MANUAL-ra",
+      "ar": "حوّل القواسم إلى يدوي أولاً",
+      "hi": "पहले DIVIDERS को MANUAL पर स्विच करें",
+      "ja": "先に分周器を手動に切り替えてください",
+      "ko": "먼저 분주비를 수동으로 전환하세요",
+      "zh": "请先将分频切换为手动"
     },
     "DspAlreadySet": {
       "en": "DSP divider already set",
@@ -1349,7 +1569,12 @@
       "sv": "DSP-delare redan installd",
       "tr": "DSP bolucusu zaten ayarli",
       "ro": "divizor DSP deja setat",
-      "hu": "DSP oszto mar beallitva"
+      "hu": "DSP oszto mar beallitva",
+      "ar": "تم تعيين قاسم DSP بالفعل",
+      "hi": "DSP डिवाइडर पहले से सेट है",
+      "ja": "DSP分周器は既に設定済みです",
+      "ko": "DSP 분주비가 이미 설정됨",
+      "zh": "DSP 分频比已设置"
     },
     "Applying": {
       "en": "applying m%d...",
@@ -1379,7 +1604,12 @@
       "sv": "tillampar m%d...",
       "tr": "m%d uygulaniyor...",
       "ro": "se aplica m%d...",
-      "hu": "m%d alkalmazasa..."
+      "hu": "m%d alkalmazasa...",
+      "ar": "جارٍ تطبيق m%d...",
+      "hi": "m%d लागू किया जा रहा है...",
+      "ja": "m%d を適用中...",
+      "ko": "m%d 적용 중...",
+      "zh": "正在应用 m%d..."
     },
     "DspNoSetter": {
       "en": "DSP divider not available on this phone",
@@ -1409,7 +1639,12 @@
       "sv": "DSP-delare ej tillganglig pa telefonen",
       "tr": "DSP bolucusu bu telefonda yok",
       "ro": "divizor DSP indisponibil pe acest tel.",
-      "hu": "DSP oszto nem erheto el a telefonon"
+      "hu": "DSP oszto nem erheto el a telefonon",
+      "ar": "قاسم DSP غير متاح على هذا الهاتف",
+      "hi": "इस फोन पर DSP डिवाइडर उपलब्ध नहीं है",
+      "ja": "この端末ではDSP分周器を利用できません",
+      "ko": "이 기기에서는 DSP 분주비를 지원하지 않음",
+      "zh": "此手机不支持 DSP 分频"
     },
     "DspNoSetterWhy": {
       "en": "the setter address was never measured here",
@@ -1439,7 +1674,12 @@
       "sv": "installningsadress har inte matts har",
       "tr": "ayarlayici adresi burada olculmedi",
       "ro": "adresa setter nu a fost masurata aici",
-      "hu": "a setter cime nem volt lemerve itt"
+      "hu": "a setter cime nem volt lemerve itt",
+      "ar": "لم يُقس عنوان الضابط هنا من قبل",
+      "hi": "सेटर पता यहाँ कभी नहीं मापा गया था",
+      "ja": "設定アドレスが測定されていません",
+      "ko": "이 기기의 설정자 주소가 측정되지 않았음",
+      "zh": "此处未测得设置地址"
     },
     "MoreRows": {
       "en": "  ... %d more",
@@ -1469,7 +1709,12 @@
       "sv": "... %d till",
       "tr": "... %d daha",
       "ro": "... inca %d",
-      "hu": "... meg %d"
+      "hu": "... meg %d",
+      "ar": "  ... %d إضافي",
+      "hi": "  ... %d और",
+      "ja": "  ... 他 %d 件",
+      "ko": "  ... %d개 더 있음",
+      "zh": "  ... 还有 %d 项"
     },
     "CombinedRound": {
       "en": "combined: round %d of %d",
@@ -1499,7 +1744,12 @@
       "sv": "kombinerat: omgang %d av %d",
       "tr": "birlesik: tur %d / %d",
       "ro": "combinat: runda %d din %d",
-      "hu": "kombinalt: %d. kor / %d"
+      "hu": "kombinalt: %d. kor / %d",
+      "ar": "شامل: جولة %d من %d",
+      "hi": "संयुक्त: राउंड %d / %d",
+      "ja": "総合: ラウンド %d / %d",
+      "ko": "종합: %d / %d 라운드",
+      "zh": "综合: 第 %d 轮(共 %d 轮)"
     },
     "DspRejected": {
       "en": "dsp: firmware rejected this divider",
@@ -1529,7 +1779,12 @@
       "sv": "dsp: firmware nekade denna delare",
       "tr": "dsp: aygit yazilimi bolucuyu reddetti",
       "ro": "dsp: firmware a respins acest divizor",
-      "hu": "dsp: a firmware elutasitotta az osztot"
+      "hu": "dsp: a firmware elutasitotta az osztot",
+      "ar": "dsp: رفضت البرمجيات الثابتة هذا القاسم",
+      "hi": "dsp: फर्मवेयर ने इस डिवाइडर को अस्वीकार किया",
+      "ja": "dsp: ファームウェアがこの分周比を拒否しました",
+      "ko": "dsp: 펌웨어가 이 분주비를 거부함",
+      "zh": "dsp: 固件拒绝了该分频比"
     },
     "DspMismatch": {
       "en": "dsp: MISMATCH - register did not take it",
@@ -1559,7 +1814,12 @@
       "sv": "dsp: AVVIKELSE - registret tog inte emot det",
       "tr": "dsp: UYUSMAZLIK - yazmac degeri almadi",
       "ro": "dsp: DISCORDANTA - registrul nu a acceptat",
-      "hu": "dsp: ELTERES - a regiszter nem vette at"
+      "hu": "dsp: ELTERES - a regiszter nem vette at",
+      "ar": "dsp: عدم تطابق - لم يقبله السجل",
+      "hi": "dsp: बेमेल - रजिस्टर ने इसे स्वीकार नहीं किया",
+      "ja": "dsp: 不一致 - レジスタに反映されませんでした",
+      "ko": "dsp: 불일치 - 레지스터에 적용되지 않음",
+      "zh": "dsp: 不匹配 - 寄存器未写入"
     },
     "DspNoTimer": {
       "en": "dsp: no timer - reverting at once",
@@ -1589,7 +1849,12 @@
       "sv": "dsp: ingen timer - aterstaller genast",
       "tr": "dsp: zamanlayici yok - hemen geri donus",
       "ro": "dsp: fara cronometru - revenire imediata",
-      "hu": "dsp: nincs idozito - azonnali visszaall."
+      "hu": "dsp: nincs idozito - azonnali visszaall.",
+      "ar": "dsp: لا يوجد مؤقت - تراجع فوري",
+      "hi": "dsp: कोई टाइमर नहीं - तुरंत वापस किया जा रहा है",
+      "ja": "dsp: タイマーなし - 直ちに戻します",
+      "ko": "dsp: 타이머 없음 - 즉시 복원됨",
+      "zh": "dsp: 无定时器 - 立即恢复"
     },
     "DspHeld": {
       "en": "dsp /%d held %d s, then auto-revert",
@@ -1619,7 +1884,12 @@
       "sv": "dsp /%d holls %d s, sedan auto-aterstall",
       "tr": "dsp /%d %d sn tutuldu, sonra oto-geri al",
       "ro": "dsp /%d mentinut %d s, apoi auto-revenire",
-      "hu": "dsp /%d tartva %d mp-ig, majd auto visszaall"
+      "hu": "dsp /%d tartva %d mp-ig, majd auto visszaall",
+      "ar": "dsp /%d احتُفظ به %d ث، ثم تراجع تلقائي",
+      "hi": "dsp /%d को %d s रोका, फिर स्वतः वापसी",
+      "ja": "dsp /%d を %d 秒維持後、自動復帰",
+      "ko": "dsp /%d %d초 유지 후 자동 복원",
+      "zh": "dsp /%d 保持 %d 秒，随后自动恢复"
     },
     "BusClamped": {
       "en": "bus clamped: l3 %d (reboot for stock)",
@@ -1649,7 +1919,12 @@
       "sv": "buss last: l3 %d (omstart for standard)",
       "tr": "veri yolu sabit: l3 %d (reboot ile varsayilan)",
       "ro": "magistrala blocata: l3 %d (reboot pt standard)",
-      "hu": "busz rogzitve: l3 %d (ujrainditas a gyarihoz)"
+      "hu": "busz rogzitve: l3 %d (ujrainditas a gyarihoz)",
+      "ar": "تم تقييد الناقل: l3 %d (أعد التشغيل للأصلي)",
+      "hi": "बस सीमित: l3 %d (मूल मान के लिए रीबूट करें)",
+      "ja": "バス固定: l3 %d (再起動で定格復帰)",
+      "ko": "버스 고정됨: l3 %d (재부팅 시 기본값)",
+      "zh": "总线已限制: l3 %d (重启恢复默认)"
     },
     "RowDspRevert": {
       "en": " DSPDIV /%d  DSP %u MHz  (reverts in %d s)",
@@ -1679,7 +1954,12 @@
       "sv": "DSPDIV /%d DSP %u MHz (aterstalls om %d s)",
       "tr": "DSPDIV /%d DSP %u MHz (%d sn icinde doner)",
       "ro": "DSPDIV /%d DSP %u MHz (revine in %d s)",
-      "hu": "DSPDIV /%d DSP %u MHz (visszaall %d mp mulva)"
+      "hu": "DSPDIV /%d DSP %u MHz (visszaall %d mp mulva)",
+      "ar": " DSPDIV /%d  DSP %u MHz  (يتراجع خلال %d ث)",
+      "hi": " DSPDIV /%d  DSP %u MHz  (%d s में वापसी)",
+      "ja": " DSPDIV /%d  DSP %u MHz  (%d 秒後に復帰)",
+      "ko": " DSPDIV /%d  DSP %u MHz  (%d초 후 복원)",
+      "zh": " DSPDIV /%d  DSP %u MHz  (%d 秒后恢复)"
     },
     "RowDspLive": {
       "en": " DSPDIV /%d  DSP %u MHz  (now set: /%d)",
@@ -1709,7 +1989,12 @@
       "sv": "DSPDIV /%d DSP %u MHz (nu satt: /%d)",
       "tr": "DSPDIV /%d DSP %u MHz (simdiki: /%d)",
       "ro": "DSPDIV /%d DSP %u MHz (setat acum: /%d)",
-      "hu": "DSPDIV /%d DSP %u MHz (most beallitva: /%d)"
+      "hu": "DSPDIV /%d DSP %u MHz (most beallitva: /%d)",
+      "ar": " DSPDIV /%d  DSP %u MHz  (محدد الآن: /%d)",
+      "hi": " DSPDIV /%d  DSP %u MHz  (अब सेट: /%d)",
+      "ja": " DSPDIV /%d  DSP %u MHz  (現在: /%d)",
+      "ko": " DSPDIV /%d  DSP %u MHz  (현재 설정: /%d)",
+      "zh": " DSPDIV /%d  DSP %u MHz  (当前设置: /%d)"
     },
     "RowBusManual": {
       "en": " BUSDIV /%d  SDRAM %u  %d.%d%%",
@@ -1739,7 +2024,12 @@
       "sv": "BUSDIV /%d SDRAM %u %d.%d%%",
       "tr": "BUSDIV /%d SDRAM %u %d.%d%%",
       "ro": "BUSDIV /%d SDRAM %u %d.%d%%",
-      "hu": "BUSDIV /%d SDRAM %u %d.%d%%"
+      "hu": "BUSDIV /%d SDRAM %u %d.%d%%",
+      "ar": " BUSDIV /%d  SDRAM %u  %d.%d%%",
+      "hi": " BUSDIV /%d  SDRAM %u  %d.%d%%",
+      "ja": " BUSDIV /%d  SDRAM %u  %d.%d%%",
+      "ko": " BUSDIV /%d  SDRAM %u  %d.%d%%",
+      "zh": " BUSDIV /%d  SDRAM %u  %d.%d%%"
     },
     "RowBusAuto": {
       "en": " BUSDIV /%d auto  SDRAM %u  %d.%d%%",
@@ -1769,7 +2059,12 @@
       "sv": "BUSDIV /%d auto SDRAM %u %d.%d%%",
       "tr": "BUSDIV /%d auto SDRAM %u %d.%d%%",
       "ro": "BUSDIV /%d auto SDRAM %u %d.%d%%",
-      "hu": "BUSDIV /%d auto SDRAM %u %d.%d%%"
+      "hu": "BUSDIV /%d auto SDRAM %u %d.%d%%",
+      "ar": " BUSDIV /%d تلقائي  SDRAM %u  %d.%d%%",
+      "hi": " BUSDIV /%d auto  SDRAM %u  %d.%d%%",
+      "ja": " BUSDIV /%d 自動  SDRAM %u  %d.%d%%",
+      "ko": " BUSDIV /%d 자동  SDRAM %u  %d.%d%%",
+      "zh": " BUSDIV /%d 自动  SDRAM %u  %d.%d%%"
     },
     "DspReverted": {
       "en": "dsp reverted to /%d (%S)",
@@ -1799,7 +2094,12 @@
       "sv": "dsp aterstalls till /%d (%S)",
       "tr": "dsp /%d degerine dondu (%S)",
       "ro": "dsp a revenit la /%d (%S)",
-      "hu": "dsp visszaallt ide: /%d (%S)"
+      "hu": "dsp visszaallt ide: /%d (%S)",
+      "ar": "تراجع dsp إلى /%d (%S)",
+      "hi": "dsp वापस /%d पर (%S)",
+      "ja": "dsp を /%d に復帰 (%S)",
+      "ko": "dsp가 /%d (%S) 로 복원됨",
+      "zh": "dsp 已恢复为 /%d (%S)"
     },
     "ReasonTimeout": {
       "en": "timeout",
@@ -1829,7 +2129,12 @@
       "sv": "timeout",
       "tr": "timeout",
       "ro": "expirat",
-      "hu": "idotulet"
+      "hu": "idotulet",
+      "ar": "انتهاء الوقت",
+      "hi": "समय समाप्त",
+      "ja": "タイムアウト",
+      "ko": "시간 초과",
+      "zh": "超时"
     },
     "ReasonRestore": {
       "en": "restore stock",
@@ -1859,7 +2164,12 @@
       "sv": "standard",
       "tr": "varsayilan",
       "ro": "standard",
-      "hu": "gyari"
+      "hu": "gyari",
+      "ar": "استعادة الأصلي",
+      "hi": "मूल बहाल करें",
+      "ja": "定格復帰",
+      "ko": "기본값 복원",
+      "zh": "恢复默认"
     },
     "TestProfileKnown": {
       "en": " TEST PROFILE: not needed, device is known",
@@ -1889,7 +2199,12 @@
       "sv": "TEST PROFILE: behovs ej, enheten ar kand",
       "tr": "TEST PROFILE: gerek yok, cihaz biliniyor",
       "ro": "TEST PROFILE: inutil, dispozitiv cunoscut",
-      "hu": "TEST PROFILE: felesleges, az eszkoz ismert"
+      "hu": "TEST PROFILE: felesleges, az eszkoz ismert",
+      "ar": " ملف اختباري: غير مطلوب، الجهاز معروف",
+      "hi": " टेस्ट प्रोफ़ाइल: आवश्यकता नहीं, उपकरण ज्ञात है",
+      "ja": " テストプロファイル: 不要 (既知の端末)",
+      "ko": " 테스트 프로필: 불필요, 알려진 기기임",
+      "zh": " 测试配置文件: 不需要，设备已知"
     },
     "TestProfileRow": {
       "en": " TEST PROFILE: %S",
@@ -1919,7 +2234,12 @@
       "sv": "TEST PROFILE: %S",
       "tr": "TEST PROFILE: %S",
       "ro": "TEST PROFILE: %S",
-      "hu": "TEST PROFILE: %S"
+      "hu": "TEST PROFILE: %S",
+      "ar": " ملف اختباري: %S",
+      "hi": " टेस्ट प्रोफ़ाइल: %S",
+      "ja": " テストプロファイル: %S",
+      "ko": " 테스트 프로필: %S",
+      "zh": " 测试配置文件: %S"
     },
     "TestProfileNone": {
       "en": " TEST PROFILE: none available",
@@ -1949,7 +2269,12 @@
       "sv": "TEST PROFILE: ingen tillganglig",
       "tr": "TEST PROFILE: hicbiri mevcut degil",
       "ro": "TEST PROFILE: niciunul disponibil",
-      "hu": "TEST PROFILE: egy sem erheto el"
+      "hu": "TEST PROFILE: egy sem erheto el",
+      "ar": " ملف اختباري: لا يوجد متاح",
+      "hi": " टेस्ट प्रोफ़ाइल: कोई उपलब्ध नहीं",
+      "ja": " テストプロファイル: 利用不可",
+      "ko": " 테스트 프로필: 사용 가능한 프로필 없음",
+      "zh": " 测试配置文件: 无可用配置"
     },
     "TestProfilePick": {
       "en": "left/right to choose, OK to try it",
@@ -1979,7 +2304,12 @@
       "sv": "vanster/hoger for val, OK for att prova",
       "tr": "secim icin sol/sag, denemek icin OK",
       "ro": "stanga/dreapta alegere, OK pt testare",
-      "hu": "bal/jobb a valasztashoz, OK a teszthez"
+      "hu": "bal/jobb a valasztashoz, OK a teszthez",
+      "ar": "يسار/يمين للاختيار، OK للتجربة",
+      "hi": "चुनने के लिए बाएं/दाएं, आज़माने के लिए OK",
+      "ja": "左右で選択、OKで試行",
+      "ko": "좌/우 선택, OK 시험 실행",
+      "zh": "左/右选择，按OK尝试"
     },
     "TestProfileWarn1": {
       "en": "UNVERIFIED addresses - this may reboot the phone",
@@ -2009,7 +2339,12 @@
       "sv": "OVERIFIERADE adresser - kan starta om telefonen",
       "tr": "DOGRULANMAMIS adresler - telefonu yeniden baslatabilir",
       "ro": "adrese NEVERIFICATE - telefonul se poate reporni",
-      "hu": "NEM ELLENORZOTT cimek - ujraindithatja a telefont"
+      "hu": "NEM ELLENORZOTT cimek - ujraindithatja a telefont",
+      "ar": "عناوين غير مؤكدة - قد يعيد هذا تشغيل الهاتف",
+      "hi": "असत्यापित पते - इससे फोन रीबूट हो सकता है",
+      "ja": "未検証のアドレス - 端末が再起動する可能性があります",
+      "ko": "미검증 주소 - 폰이 재부팅될 수 있음",
+      "zh": "未验证的地址 - 这可能会导致手机重启"
     },
     "TestProfileWarn2": {
       "en": "the phone must be freshly booted",
@@ -2039,7 +2374,12 @@
       "sv": "telefonen maste vara nyomstartad",
       "tr": "telefon yeni baslatilmis olmalidir",
       "ro": "telefonul trebuie proaspat repornit",
-      "hu": "a telefont frissen kell ujrainditani"
+      "hu": "a telefont frissen kell ujrainditani",
+      "ar": "يجب أن يكون الهاتف قد بدأ تشغيله حديثاً",
+      "hi": "फोन अभी-अभी चालू हुआ होना चाहिए",
+      "ja": "端末を再起動した直後である必要があります",
+      "ko": "폰을 방금 재부팅한 상태여야 함",
+      "zh": "手机必须是刚开机状态"
     },
     "TestProfileTrying": {
       "en": "trying %S ...",
@@ -2069,7 +2409,12 @@
       "sv": "provar %S ...",
       "tr": "deneniyor %S ...",
       "ro": "incercare %S ...",
-      "hu": "%S probalasa..."
+      "hu": "%S probalasa...",
+      "ar": "جارٍ تجربة %S ...",
+      "hi": "%S आज़माया जा रहा है...",
+      "ja": "%S を試行中...",
+      "ko": "%S 시도 중...",
+      "zh": "正在尝试 %S ..."
     },
     "TestProfileOk": {
       "en": "test profile works - engine is ready",
@@ -2099,7 +2444,12 @@
       "sv": "testprofil fungerar - motorn ar klar",
       "tr": "test profili calisiyor - motor hazir",
       "ro": "profilul de test merge - motorul este gata",
-      "hu": "a tesztprofil mukodik - a motor keszen all"
+      "hu": "a tesztprofil mukodik - a motor keszen all",
+      "ar": "الملف الاختباري يعمل - المحرك جاهز",
+      "hi": "परीक्षण प्रोफ़ाइल काम करती है - इंजन तैयार है",
+      "ja": "テストプロファイル成功 - エンジン準備完了",
+      "ko": "테스트 프로필 정상 - 엔진 준비 완료",
+      "zh": "测试配置文件有效 - 引擎已就绪"
     },
     "TestProfileFoundGlobal": {
       "en": "found pwrdown global at %08x",
@@ -2129,7 +2479,12 @@
       "sv": "hittade pwrdown global pa %08x",
       "tr": "pwrdown global %08x konumunda",
       "ro": "gasit pwrdown global la %08x",
-      "hu": "pwrdown global itt: %08x"
+      "hu": "pwrdown global itt: %08x",
+      "ar": "تم العثور على pwrdown العام عند %08x",
+      "hi": "%08x पर pwrdown global मिला",
+      "ja": "%08x で pwrdown グローバルを検出",
+      "ko": "%08x 에서 pwrdown 전역 변수 발견",
+      "zh": "在 %08x 处找到 pwrdown 全局变量"
     },
     "KeepRowOn": {
       "en": " KEEP ON EXIT: ON  (clock stays after exit)",
@@ -2159,7 +2514,12 @@
       "et": "KEEP ON EXIT: ON (takt jääb pärast väljumist)",
       "lv": "KEEP ON EXIT: ON (takts paliek pēc izejas)",
       "lt": "KEEP ON EXIT: ON (taktas lieka po išėjimo)",
-      "ca": "KEEP ON EXIT: ON (el rellotge es manté)"
+      "ca": "KEEP ON EXIT: ON (el rellotge es manté)",
+      "ar": " إبقاء عند الخروج: مفعل  (يبقى التردد بعد الخروج)",
+      "hi": " KEEP ON EXIT: ON  (बाहर निकलने पर गति बनी रहती है)",
+      "ja": " 終了時維持: オン  (終了後もクロック維持)",
+      "ko": " 종료 시 유지: 켬  (종료 후에도 클록 유지)",
+      "zh": " 退出时保留: 开  (退出后保持当前主频)"
     },
     "KeepRowOff": {
       "en": " KEEP ON EXIT: OFF  (stock clock on exit)",
@@ -2189,7 +2549,12 @@
       "et": "KEEP ON EXIT: OFF (tehasetakt väljumisel)",
       "lv": "KEEP ON EXIT: OFF (rūpnīcas takts pie izejas)",
       "lt": "KEEP ON EXIT: OFF (gamyklinis taktas išėjus)",
-      "ca": "KEEP ON EXIT: OFF (rellotge de fàbr. en sortir)"
+      "ca": "KEEP ON EXIT: OFF (rellotge de fàbr. en sortir)",
+      "ar": " إبقاء عند الخروج: معطل  (التردد الأصلي عند الخروج)",
+      "hi": " KEEP ON EXIT: OFF  (बाहर निकलने पर मूल गति)",
+      "ja": " 終了時維持: オフ  (終了時に定格復帰)",
+      "ko": " 종료 시 유지: 끔  (종료 시 기본 클록 복원)",
+      "zh": " 退出时保留: 关  (退出时恢复默认主频)"
     },
     "KeepNote": {
       "en": "a reboot restores stock clocks in any case",
@@ -2219,7 +2584,12 @@
       "et": "taaskäivitus taastab igal juhul tehasetakti",
       "lv": "pārstartēšana jebkurā gadījumā atjauno rūpnīcu",
       "lt": "perkrovimas bet kuriuo atveju grąžina gamykl.",
-      "ca": "un reinici sempre restaura el rellotge de fàbr."
+      "ca": "un reinici sempre restaura el rellotge de fàbr.",
+      "ar": "إعادة التشغيل تستعيد التردد الأصلي في كل الأحوال",
+      "hi": "रीबूट किसी भी स्थिति में मूल गति बहाल करता है",
+      "ja": "いずれの場合も再起動で定格クロックに復帰します",
+      "ko": "어떤 경우에도 재부팅하면 기본 클록으로 복원됨",
+      "zh": "无论如何重启手机都会恢复默认主频"
     },
     "RowLanguage": {
       "en": " LANGUAGE: %S",
@@ -2249,7 +2619,12 @@
       "et": "LANGUAGE: %S",
       "lv": "LANGUAGE: %S",
       "lt": "LANGUAGE: %S",
-      "ca": "LANGUAGE: %S"
+      "ca": "LANGUAGE: %S",
+      "ar": " اللغة: %S",
+      "hi": " LANGUAGE: %S",
+      "ja": " 言語: %S",
+      "ko": " 언어: %S",
+      "zh": " 语言: %S"
     },
     "RowAutostartOff": {
       "en": " AUTOSTART: OFF",
@@ -2279,7 +2654,12 @@
       "et": " AUTOKAIVITUS: VALJAS",
       "lv": " AUTOPALAISANA: IZSL",
       "lt": " AUTOPALEIDIMAS: ISJ",
-      "ca": " AUTOARRENCADA: NO"
+      "ca": " AUTOARRENCADA: NO",
+      "ar": " بدء تلقائي: معطل",
+      "hi": " AUTOSTART: बंद",
+      "ja": " 自動起動: オフ",
+      "ko": " 자동 시작: 끔",
+      "zh": " 开机自启: 关"
     },
     "RowAutostartSoak": {
       "en": " AUTOSTART: CHECKING",
@@ -2309,7 +2689,12 @@
       "et": " AUTOKAIVITUS: KONTROLL",
       "lv": " AUTOPALAISANA: PARBAUDE",
       "lt": " AUTOPALEIDIMAS: TIKRINIMAS",
-      "ca": " AUTOARRENCADA: PROVA"
+      "ca": " AUTOARRENCADA: PROVA",
+      "ar": " بدء تلقائي: فحص",
+      "hi": " AUTOSTART: जांच जारी",
+      "ja": " 自動起動: 確認中",
+      "ko": " 자동 시작: 확인 중",
+      "zh": " 开机自启: 正在检查"
     },
     "RowAutostartSoakLeft": {
       "en": " AUTOSTART: CHECKING %d:%02d",
@@ -2339,7 +2724,12 @@
       "et": " AUTOKAIVITUS: TEST %d:%02d",
       "lv": " AUTOPALAISANA: TESTS %d:%02d",
       "lt": " AUTOPALEIDIMAS: TEST %d:%02d",
-      "ca": " AUTOARRENCADA: PROVA %d:%02d"
+      "ca": " AUTOARRENCADA: PROVA %d:%02d",
+      "ar": " بدء تلقائي: فحص %d:%02d",
+      "hi": " AUTOSTART: जांच जारी %d:%02d",
+      "ja": " 自動起動: 確認中 %d:%02d",
+      "ko": " 자동 시작: 확인 중 %d:%02d",
+      "zh": " 开机自启: 正在检查 %d:%02d"
     },
     "BootSoakWatchNote": {
       "en": "you can close the application, the check continues on its own",
@@ -2369,7 +2759,12 @@
       "et": "rakenduse voib sulgeda, kontroll jatkub iseseisvalt",
       "lv": "lietotni var aizvert, parbaude turpinas pati",
       "lt": "programele galima uzdaryti, tikrinimas tesiasi pats",
-      "ca": "podeu tancar l'aplicacio, la comprovacio continua sola"
+      "ca": "podeu tancar l'aplicacio, la comprovacio continua sola",
+      "ar": "يمكنك إغلاق التطبيق، سيستمر الفحص تلقائياً",
+      "hi": "आप ऐप बंद कर सकते हैं, जांच अपने आप जारी रहेगी",
+      "ja": "アプリを終了しても確認はバックグラウンドで継続します",
+      "ko": "앱을 닫아도 확인 작업은 백그라운드에서 계속됩니다",
+      "zh": "您可以关闭应用程序，检查将在后台继续进行"
     },
     "BootSoakNoReboot": {
       "en": "do not restart the phone until the check ends",
@@ -2399,7 +2794,12 @@
       "et": "ara taaskaivita telefoni enne kontrolli loppu",
       "lv": "nerestartejiet talruni lidz parbaudes beigam",
       "lt": "nepaleiskite telefono is naujo, kol tikrinama",
-      "ca": "no reinicieu el telefon fins que acabi la comprovacio"
+      "ca": "no reinicieu el telefon fins que acabi la comprovacio",
+      "ar": "لا تعد تشغيل الهاتف حتى ينتهي الفحص",
+      "hi": "जांच समाप्त होने तक फोन रीस्टार्ट न करें",
+      "ja": "確認が完了するまで端末を再起動しないでください",
+      "ko": "확인이 끝날 때까지 폰을 재부팅하지 마세요",
+      "zh": "在检查结束前请勿重启手机"
     },
     "BootSoakArmed": {
       "en": "the check passed, autostart is on",
@@ -2429,7 +2829,12 @@
       "et": "kontroll labitud, autokaivitus on sees",
       "lv": "parbaude izieta, autopalaisana ieslegta",
       "lt": "tikrinimas pavyko, autopaleidimas ijungtas",
-      "ca": "la comprovacio ha passat, autoarrencada activada"
+      "ca": "la comprovacio ha passat, autoarrencada activada",
+      "ar": "اجتاز الفحص، البدء التلقائي مفعل",
+      "hi": "जांच सफल रही, ऑटोस्टार्ट चालू है",
+      "ja": "確認に合格しました。自動起動はオンです",
+      "ko": "확인 완료, 자동 시작이 켜졌습니다",
+      "zh": "检查通过，开机自启已开启"
     },
     "BootKeepForced": {
       "en": "keep on exit switched on for the check",
@@ -2459,7 +2864,12 @@
       "et": "keep on exit sisse lulitatud kontrolliks",
       "lv": "keep on exit ieslegts parbaudei",
       "lt": "keep on exit ijungtas tikrinimui",
-      "ca": "keep on exit activat per a la prova"
+      "ca": "keep on exit activat per a la prova",
+      "ar": "تم تشغيل الإبقاء عند الخروج من أجل الفحص",
+      "hi": "जांच के लिए keep on exit चालू किया गया",
+      "ja": "確認のため「終了時維持」が有効化されました",
+      "ko": "확인을 위해 종료 시 유지가 켜졌습니다",
+      "zh": "已为检查强制开启退出时保留"
     },
     "RowAutostartOn": {
       "en": " AUTOSTART: ON  (m%d at boot)",
@@ -2489,7 +2899,12 @@
       "et": " AUTOKAIVITUS: SEES  (m%d)",
       "lv": " AUTOPALAISANA: IESL  (m%d)",
       "lt": " AUTOPALEIDIMAS: IJ  (m%d)",
-      "ca": " AUTOARRENCADA: SI  (m%d en arrencar)"
+      "ca": " AUTOARRENCADA: SI  (m%d en arrencar)",
+      "ar": " بدء تلقائي: مفعل  (m%d عند الإقلاع)",
+      "hi": " AUTOSTART: चालू  (बूट पर m%d)",
+      "ja": " 自動起動: オン  (起動時 m%d)",
+      "ko": " 자동 시작: 켬  (부팅 시 m%d)",
+      "zh": " 开机自启: 开  (开机时 m%d)"
     },
     "RowSaveBoot": {
       "en": " SAVE FOR AUTOSTART",
@@ -2519,7 +2934,12 @@
       "et": " SALVESTA AUTOKAIVITUSEKS",
       "lv": " SAGLABAT AUTOPALAISANAI",
       "lt": " ISSAUGOTI AUTOPALEIDIMUI",
-      "ca": " DESA PER A AUTOARRENCADA"
+      "ca": " DESA PER A AUTOARRENCADA",
+      "ar": " حفظ للبدء التلقائي",
+      "hi": " SAVE FOR AUTOSTART",
+      "ja": " 自動起動用に保存",
+      "ko": " 자동 시작용으로 저장",
+      "zh": " 保存用于开机自启"
     },
     "BootUseSave": {
       "en": "to switch it on, use SAVE FOR AUTOSTART",
@@ -2549,7 +2969,12 @@
       "et": "sisselulitamiseks kasuta SALVESTA AUTOKAIVITUSEKS",
       "lv": "lai ieslegtu, izmantojiet SAGLABAT AUTOPALAISANAI",
       "lt": "jei norite ijungti, naudokite ISSAUGOTI AUTOPALEIDIMUI",
-      "ca": "per activar-ho, useu DESA PER A AUTOARRENCADA"
+      "ca": "per activar-ho, useu DESA PER A AUTOARRENCADA",
+      "ar": "لتشغيله، استخدم حفظ للبدء التلقائي",
+      "hi": "चालू करने के लिए SAVE FOR AUTOSTART का उपयोग करें",
+      "ja": "有効にするには「自動起動用に保存」を使用してください",
+      "ko": "켜려면 자동 시작용으로 저장을 사용하세요",
+      "zh": "如需开启，请使用 保存用于开机自启"
     },
     "BootOff": {
       "en": "autostart off",
@@ -2579,7 +3004,12 @@
       "et": "autokaivitus valjas",
       "lv": "autopalaisana izslegta",
       "lt": "autopaleidimas isjungtas",
-      "ca": "autoarrencada desactivada"
+      "ca": "autoarrencada desactivada",
+      "ar": "البدء التلقائي معطل",
+      "hi": "ऑटोस्टार्ट बंद",
+      "ja": "自動起動オフ",
+      "ko": "자동 시작 끔",
+      "zh": "开机自启已关闭"
     },
     "BootNeedLive": {
       "en": "apply the overclock first: only a live setting can be saved",
@@ -2609,7 +3039,12 @@
       "et": "rakenda esmalt kiirendus: salvestada saab ainult tootavat seadet",
       "lv": "vispirms lietojiet parspriegojumu: saglabat var tikai strādājosu iestatijumu",
       "lt": "pirma pritaikykite pagreitinima: issaugoti galima tik veikianti nustatyma",
-      "ca": "apliqueu primer l'overclock: nomes es desa un ajust actiu"
+      "ca": "apliqueu primer l'overclock: nomes es desa un ajust actiu",
+      "ar": "طبق رفع التردد أولاً: يمكن فقط حفظ إعداد نشط",
+      "hi": "पहले ओवरक्लॉक लागू करें: केवल सक्रिय सेटिंग सहेजी जा सकती है",
+      "ja": "先にOCを適用してください: 稼働中の設定のみ保存可能です",
+      "ko": "먼저 오버클록을 적용하세요: 적용 중인 설정만 저장 가능합니다",
+      "zh": "请先应用超频: 仅能保存当前生效的设置"
     },
     "BootNoRead": {
       "en": "cannot read the registers, nothing saved",
@@ -2639,7 +3074,12 @@
       "et": "registreid ei saa lugeda, midagi ei salvestatud",
       "lv": "nevar nolasit registrus, nekas nav saglabats",
       "lt": "nepavyko nuskaityti registru, nieko neissaugota",
-      "ca": "no es poden llegir els registres, no s'ha desat res"
+      "ca": "no es poden llegir els registres, no s'ha desat res",
+      "ar": "تعذرت قراءة السجلات، لم يُحفظ شيء",
+      "hi": "रजिस्टर नहीं पढ़ सका, कुछ नहीं सहेजा गया",
+      "ja": "レジスタを読み取れません。保存されませんでした",
+      "ko": "레지스터를 읽을 수 없어 저장되지 않았습니다",
+      "zh": "无法读取寄存器，未保存任何内容"
     },
     "BootTesting": {
       "en": "checking stability, round %d of %d",
@@ -2669,7 +3109,12 @@
       "et": "stabiilsuse kontroll, ring %d / %d",
       "lv": "stabilitates parbaude, aplis %d no %d",
       "lt": "stabilumo tikrinimas, ratas %d is %d",
-      "ca": "prova d'estabilitat, volta %d de %d"
+      "ca": "prova d'estabilitat, volta %d de %d",
+      "ar": "فحص الاستقرار، جولة %d من %d",
+      "hi": "स्थिरता जांच, राउंड %d / %d",
+      "ja": "安定性を確認中、ラウンド %d / %d",
+      "ko": "안정성 확인 중, %d / %d 라운드",
+      "zh": "正在检查稳定性，第 %d 轮(共 %d 轮)"
     },
     "BootTestFailed": {
       "en": "errors found, nothing saved",
@@ -2699,7 +3144,12 @@
       "et": "leiti vigu, midagi ei salvestatud",
       "lv": "atrastas kludas, nekas nav saglabats",
       "lt": "rasta klaidu, nieko neissaugota",
-      "ca": "s'han trobat errors, no s'ha desat res"
+      "ca": "s'han trobat errors, no s'ha desat res",
+      "ar": "تم العثور على أخطاء، لم يُحفظ شيء",
+      "hi": "त्रुटियां मिलीं, कुछ नहीं सहेजा गया",
+      "ja": "エラーが検出されたため、保存されませんでした",
+      "ko": "오류 발견됨, 저장되지 않았습니다",
+      "zh": "发现错误，未保存任何内容"
     },
     "BootSaveFailed": {
       "en": "could not write the settings file",
@@ -2729,7 +3179,12 @@
       "et": "seadete faili ei onnestunud kirjutada",
       "lv": "nevareja ierakstit iestatijumu failu",
       "lt": "nepavyko irasyti nustatymu failo",
-      "ca": "no s'ha pogut escriure el fitxer d'ajustos"
+      "ca": "no s'ha pogut escriure el fitxer d'ajustos",
+      "ar": "تعذرت كتابة ملف الإعدادات",
+      "hi": "सेटिंग्स फ़ाइल नहीं लिखी जा सकी",
+      "ja": "設定ファイルを書き込めませんでした",
+      "ko": "설정 파일을 쓸 수 없습니다",
+      "zh": "无法写入设置文件"
     },
     "BootSaved": {
       "en": "saved; active after %d min of stable running",
@@ -2759,7 +3214,12 @@
       "et": "salvestatud; kehtib parast %d min stabiilset tood",
       "lv": "saglabats; aktivs pec %d min stabilas darbibas",
       "lt": "issaugota; veiks po %d min stabilaus darbo",
-      "ca": "desat; actiu despres de %d min de funcionament estable"
+      "ca": "desat; actiu despres de %d min de funcionament estable",
+      "ar": "تم الحفظ؛ يُفعل بعد %d دقيقة من التشغيل المستقر",
+      "hi": "सहेजा गया; %d मिनट स्थिर चलने के बाद सक्रिय होगा",
+      "ja": "保存完了。%d 分間の安定稼働後に有効化されます",
+      "ko": "저장됨; %d분간 안정 실행 후 활성화됩니다",
+      "zh": "已保存；稳定运行 %d 分钟后生效"
     },
     "BootSoakWarn": {
       "en": "if the screen goes dark, restart the phone by hand and it will not be kept",
@@ -2789,7 +3249,12 @@
       "et": "kui ekraan kustub, taaskaivita telefon kasitsi ja seadet ei salvestata",
       "lv": "ja ekrans nodziest, restartejiet talruni ar roku, un iestatijums netiks saglabats",
       "lt": "jei ekranas uzges, paleiskite telefona is naujo ranka - nustatymas nebus issaugotas",
-      "ca": "si la pantalla s'apaga, reinicieu el telefon manualment i l'ajust no es conservara"
+      "ca": "si la pantalla s'apaga, reinicieu el telefon manualment i l'ajust no es conservara",
+      "ar": "إذا أظلمت الشاشة، أعد تشغيل الهاتف يدوياً ولن يُحتفظ به",
+      "hi": "यदि स्क्रीन बंद हो जाए, तो फोन हाथ से रीस्टार्ट करें और यह नहीं रहेगा",
+      "ja": "画面が暗くなった場合は手動で再起動してください。設定は破棄されます",
+      "ko": "화면이 꺼지면 수동으로 폰을 재부팅하세요. 설정이 유지되지 않습니다",
+      "zh": "如果屏幕变黑，请手动重启手机，设置将不会被保留"
     },
     "BootApplyWarn": {
       "en": "at boot the clock is applied %d s after start",
@@ -2819,7 +3284,12 @@
       "et": "kaivitusel rakendatakse takt %d s parast",
       "lv": "startejot takts tiek uzstadits pec %d s",
       "lt": "paleidziant daznis nustatomas po %d s",
-      "ca": "en arrencar, la frequencia s'aplica %d s despres"
+      "ca": "en arrencar, la frequencia s'aplica %d s despres",
+      "ar": "عند الإقلاع يطبق التردد بعد %d ثانية من البدء",
+      "hi": "बूट पर गति शुरू होने के %d s बाद लागू होती है",
+      "ja": "起動時、クロックは起動から %d 秒後に適用されます",
+      "ko": "부팅 시 시작 %d초 후에 클록이 적용됩니다",
+      "zh": "开机时将在启动 %d 秒后应用主频"
     },
     "BootFailed": {
       "en": "the last boot did not survive, autostart is off",
@@ -2849,7 +3319,12 @@
       "et": "eelmine kaivitus ei pidanud vastu, autokaivitus on valjas",
       "lv": "iepriekseja palaisana neiztureja, autopalaisana izslegta",
       "lt": "ankstesnis paleidimas neisliko, autopaleidimas isjungtas",
-      "ca": "l'arrencada anterior no ho va superar, autoarrencada desactivada"
+      "ca": "l'arrencada anterior no ho va superar, autoarrencada desactivada",
+      "ar": "فشل الإقلاع الأخير، البدء التلقائي معطل",
+      "hi": "पिछला बूट विफल रहा, ऑटोस्टार्ट बंद है",
+      "ja": "前回の起動に失敗したため、自動起動をオフにしました",
+      "ko": "지난 부팅이 유지되지 못해 자동 시작이 꺼졌습니다",
+      "zh": "上次开机未能正常运行，开机自启已关闭"
     },
     "BootSoakBad": {
       "en": "the check found errors, autostart is off",
@@ -2879,7 +3354,12 @@
       "et": "kontroll leidis vigu, autokaivitus on valjas",
       "lv": "parbaude atrada kludas, autopalaisana izslegta",
       "lt": "tikrinimas rado klaidu, autopaleidimas isjungtas",
-      "ca": "la comprovacio ha trobat errors, autoarrencada desactivada"
+      "ca": "la comprovacio ha trobat errors, autoarrencada desactivada",
+      "ar": "وجد الفحص أخطاء، البدء التلقائي معطل",
+      "hi": "जांच में त्रुटियां मिलीं, ऑटोस्टार्ट बंद है",
+      "ja": "確認でエラーが検出されたため、自動起動をオフにしました",
+      "ko": "확인 중 오류가 발견되어 자동 시작이 꺼졌습니다",
+      "zh": "检查发现错误，开机自启已关闭"
     },
     "BootRefusedRecent": {
       "en": "the phone was restarted too soon after the check, autostart is off",
@@ -2909,7 +3389,12 @@
       "et": "taaskäivitus liiga kiiresti pärast testi, autokäivitus väljas",
       "lv": "pārstartēšana pārāk ātri pēc testa, autopalaišana izslēgta",
       "lt": "paleista iš naujo per anksti po testo, autopaleidimas išjungtas",
-      "ca": "reinici massa aviat després de la prova, autoarrencada desactivada"
+      "ca": "reinici massa aviat després de la prova, autoarrencada desactivada",
+      "ar": "أعيد تشغيل الهاتف مبكراً جداً بعد الفحص، البدء التلقائي معطل",
+      "hi": "जांच के तुरंत बाद फोन रीस्टार्ट किया गया, ऑटोस्टार्ट बंद है",
+      "ja": "確認後すぐに端末が再起動されたため、自動起動をオフにしました",
+      "ko": "확인 후 너무 일찍 폰이 재부팅되어 자동 시작이 꺼졌습니다",
+      "zh": "检查后过快重启了手机，开机自启已关闭"
     },
     "BootNotApplied": {
       "en": "autostart could not apply the clock at the last boot",
@@ -2939,7 +3424,12 @@
       "et": "viimasel käivitusel ei õnnestunud sagedust rakendada",
       "lv": "pēdējā startā frekvenci neizdevās piemērot",
       "lt": "per paskutinį paleidimą dažnio pritaikyti nepavyko",
-      "ca": "en la darrera arrencada no s'ha pogut aplicar la freqüència"
+      "ca": "en la darrera arrencada no s'ha pogut aplicar la freqüència",
+      "ar": "تعذر على البدء التلقائي تطبيق التردد عند الإقلاع الأخير",
+      "hi": "ऑटोस्टार्ट पिछले बूट पर गति लागू नहीं कर सका",
+      "ja": "前回の起動時に自動起動でクロックを適用できませんでした",
+      "ko": "지난 부팅 시 자동 시작이 클록을 적용하지 못했습니다",
+      "zh": "开机自启在上次开机时未能应用主频"
     },
     "BootFailedCfg": {
       "en": "refused: m%d l3=%d",
@@ -2969,7 +3459,12 @@
       "et": "keeldutud: m%d l3=%d",
       "lv": "noraidits: m%d l3=%d",
       "lt": "atmesta: m%d l3=%d",
-      "ca": "rebutjat: m%d l3=%d"
+      "ca": "rebutjat: m%d l3=%d",
+      "ar": "مرفوض: m%d l3=%d",
+      "hi": "अस्वीकृत: m%d l3=%d",
+      "ja": "拒否: m%d l3=%d",
+      "ko": "거부됨: m%d l3=%d",
+      "zh": "已拒绝: m%d l3=%d"
     }
   },
   "help": {
@@ -4848,6 +5343,341 @@
       "",
       "NEM ELLENŐRZÖTT KÉSZÜLÉKEK",
       "Olyan eszközön, amelyhez nem létezik ellenőrzött profil, a program megtagadja a processzor módosítását, és UNKNOWN DEVICE jelzést ad. A mérési tesztek továbbra is elérhetők maradnak. A tesztprofil kézzel kiválasztható; mielőtt bármit beírna, a program ellenőrzi, hogy a módosítani kívánt címen lévő kód megegyezik-e a várt kóddal, és megtagadja a folytatást, ha nem így van."
+    ],
+    "ar": [
+      "ماذا يفعل هذا البرنامج",
+      "يرفع هذا البرنامج تردد تشغيل المعالج في هواتف Symbian 9.2 المبنية على معالج TI OMAP 2420، ويقوم بذلك أثناء تشغيل الهاتف. هاتف Nokia N95 8GB وهاتف Nokia E90 مدعومان ومختبران؛ ويمكن اختيار الطرازات الأخرى التي تستخدم نفس المعالج يدوياً كملفات تعريف اختبارية غير مؤكدة.",
+      "",
+      "الأمان",
+      "لا تتم كتابة أي شيء في وحدة التخزين الدائمة. كل تغيير موجود فقط في سجلات التحكم بالمعالج، ويتم تحميل هذه السجلات بقيمها الافتراضية في كل مرة يتم فيها تشغيل الهاتف. وبناءً على ذلك، فإن إعادة تشغيل الهاتف تستعيد تردد المصنع دون استثناء، ولا يمكن لأي إعداد في هذا البرنامج الاستمرار بعد إعادة التشغيل.",
+      "إذا تم تعيين تردد أعلى مما يمكن للمعالج تحمله، يُعاد تشغيل الهاتف. ستفقد البيانات غير المحفوظة في التطبيقات الأخرى؛ ولا يتأثر أي شيء آخر.",
+      "",
+      "المصطلحات المستخدمة في هذا البرنامج",
+      "تردد الساعة هو عدد الدورات التي ينفذها المعالج في الثانية، ويقاس بالميجاهرتز (MHz). ميجاهرتز واحد يعادل مليون دورة في الثانية. ورفع التردد يعني إنجاز نفس العمل في وقت أقل.",
+      "ساعة المرجع هي التردد الثابت الذي يرسله مذبذب الكريستال على اللوحة الأم. في هذا العتاد يبلغ 19.2 MHz ولا يمكن تغييره.",
+      "PLL، أو حلقة إقفال الطور، هي الدائرة التي تولد تردداً عالياً من التردد المرجعي المنخفض. وتعد DPLL في هذا المعالج مصدر تردد النواة.",
+      "المضاعف هو الرقم الذي تضرب به PLL تردد المرجع. وهو الإعداد الرئيسي في هذا البرنامج ويظهر باسم MULT.",
+      "القاسم هو رقم يُقسم عليه التردد المتولد بالفعل قبل تزويده لوحدة معينة في الشريحة. تعمل الوحدات المختلفة بترددات مختلفة، وتعد القواسم هي الوسيلة للحصول على تلك الترددات من مصدر مشترك واحد.",
+      "",
+      "كيفية حساب التردد",
+      "تضرب PLL تردد المرجع في المضاعف وتقسم النتيجة على معامل ثابت قدره 5 تحدده البرمجيات الثابتة ولا يعدله هذا البرنامج:",
+      "DPLL = 19.2 MHz x MULT / 5",
+      "عند مضاعف المصنع البالغ 86، تعمل النواة بتردد 330.24 MHz. يعرض البرنامج الأرقام الناتجة مباشرة، لذا لا يلزم إجراء عمليات حسابية يدوياً: اختر مضاعفاً وسيظهر في رأس الشاشة التردد الذي سينتجه.",
+      "يتلقى كل جزء من الشريحة خرج PLL عبر قاسم خاص به. يتيح هذا البرنامج أربعة منها.",
+      "يقسم MPUDIV التردد الموجه لنواة المعالج. قيمته المصنعية هي 2.",
+      "يقسم BUSDIV التردد الموجه لناقل الذاكرة، الذي يصل المعالج من خلاله إلى RAM. تختلف قيمته المصنعية بين الطرازات.",
+      "يقسم DSSDIV التردد الموجه لوحدة التحكم بالشاشة. ويتم ضبطه تلقائياً عند رفع المضاعف حتى تستمر الشاشة في تلقي تردد يقارب ترددها المصنعي تقريباً؛ فالشاشة التي تُدار بتردد أعلى بكثير من المقدر لها تنتج صورة مشوهة أو فارغة.",
+      "يقسم DSPDIV التردد الموجه لمعالج الإشارة، وهي الوحدة المسؤولة عن فك تشفير الصوت والفيديو. وهو مستقل عن الثلاثة الآخرين ويطبق بشكل منفصل.",
+      "تستمد جميع هذه القواسم دخلها من نفس PLL، ولهذا السبب فإن رفع المضاعف يرفع كلاً من الترددات الناتجة معاً. وزيادة القاسم تخفض تردد تلك الوحدة وحدها؛ بينما تقليله يرفع ذلك التردد وحده.",
+      "",
+      "ماذا يفعل كل إعداد",
+      "يحدد MULT مضاعف PLL وبالتالي تردد الشريحة بأكملها. القيمة المصنعية هي 86. يعرض رأس الشاشة الرئيسية الترددات التي ستنتجها القيمة المحددة، قبل تطبيق أي شيء.",
+      "يحدد BUSDIV قاسم ناقل الذاكرة. القاسم الأصغر ينتج تردداً أعلى للناقل، مما يرفع سرعة وصول البيانات إلى النواة. وهو أيضاً الإعداد الأكثر ترجيحاً للتسبب في عدم الاستقرار، لأن معلمات توقيت وحدة التحكم بالذاكرة مهيأة لتردد الناقل المصنعي. شغل اختبار سلامة sdram بعد تغييره.",
+      "يحدد DSPDIV قاسم معالج الإشارة. ويطبق بمفرده بالضغط على OK في ذلك السطر، وليس عبر تطبيق الإعداد.",
+      "يبدل القواسم بين تلقائي ويدوي. في الوضع التلقائي يتم تعويض القواسم الموجودة في سجل التردد المشترك آلياً عند تغيير المضاعف. وفي الوضع اليدوي يتم ضبطها يدوياً، سطراً بسطر.",
+      "يحدد LANGUAGE لغة الواجهة. ويتم حفظ الاختيار.",
+      "إبقاء عند الخروج، عند تفعيله، يترك التردد المطبق سارياً بعد إغلاق البرنامج. وهو مفعل افتراضياً. فالتردد حالة عتادية ولا يعتمد على استمرار تشغيل هذا البرنامج. وتظل إعادة تشغيل الهاتف تستعيد التردد المصنعي.",
+      "",
+      "ترتيب العمليات",
+      "1. حدد MULT والقواسم إذا لزم الأمر. يوضح الرأس ما ستكون عليه النتيجة.",
+      "2. تطبيق الإعداد يسجل الاختيار. لا يتغير أي شيء في العتاد عند هذه النقطة.",
+      "3. تأكيد ينفذ التغيير. يتم رفع المضاعف خطوة واحدة في كل مرة بدلاً من قفزة واحدة، لأن التغيير التدريجي أسهل على دائرة التردد لإتمامه.",
+      "4. استعادة التردد الأصلي يعيد المضاعف إلى قيمته المصنعية.",
+      "يوجد التسلسل المكون من خطوتين حتى لا تؤدي ضغطة زر غير مقصودة إلى تغيير تردد المعالج.",
+      "",
+      "الإجراء الموصى به",
+      "ارفع المضاعف ببضع خطوات، ثم طبقه، وأكده، وشغل الاختبارات. إذا لم تبلغ الاختبارات عن أي أخطاء، فإن الهاتف مستقر عند ذلك التردد؛ ارفعه أكثر وكرر العملية. وعندما يُعاد تشغيل الهاتف، أو يبلغ اختبار عن أخطاء، فإن القيمة السابقة هي أعلى قيمة يمكن استخدامها.",
+      "يصل كلا الهاتفين المختبرين إلى نحو 500 MHz تقريباً دون أي تغيير في جهد التغذية. وهذا هو الحد الأقصى للشريحة نفسها، وليس لهذا البرنامج.",
+      "",
+      "الاختبارات وما تقيسه",
+      "CLOCK هو التردد الفعلي للنواة. ويتم الحصول عليه بتنفيذ سلسلة من التعليمات تكلفتها بالدورات معروفة بدقة وقسمة الوقت المنقضي على ذلك الرقم. ويتم قياسه بدلاً من جلبه من نظام التشغيل، لأن القيمة التي يبلغ عنها النظام على هذا العتاد غير صحيحة.",
+      "MUL+ADD هي تكلفة عملية حسابية واحدة معبراً عنها بدورات المعالج. وهي لا تتغير مع التردد، وأي تغيير فيها يشير إلى وجود خلل في القياس نفسه.",
+      "اختبار cpu/alu ينفذ سلسلة حسابية طويلة ثم ينفذ عكسها. وإذا كان المعالج يحسب بشكل صحيح، فإن النتيجة تساوي قيمة البداية؛ ويتم الإبلاغ عن أي نتيجة أخرى كخطأ.",
+      "اختبار نطاق الذاكرة يقيس عدد الميجابايت في الثانية التي يمكن قراءتها من RAM، باستخدام مجموعة عمل أكبر بكثير من ذاكرة cache بحيث تصل كل قراءة إلى الذاكرة الفعلية.",
+      "اختبار cache ينفذ نفس القياس مع مجموعة عمل صغيرة بما يكفي لتبقى داخل ذاكرة المستوى الأول cache. والمقارنة بين الرقمين توضح مدى سرعة cache مقارنة بالذاكرة الخارجية.",
+      "اختبار سلامة sdram يكتب نمطاً معروفاً في الذاكرة، ويقرأه مرة أخرى، ويحسب الكلمات المختلفة. هذا هو الاختبار الذي يكتشف تلف البيانات الناتج عن عدم استقرار تردد الناقل، ويجب تشغيله بعد أي تغيير في الناقل.",
+      "اختبار شامل يشغل كل ما سبق عدة مرات ويحدد النظام الفرعي الذي فشل أولاً.",
+      "القياس الواحد لا يثبت شيئاً: تختلف عمليات التشغيل المتكررة للتكوين المتطابق بنسبة عدة بالمائة. تعامل مع فارق بهذا المقدار كتشويش في القياس وأعد التشغيل.",
+      "",
+      "إذا أُعيد تشغيل الهاتف",
+      "لا يحدث أي ضرر. يبدأ الهاتف بتردده المصنعي. خفض المضاعف خطوة واحدة وطبقه مجدداً.",
+      "",
+      "البدء مع الهاتف",
+      "يمكن للبرنامج تطبيق إعداد محفوظ تلقائياً بعد إعادة تشغيل الهاتف. يتم إيقاف هذا عند تثبيت البرنامج، ويتطلب تشغيله تسلسلاً مدروساً من الخطوات، لأن الإعداد الذي يطبق تلقائياً يطبق دون مراقبة أحد.",
+      "لتشغيله، اضبط التردد بالطريقة المعتادة، وطبقه وأكده، ودع الهاتف يعمل عليه. ثم اختر حفظ للبدء التلقائي. يرفض البرنامج حفظ أي شيء لا يعمل فعلياً في المعالج في تلك اللحظة، ويشغل ثلاث جولات من كل اختبار؛ وإذا ظهر خطأ واحد، فلن يُحفظ شيء. وما يُحفظ يظل مجرد مرشح: يجب أن يستمر الهاتف في العمل عليه لبضع دقائق إضافية، ويجب أن تجتاز جولة أخرى من الاختبارات بنجاح، قبل استخدام الإعداد عند بدء التشغيل.",
+      "إذا تبين أن الإعداد المحفوظ غير سليم، فإن الهاتف يصحح نفسه. يُكتب الإعداد في ذاكرة الهاتف قبل تغيير التردد، لذا فإن الهاتف الذي يتجمد يعود ليجد سجلاً يفيد بأن المحاولة السابقة لم تكتمل أبداً؛ ومن ثم تُرفض تلك المحاولة، ويتم إيقاف البدء التلقائي، ويعمل الهاتف بتردده المصنعي. وتتأثر إعادة تشغيل واحدة كحد أقصى، ويبلغ البرنامج بما حدث في المرة التالية التي يُفتح فيها.",
+      "أمران يستحقان المعرفة. بعد إعادة التشغيل لا يطبق التردد على الفور بل بعد نحو ثلاثة أرباع الدقيقة تقريباً، مما يتيح وقتاً لفتح البرنامج وإيقاف البدء التلقائي، أو لإزالة البرنامج عبر مدير التطبيقات. ويمكن للهاتف أن يظل يعمل بينما شاشته لا تعمل: إذا ظلت الشاشة مظلمة بعد إعادة التشغيل، أو أثناء فحص إعداد محفوظ حديثاً، فأعد تشغيل الهاتف يدوياً خلال الدقائق القليلة التالية، ولن يُحتفظ بالإعداد.",
+      "",
+      "الأجهزة غير المؤكدة",
+      "في أي جهاز لا يوجد له ملف تعريف مؤكد، يرفض البرنامج تعديل المعالج ويبلغ عن جهاز غير معروف. وتظل اختبارات القياس متاحة. ويمكن اختيار ملف اختباري يدوياً؛ وقبل كتابة أي شيء، يتحقق البرنامج من أن الكود الموجود في العنوان الذي ينوي تعديله هو الكود المتوقع، ويرفض المتابعة إذا لم يكن كذلك."
+    ],
+    "hi": [
+      "यह प्रोग्राम क्या करता है",
+      "यह प्रोग्राम TI OMAP 2420 पर बने Symbian 9.2 फोन में प्रोसेसर की ऑपरेटिंग आवृत्ति को बढ़ाता है, और यह फोन के चालू रहने के दौरान ही ऐसा करता है। Nokia N95 8GB और Nokia E90 समर्थित और सत्यापित हैं; उसी प्रोसेसर का उपयोग करने वाले अन्य मॉडल असत्यापित परीक्षण प्रोफाइल के रूप में मैन्युअल रूप से चुने जा सकते हैं।",
+      "",
+      "सुरक्षा",
+      "स्थायी मेमोरी में कुछ भी नहीं लिखा जाता है। प्रत्येक परिवर्तन केवल प्रोसेसर के नियंत्रण रजिस्टरों में मौजूद होता है, और फोन चालू होने पर हर बार उन रजिस्टरों को उनके डिफ़ॉल्ट मानों के साथ लोड किया जाता है। इसलिए फोन को रीस्टार्ट करने पर बिना किसी अपवाद के फ़ैक्टरी आवृत्ति बहाल हो जाती है, और इस प्रोग्राम की कोई भी सेटिंग रीस्टार्ट के बाद नहीं बचती है।",
+      "यदि आवृत्ति प्रोसेसर द्वारा सहन की जा सकने वाली सीमा से अधिक सेट की जाती है, तो फोन रीस्टार्ट हो जाता है। अन्य अनुप्रयोगों में न सहेजा गया डेटा नष्ट हो जाता है; इसके अलावा कुछ भी प्रभावित नहीं होता है।",
+      "",
+      "इस प्रोग्राम में प्रयुक्त शब्द",
+      "क्लॉक आवृत्ति प्रति सेकंड प्रोसेसर द्वारा किए जाने वाले चक्रों की संख्या है, जिसे मेगाहर्ट्ज़ (MHz) में मापा जाता है। एक मेगाहर्ट्ज़ प्रति सेकंड दस लाख चक्र होता है। आवृत्ति बढ़ाने का अर्थ है कि वही काम कम समय में पूरा होता है।",
+      "संदर्भ क्लॉक बोर्ड पर क्रिस्टल ऑसिलेटर द्वारा उत्पन्न निश्चित आवृत्ति है। इस हार्डवेयर पर यह 19.2 MHz है और इसे बदला नहीं जा सकता।",
+      "PLL, यानी फेज-लॉक्ड लूप, वह सर्किट है जो कम संदर्भ आवृत्ति से उच्च आवृत्ति उत्पन्न करता है। इस प्रोसेसर में DPLL कोर क्लॉक का स्रोत है।",
+      "मल्टीप्लायर वह संख्या है जिससे PLL संदर्भ क्लॉक को गुणा करता है। यह इस प्रोग्राम की मुख्य सेटिंग है और इसे MULT के रूप में दिखाया गया है।",
+      "डिवाइडर वह संख्या है जिससे पहले से उत्पन्न आवृत्ति को चिप की किसी विशिष्ट इकाई को आपूर्ति करने से पहले विभाजित किया जाता है। विभिन्न इकाइयां विभिन्न आवृत्तियों पर काम करती हैं, और डिवाइडर वे साधन हैं जिनके द्वारा वे आवृत्तियां एक सामान्य स्रोत से प्राप्त की जाती हैं।",
+      "",
+      "आवृत्ति की गणना कैसे की जाती है",
+      "PLL संदर्भ क्लॉक को मल्टीप्लायर से गुणा करता है और परिणाम को 5 के एक निश्चित कारक से विभाजित करता है जो फर्मवेयर द्वारा निर्धारित होता है और इस प्रोग्राम द्वारा बदला नहीं जाता है:",
+      "DPLL = 19.2 MHz x MULT / 5",
+      "86 के फ़ैक्टरी मल्टीप्लायर पर कोर 330.24 MHz पर चलता है। प्रोग्राम परिणामी आंकड़ों को सीधे प्रदर्शित करता है, इसलिए हाथ से कोई गणना नहीं करनी पड़ती: एक मल्टीप्लायर चुनें और हेडर वह आवृत्ति दिखाता है जो यह उत्पन्न करेगा।",
+      "चिप का प्रत्येक भाग अपने स्वयं के डिवाइडर के माध्यम से PLL आउटपुट प्राप्त करता है। यह प्रोग्राम उनमें से चार तक पहुंच प्रदान करता है।",
+      "MPUDIV प्रोसेसर कोर को आपूर्ति की जाने वाली क्लॉक को विभाजित करता है। इसका फ़ैक्टरी मान 2 है।",
+      "BUSDIV मेमोरी बस को आपूर्ति की जाने वाली क्लॉक को विभाजित करता है, जिसके माध्यम से प्रोसेसर RAM तक पहुंचता है। इसका फ़ैक्टरी मान विभिन्न मॉडलों में भिन्न होता है।",
+      "DSSDIV डिस्प्ले नियंत्रक को आपूर्ति की जाने वाली क्लॉक को विभाजित करता है। मल्टीप्लायर बढ़ाए जाने पर इसे स्वचालित रूप से समायोजित किया जाता है, ताकि डिस्प्ले को लगभग इसकी फ़ैक्टरी आवृत्ति मिलती रहे; अपनी निर्धारित आवृत्ति से काफी ऊपर संचालित डिस्प्ले विकृत या खाली चित्र उत्पन्न करता है।",
+      "DSPDIV सिग्नल प्रोसेसर को आपूर्ति की जाने वाली क्लॉक को विभाजित करता है, वह इकाई जो ऑडियो और वीडियो डिकोडिंग करती है। यह अन्य तीन से स्वतंत्र है और अलग से लागू किया जाता है।",
+      "ये सभी डिवाइडर अपना इनपुट एक ही PLL से प्राप्त करते हैं, यही कारण है कि मल्टीप्लायर बढ़ाने से परिणामी आवृत्तियों में से प्रत्येक एक साथ बढ़ जाती है। डिवाइडर बढ़ाने से केवल उस इकाई की आवृत्ति कम होती है; इसे घटाने से केवल वही आवृत्ति बढ़ती है।",
+      "",
+      "प्रत्येक सेटिंग क्या करती है",
+      "MULT PLL मल्टीप्लायर और इसलिए पूरी चिप की आवृत्ति सेट करता है। फ़ैक्टरी मान 86 है। मुख्य स्क्रीन का हेडर कुछ भी लागू होने से पहले, चयनित मान द्वारा उत्पादित आवृत्तियों को दिखाता है।",
+      "BUSDIV मेमोरी बस का डिवाइडर सेट करता है। एक छोटा डिवाइडर उच्च बस आवृत्ति उत्पन्न करता है, जिससे कोर तक डेटा पहुंचने की दर बढ़ जाती है। यह अस्थिरता पैदा करने की सबसे अधिक संभावना वाली सेटिंग भी है, क्योंकि मेमोरी नियंत्रक के समय पैरामीटर फ़ैक्टरी बस आवृत्ति के लिए कॉन्फ़िगर किए गए हैं। इसे बदलने के बाद TEST sdram integrity चलाएं।",
+      "DSPDIV सिग्नल प्रोसेसर का डिवाइडर सेट करता है। इसे उस पंक्ति पर OK दबाकर अपने आप लागू किया जाता है, न कि APPLY SETTING के माध्यम से।",
+      "DIVIDERS AUTO और MANUAL के बीच स्विच करता है। AUTO में साझा क्लॉक रजिस्टर में रखे गए डिवाइडर मल्टीप्लायर बदलने पर स्वचालित रूप से संतुलित हो जाते हैं। MANUAL में उन्हें हाथ से सेट किया जाता है, प्रत्येक पंक्ति में एक।",
+      "LANGUAGE इंटरफ़ेस की भाषा का चयन करता है। चयन याद रखा जाता है।",
+      "KEEP ON EXIT, सक्षम होने पर, प्रोग्राम बंद होने के बाद भी लागू आवृत्ति को प्रभावी रखता है। यह डिफ़ॉल्ट रूप से सक्षम है। आवृत्ति हार्डवेयर की एक स्थिति है और इस प्रोग्राम के चालू रहने पर निर्भर नहीं करती है। फोन को रीस्टार्ट करने पर फिर भी फ़ैक्टरी आवृत्ति बहाल हो जाती है।",
+      "",
+      "संचालन का क्रम",
+      "1. MULT और, यदि आवश्यक हो, डिवाइडर चुनें। हेडर दिखाता है कि परिणाम क्या होगा।",
+      "2. APPLY SETTING चयन को दर्ज करता है। इस समय हार्डवेयर में कुछ भी नहीं बदला जाता है।",
+      "3. CONFIRM परिवर्तन को लागू करता है। मल्टीप्लायर को एक ही छलांग के बजाय एक समय में एक कदम बढ़ाया जाता है, क्योंकि क्रमिक परिवर्तन क्लॉक सर्किट के लिए पूरा करना आसान होता है।",
+      "4. RESTORE STOCK मल्टीप्लायर को उसके फ़ैक्टरी मान पर लौटाता है।",
+      "दो-चरणीय अनुक्रम इसलिए मौजूद है ताकि गलती से कोई कुंजी दबने पर प्रोसेसर की आवृत्ति न बदल सके।",
+      "",
+      "अनुशंसित प्रक्रिया",
+      "मल्टीप्लायर को कुछ चरणों में बढ़ाएं, इसे लागू करें, इसकी पुष्टि करें और परीक्षण चलाएं। यदि परीक्षणों में कोई त्रुटि नहीं आती है, तो फोन उस आवृत्ति पर स्थिर है; इसे और बढ़ाएं और दोहराएं। जब फोन रीस्टार्ट होता है, या कोई परीक्षण त्रुटि की रिपोर्ट करता है, तो पिछला मान उच्चतम होता है जिसका उपयोग किया जा सकता है।",
+      "दोनों सत्यापित फोन आपूर्ति वोल्टेज में बिना किसी बदलाव के लगभग 500 MHz तक पहुंचते हैं। यह स्वयं सिलिकॉन की सीमा है, इस प्रोग्राम की नहीं।",
+      "",
+      "परीक्षण और वे क्या मापते हैं",
+      "CLOCK कोर की वास्तविक आवृत्ति है। यह निर्देशों की एक श्रृंखला को निष्पादित करके प्राप्त किया जाता है जिसकी चक्रों में लागत सटीक रूप से ज्ञात होती है और व्यतीत समय को उस संख्या से विभाजित किया जाता है। इसे ऑपरेटिंग सिस्टम से प्राप्त करने के बजाय मापा जाता है, क्योंकि इस हार्डवेयर पर सिस्टम द्वारा रिपोर्ट किया गया मान गलत होता है।",
+      "MUL+ADD प्रोसेसर चक्रों में व्यक्त एक अंकगणितीय संक्रिया की लागत है। यह आवृत्ति के साथ नहीं बदलता है, और इसमें परिवर्तन यह संकेत देगा कि माप में ही खराबी है।",
+      "TEST cpu/alu एक लंबी अंकगणितीय श्रृंखला को निष्पादित करता है और फिर इसके विपरीत को निष्पादित करता है। यदि प्रोसेसर सही ढंग से गणना कर रहा है तो परिणाम प्रारंभिक मान के बराबर होता है; किसी अन्य परिणाम को त्रुटि के रूप में रिपोर्ट किया जाता है।",
+      "TEST mem bandwidth मापता है कि RAM से प्रति सेकंड कितने मेगाबाइट पढ़े जा सकते हैं, ऐसे वर्किंग सेट का उपयोग करके जो कैश से बहुत बड़ा है ताकि प्रत्येक रीड मेमोरी तक पहुंचे।",
+      "TEST cache एक ऐसे वर्किंग सेट के साथ समान माप करता है जो पहले स्तर के कैश के भीतर रहने के लिए पर्याप्त छोटा है। दोनों आंकड़ों की तुलना करने से पता चलता है कि बाहरी मेमोरी की तुलना में कैश कितना तेज़ है।",
+      "TEST sdram integrity मेमोरी में एक ज्ञात पैटर्न लिखता है, इसे वापस पढ़ता है, और भिन्न शब्दों की गिनती करता है। यह वह परीक्षण है जो अस्थिर बस आवृत्ति के कारण होने वाले डेटा भ्रष्टाचार का पता लगाता है, और इसे बस में किसी भी बदलाव के बाद चलाया जाना चाहिए।",
+      "TEST combined उपरोक्त सभी को कई बार चलाता है और उस सबसिस्टम का नाम बताता है जो सबसे पहले विफल हुआ।",
+      "एकल माप कुछ भी साबित नहीं करता है: समान कॉन्फ़िगरेशन के बार-बार चलने पर कई प्रतिशत का अंतर होता है। उस क्रम के अंतर को माप का शोर मानें और परीक्षण दोहराएं।",
+      "",
+      "यदि फोन रीस्टार्ट हो जाता है",
+      "कोई नुकसान नहीं होता है। फोन अपनी फ़ैक्टरी आवृत्ति पर शुरू होता है। मल्टीप्लायर को एक कदम कम करें और इसे फिर से लागू करें।",
+      "",
+      "फोन के साथ शुरू होना",
+      "प्रोग्राम फोन रीस्टार्ट होने के बाद सहेजी गई सेटिंग को अपने आप लागू कर सकता है। प्रोग्राम इंस्टॉल होने पर यह बंद होता है, और इसे चालू करने के लिए सोच-समझकर कदमों के अनुक्रम की आवश्यकता होती है, क्योंकि स्वचालित रूप से लागू होने वाली सेटिंग तब लागू होती है जब कोई देख नहीं रहा होता है।",
+      "इसे चालू करने के लिए, हमेशा की तरह आवृत्ति सेट करें, इसे लागू और पुष्टि करें, और फोन को इस पर चलने दें। फिर SAVE FOR AUTOSTART चुनें। प्रोग्राम उस समय प्रोसेसर में वास्तव में न चल रही किसी भी चीज़ को सहेजने से इनकार करता है, और प्रत्येक परीक्षण के तीन राउंड चलाता है; यदि एक भी त्रुटि दिखाई देती है, तो कुछ भी नहीं सहेजा जाता है। जो सहेजा जाता है वह तब भी केवल एक उम्मीदवार होता है: स्टार्टअप पर सेटिंग का उपयोग करने से पहले फोन को कुछ मिनट और इस पर काम करते रहना पड़ता है, और परीक्षणों का एक और राउंड त्रुटिरहित आना होता है।",
+      "यदि सहेजी गई सेटिंग अस्थिर साबित होती है, तो फोन स्वयं को ठीक कर लेता है। आवृत्ति बदलने से पहले सेटिंग फोन मेमोरी में लिखी जाती है, इसलिए फ्रीज होने वाला फोन एक रिकॉर्ड पर वापस आता है जिसमें कहा गया है कि पिछला प्रयास कभी पूरा नहीं हुआ; उस प्रयास को तब अस्वीकार कर दिया जाता है, स्वचालित प्रारंभ बंद कर दिया जाता है, और फोन अपनी फ़ैक्टरी आवृत्ति पर आता है। अधिक से अधिक एक रीस्टार्ट प्रभावित होता है, और अगली बार खोले जाने पर प्रोग्राम रिपोर्ट करता है कि क्या हुआ था।",
+      "दो बातें जानने योग्य हैं। रीस्टार्ट के बाद आवृत्ति तुरंत लागू नहीं होती है, बल्कि लगभग तीन-चौथाई मिनट बाद लागू होती है, जिससे प्रोग्राम को खोलने और स्वचालित प्रारंभ को बंद करने, या एप्लिकेशन प्रबंधक के माध्यम से प्रोग्राम को हटाने का समय मिलता है। और फोन चालू रह सकता है जबकि इसकी स्क्रीन बंद हो: यदि रीस्टार्ट के बाद, या नई सहेजी गई सेटिंग की जांच के दौरान स्क्रीन काली रहती है, तो अगले कुछ मिनटों के भीतर फोन को हाथ से रीस्टार्ट करें, और सेटिंग नहीं रखी जाएगी।",
+      "",
+      "असत्यापित उपकरण",
+      "ऐसे उपकरण पर जिसके लिए कोई सत्यापित प्रोफ़ाइल मौजूद नहीं है, प्रोग्राम प्रोसेसर को संशोधित करने से इनकार करता है और UNKNOWN DEVICE रिपोर्ट करता है। माप परीक्षण उपलब्ध रहते हैं। एक परीक्षण प्रोफ़ाइल को मैन्युअल रूप से चुना जा सकता है; कुछ भी लिखने से पहले, प्रोग्राम यह सत्यापित करता है कि जिस पते पर वह संशोधन करना चाहता है उस पर मौजूद कोड वही है जिसकी वह अपेक्षा करता है, और यदि ऐसा नहीं है तो आगे बढ़ने से मना कर देता है।"
+    ],
+    "ja": [
+      "このプログラムの概要",
+      "本プログラムは、TI OMAP 2420 を搭載した Symbian 9.2 端末において、動作中にプロセッサの動作周波数を引き上げます。Nokia N95 8GB および Nokia E90 はサポート・検証済みです。同一プロセッサを搭載する他のモデルは、未検証のテストプロファイルとして手動で選択できます。",
+      "",
+      "安全性",
+      "ストレージには一切書き込まれません。すべての変更はプロセッサの制御レジスタ内のみに存在し、それらのレジスタは端末の電源を入れるたびに初期値が読み込まれます。したがって、端末を再起動すれば例外なく工場出荷時の周波数に戻り、本プログラムの設定が再起動後も残ることはありません。",
+      "プロセッサが維持できない高い周波数を設定した場合、端末は再起動します。他のアプリの未保存データは失われますが、それ以外に影響はありません。",
+      "",
+      "プログラムで使用される用語",
+      "クロック周波数とは、プロセッサが1秒間に実行するサイクル数であり、メガヘルツ (MHz) で測定されます。1メガヘルツは毎秒100万サイクルです。周波数を上げると、同じ処理がより短い時間で完了します。",
+      "基準クロック (リファレンスクロック) は、基板上の水晶発振器によって生成される固定周波数です。このハードウェアでは 19.2 MHz であり、変更できません。",
+      "PLL (Phase-Locked Loop: 位相同期回路) は、低い基準周波数から高い周波数を生成する回路です。本プロセッサの DPLL がコアクロックの供給元となります。",
+      "逓倍率 (Multiplier) は、PLLが基準クロックを何倍にするかを示す数値です。本プログラムの主要な設定項目であり、MULT と表示されます。",
+      "分周比 (Divider) は、生成された周波数をチップ内の各ユニットに供給する前に分周する数値です。各ユニットは異なる周波数で動作するため、1つの共通ソースからそれぞれの周波数を得る手段として分周器が使われます。",
+      "",
+      "周波数の計算方法",
+      "PLLは基準クロックに逓倍率を掛け、その結果をファームウェアによって設定された固定係数5で割ります (本プログラムでは変更されません):",
+      "DPLL = 19.2 MHz x MULT / 5",
+      "工場出荷時の逓倍率86では、コアは 330.24 MHz で動作します。プログラムは計算結果の数値を直接表示するため、手動で計算する必要はありません。逓倍率を選択すると、ヘッダーに生成される周波数が表示されます。",
+      "チップの各部は独自の分周器を介してPLL出力を受け取ります。本プログラムはそのうち4つを公開しています。",
+      "MPUDIV はプロセッサコアに供給されるクロックを分周します。工場出荷時の値は2です。",
+      "BUSDIV はメモリバスに供給されるクロックを分周します。プロセッサはこのバスを介してRAMにアクセスします。工場出荷時の値は機種によって異なります。",
+      "DSSDIV はディスプレイコントローラに供給されるクロックを分周します。逓倍率を引き上げた際に自動調整され、ディスプレイがほぼ工場出荷時の周波数を維持できるようにします。定格を大幅に超える周波数で駆動すると、画面の乱れやブラックアウトが発生します。",
+      "DSPDIV は信号プロセッサ (オーディオおよびビデオのデコードを行うユニット) に供給されるクロックを分周します。他の3つから独立しており、個別に適用されます。",
+      "これらすべての分周器は同一のPLLから入力を得ているため、逓倍率を上げると結果として得られるすべての周波数が一緒に上昇します。分周比を上げるとそのユニットの周波数のみが下がり、下げるとその周波数のみが上がります。",
+      "",
+      "各設定の役割",
+      "MULT はPLL逓倍率を設定し、チップ全体の周波数を決定します。工場出荷時の値は86です。メイン画面のヘッダーには、実際に適用する前に、選択した値によって生成される周波数が表示されます。",
+      "BUSDIV はメモリバスの分周比を設定します。分周比を小さくするとバス周波数が高くなり、コアへのデータ転送速度が向上します。ただし、メモリコントローラのタイミングパラメータは工場出荷時のバス周波数に合わせて構成されているため、最も不安定になりやすい設定でもあります。変更後は「テスト SDRAM整合性」を実行してください。",
+      "DSPDIV は信号プロセッサの分周比を設定します。「設定を適用」経由ではなく、その行でOKを押すことで単独で適用されます。",
+      "DIVIDERS (分周器) は自動 (AUTO) と手動 (MANUAL) を切り替えます。AUTO では逓倍率が変化した際に共有クロックレジスタ内の分周比が自動補正されます。MANUAL では各行で1つずつ手動設定します。",
+      "LANGUAGE (言語) はインターフェースの表示言語を選択します。選択内容は記憶されます。",
+      "KEEP ON EXIT (終了時維持) を有効にすると、プログラムを終了した後も適用された周波数が維持されます。デフォルトで有効です。周波数はハードウェアの状態であり、本プログラムが実行し続けることに依存しません。端末を再起動すれば常に工場出荷時の周波数に戻ります。",
+      "",
+      "操作の手順",
+      "1. MULT を選択し、必要に応じて分周器を設定します。ヘッダーに結果が表示されます。",
+      "2.「設定を適用」で選択を記録します。この時点ではハードウェアは一切変更されません。",
+      "3.「確定」で変更を実行します。クロック回路の安定のため、一気に引き上げるのではなく、1ステップずつ段階的に逓倍率を上げます。",
+      "4.「定格に戻す」で逓倍率を工場出荷時の値に戻します。",
+      "この2段階の手順は、誤ったキー操作でプロセッサの周波数が不用意に変更されるのを防ぐためのものです。",
+      "",
+      "推奨される手順",
+      "逓倍率を数ステップ引き上げ、適用して確定し、テストを実行します。テストでエラーが報告されなければ、その周波数で端末は安定しています。さらに引き上げて同様に繰り返します。端末が再起動するかテストでエラーが出た場合、その1つ前の値が使用可能な上限値となります。",
+      "検証済みの2機種はいずれも、電源電圧を変更することなく約 500 MHz に達します。これはシリコン自体の限界であり、本プログラムの限界ではありません。",
+      "",
+      "テスト項目とその測定対象",
+      "CLOCK はコアの実際の周波数です。サイクル数が正確に判明している命令列を実行し、経過時間をその数値で割ることで算出されます。このハードウェアでOSが報告する値は不正確であるため、OSから取得するのではなく直接測定しています。",
+      "MUL+ADD は1回の算術演算にかかるコストをプロセッササイクル数で表したものです。周波数によって変動することはなく、この値が変化した場合は測定自体に問題があることを示します。",
+      "「テスト cpu/alu」は長い算術演算の連続を実行した後、その逆算を実行します。プロセッサが正しく計算していれば結果は開始時の値と一致し、それ以外の結果はエラーとして報告されます。",
+      "「テスト メモリ帯域幅」はRAMから毎秒何メガバイト読み取れるかを測定します。すべての読み取りが確実にメモリに届くよう、キャッシュよりはるかに大きなワーキングセットを使用します。",
+      "「テスト キャッシュ」は第1レベルキャッシュ内に収まる十分小さなワーキングセットで同様の測定を行います。2つの数値を比較することで、キャッシュが外部メモリよりどれだけ高速であるかが分かります。",
+      "「テスト SDRAM整合性」は既知のパターンをメモリに書き込んで読み戻し、一致しないワード数をカウントします。これは不安定なバス周波数によるデータ破損を検出するテストであり、バスを変更した後は必ず実行してください。",
+      "「テスト 総合」は上記のすべてを複数回実行し、最初に失敗したサブシステム名を特定します。",
+      "1回の測定だけでは何も証明できません。同一設定で繰り返し実行しても数パーセントの差異が生じます。その程度の差は測定ノイズとして扱い、テストを繰り返してください。",
+      "",
+      "端末が再起動した場合",
+      "故障の心配はありません。端末は工場出荷時の周波数で起動します。逓倍率を1ステップ下げて再度適用してください。",
+      "",
+      "端末起動時の自動適用",
+      "本プログラムは、端末の再起動後に保存された設定を自動適用できます。インストール直後はオフになっており、自動適用は見ていない間に実行されるため、有効化には慎重な一連の手順が必要です。",
+      "有効にするには、通常通り周波数を設定して適用・確定し、端末をその周波数で動作させます。その後「自動起動用に保存」を選択します。その時点でプロセッサで実際に動作していない設定は保存を拒絶され、全テストを3ラウンド実行します。1つでもエラーが出れば何も保存されません。保存された設定もまだ候補にすぎず、端末がさらに数分間稼働し続け、もう1ラウンドのテストを正常に通過して初めて、起動時に使用されるようになります。",
+      "保存された設定に問題がある場合、端末は自己修正します。周波数が変更される前に設定が端末メモリに書き込まれるため、フリーズした端末が再起動すると、前回の試行が完了しなかった記録が残ります。その試行は拒絶され、自動起動はオフになり、端末は工場出荷時の周波数で起動します。影響を受けるのは最大1回の再起動のみで、次回プログラムを開いた際に何が起きたかが報告されます。",
+      "知っておくべき点が2つあります。再起動後、周波数はすぐには適用されず約45秒後に適用されるため、その間にプログラムを開いて自動起動をオフにするか、アプリケーションマネージャーからプログラムを削除する猶予があります。また、画面が映らなくても端末自体は動作していることがあります。再起動後や新規保存された設定の確認中に画面が暗いままの場合は、数分以内に手動で端末を再起動してください。設定は保持されません。",
+      "",
+      "未検証の端末",
+      "検証済みプロファイルが存在しない端末では、プログラムはプロセッサの変更を拒絶し「未知の端末」と報告します。測定テストは引き続き利用可能です。テストプロファイルは手動で選択できます。書き込みを行う前に、プログラムは変更対象のアドレスにあるコードが期待通りのコードであるかを検証し、一致しない場合は処理の続行を拒否します。"
+    ],
+    "ko": [
+      "이 프로그램의 기능",
+      "이 프로그램은 TI OMAP 2420 기반 Symbian 9.2 스마트폰에서 폰이 실행 중인 상태로 프로세서 동작 주파수를 올립니다. Nokia N95 8GB 및 Nokia E90이 지원 및 검증되었으며, 동일 프로세서를 사용하는 기타 모델은 미검증 테스트 프로필로 수동 선택할 수 있습니다.",
+      "",
+      "안전성",
+      "영구 저장 장치에는 아무것도 기록되지 않습니다. 모든 변경 사항은 프로세서의 제어 레지스터에만 존재하며, 이 레지스터들은 폰이 켜질 때마다 기본값으로 로드됩니다. 따라서 폰을 재부팅하면 예외 없이 출고 시 주파수로 복원되며, 이 프로그램의 어떤 설정도 재부팅 후 유지되지 않습니다.",
+      "프로세서가 감당할 수 있는 것보다 높게 주파수를 설정하면 폰이 재부팅됩니다. 다른 애플리케이션의 저장되지 않은 데이터는 손실되지만, 그 외에는 아무 영향도 없습니다.",
+      "",
+      "이 프로그램에 사용된 용어",
+      "클록 주파수는 프로세서가 초당 수행하는 사이클 수로, 메가헤르츠(MHz) 단위로 측정됩니다. 1 MHz는 초당 백만 사이클입니다. 주파수를 높이면 동일한 작업을 더 짧은 시간에 완료할 수 있습니다.",
+      "기준 클록은 기판의 수정 발진기에서 생성되는 고정 주파수입니다. 이 하드웨어에서는 19.2 MHz이며 변경할 수 없습니다.",
+      "PLL(위상 고정 루프)은 낮은 기준 주파수로부터 높은 주파수를 생성하는 회로입니다. 이 프로세서의 DPLL이 코어 클록의 원천입니다.",
+      "배율(Multiplier)은 PLL이 기준 클록에 곱하는 수치입니다. 이 프로그램의 핵심 설정이며 MULT 로 표시됩니다.",
+      "분주비(Divider)는 이미 생성된 주파수를 칩의 특정 장치로 공급하기 전에 나누는 수치입니다. 장치마다 동작하는 주파수가 다르며, 분주기를 통해 하나의 공통 원천으로부터 각 주파수를 얻습니다.",
+      "",
+      "주파수 계산 방식",
+      "PLL은 기준 클록에 배율을 곱한 뒤 펌웨어에 설정된 고정 인수인 5로 나눕니다(이 프로그램은 이를 수정하지 않습니다):",
+      "DPLL = 19.2 MHz x MULT / 5",
+      "출고 시 배율인 86에서 코어는 330.24 MHz로 동작합니다. 프로그램에 결과 수치가 바로 표시되므로 직접 계산할 필요가 없습니다. 배율을 선택하면 상단 헤더에 해당 주파수가 표시됩니다.",
+      "칩의 각 부품은 자체 분주기를 거쳐 PLL 출력을 전달받습니다. 이 프로그램은 그중 네 가지를 제공합니다.",
+      "MPUDIV는 프로세서 코어에 공급되는 클록을 나눕니다. 출고 시 기본값은 2입니다.",
+      "BUSDIV는 프로세서가 RAM에 접근하는 통로인 메모리 버스에 공급되는 클록을 나눕니다. 출고 시 기본값은 모델마다 다릅니다.",
+      "DSSDIV는 디스플레이 컨트롤러에 공급되는 클록을 나눕니다. 배율을 올릴 때 자동으로 조정되어 디스플레이가 거의 출고 시 주파수를 유지하도록 합니다. 정격 주파수를 훨씬 초과하여 구동되면 화면이 왜곡되거나 꺼질 수 있습니다.",
+      "DSPDIV는 오디오 및 비디오 디코딩을 수행하는 신호 처리 장치에 공급되는 클록을 나눕니다. 다른 세 항목과 독립적이며 별도로 적용됩니다.",
+      "이 모든 분주기는 동일한 PLL에서 입력을 받으므로 배율을 올리면 모든 결과 주파수가 함께 올라갑니다. 분주비를 늘리면 해당 장치의 주파수만 낮아지고, 줄이면 해당 주파수만 올라갑니다.",
+      "",
+      "각 설정 항목의 기능",
+      "MULT는 PLL 배율을 설정하며 전체 칩의 주파수를 결정합니다. 출고 시 기본값은 86입니다. 메인 화면 상단 헤더에 적용 전 선택된 값으로 생성될 주파수가 표시됩니다.",
+      "BUSDIV는 메모리 버스의 분주비를 설정합니다. 분주비가 작을수록 버스 주파수가 높아져 코어로 데이터가 전달되는 속도가 빨라집니다. 메모리 컨트롤러 타이밍 파라미터가 출고 시 버스 주파수에 맞춰져 있으므로 불안정성을 유발하기 가장 쉬운 설정이기도 합니다. 변경 후에는 'SDRAM 무결성 테스트'를 실행하세요.",
+      "DSPDIV는 신호 처리 장치의 분주비를 설정합니다. '설정 적용'을 통하지 않고 해당 항목에서 OK를 눌러 독립적으로 적용합니다.",
+      "DIVIDERS는 자동과 수동 사이를 전환합니다. 자동에서는 배율이 바뀔 때 공유 클록 레지스터의 분주비가 자동으로 보정됩니다. 수동에서는 각 항목별로 직접 설정합니다.",
+      "LANGUAGE는 인터페이스의 언어를 선택합니다. 선택한 언어는 저장됩니다.",
+      "종료 시 유지를 켜면 프로그램을 닫은 후에도 적용된 주파수가 유지됩니다. 기본값으로 켜져 있습니다. 주파수는 하드웨어 상태이며 이 프로그램이 계속 실행되는 것과는 무관합니다. 폰을 재부팅하면 기본 주파수로 복원됩니다.",
+      "",
+      "조작 순서",
+      "1. MULT 및 필요 시 분주비를 선택합니다. 헤더에 결과가 어떻게 될지 표시됩니다.",
+      "2. '설정 적용'으로 선택 내용을 기록합니다. 이 단계에서는 하드웨어가 변경되지 않습니다.",
+      "3. '확인'으로 변경 사항을 실행합니다. 클록 회로가 안정적으로 완료할 수 있도록 한 번에 건너뛰지 않고 배율을 단계별로 올립니다.",
+      "4. '기본값 복원'은 배율을 출고 시 기본값으로 되돌립니다.",
+      "이 2단계 절차는 실수로 키를 눌러 프로세서 주파수가 변경되는 일을 방지하기 위한 것입니다.",
+      "",
+      "권장 절차",
+      "배율을 몇 단계 올리고 적용 및 확인한 뒤 테스트를 실행하세요. 테스트에서 오류가 보고되지 않으면 해당 주파수에서 폰이 안정적인 상태입니다. 배율을 더 올리고 이 과정을 반복하세요. 폰이 재부팅되거나 테스트에서 오류가 발생하면 직전 값이 사용할 수 있는 최대 수치입니다.",
+      "검증된 두 기기 모두 공급 전압 변경 없이 약 500 MHz에 도달합니다. 이는 실리콘 칩 자체의 한계이며 이 프로그램의 한계가 아닙니다.",
+      "",
+      "테스트 항목 및 측정 내용",
+      "CLOCK은 코어의 실제 주파수입니다. 사이클 비용이 정확히 알려진 일련의 명령어를 실행하고 소요 시간을 해당 수치로 나누어 얻습니다. 이 하드웨어에서 운영체제가 보고하는 값은 정확하지 않으므로 직접 측정합니다.",
+      "MUL+ADD는 프로세서 사이클로 표시된 단일 연산 비용입니다. 주파수에 따라 변하지 않으며, 이 값이 달라진다면 측정 자체에 문제가 있음을 뜻합니다.",
+      "'cpu/alu 테스트'는 긴 연산 시퀀스를 실행한 뒤 역연산을 실행합니다. 프로세서가 정상적으로 계산하면 결과가 시작 값과 같으며, 다른 결과가 나오면 오류로 보고됩니다.",
+      "'메모리 대역폭 테스트'는 모든 읽기가 메모리에 도달하도록 캐시보다 훨씬 큰 작업 집합을 사용하여 RAM에서 초당 몇 메가바이트를 읽을 수 있는지 측정합니다.",
+      "'캐시 테스트'는 1차 캐시 내에 머무를 수 있을 만큼 작은 작업 집합으로 동일한 측정을 수행합니다. 두 수치를 비교하면 캐시가 외부 메모리보다 얼마나 빠른지 알 수 있습니다.",
+      "'SDRAM 무결성 테스트'는 메모리에 알려진 패턴을 쓰고 다시 읽어 일치하지 않는 워드 수를 셉니다. 불안정한 버스 주파수로 인한 데이터 손상을 감지하는 테스트이며, 버스 변경 후에는 반드시 실행해야 합니다.",
+      "'종합 테스트 (전체)'는 위의 모든 항목을 여러 번 실행하고 가장 먼저 실패한 서브시스템을 표시합니다.",
+      "단 한 번의 측정으로는 아무것도 증명되지 않습니다. 동일 설정으로 반복 실행해도 몇 퍼센트의 오차가 발생합니다. 이러한 차이는 측정 노이즈로 간주하고 테스트를 반복하세요.",
+      "",
+      "폰이 재부팅되는 경우",
+      "손상은 발생하지 않습니다. 폰은 출고 시 기본 주파수로 시작됩니다. 배율을 한 단계 낮추고 다시 적용하세요.",
+      "",
+      "부팅 시 자동 시작",
+      "이 프로그램은 폰이 재부팅된 후 저장된 설정을 스스로 적용할 수 있습니다. 프로그램 설치 시에는 이 기능이 꺼져 있으며, 자동으로 적용되는 설정은 아무도 지켜보지 않을 때 적용되므로 켜기 위해서는 신중한 절차를 거쳐야 합니다.",
+      "이를 켜려면 평소처럼 주파수를 설정하고 적용 및 확인한 뒤 폰이 구동되도록 하세요. 그런 다음 '자동 시작용으로 저장'을 선택합니다. 프로그램은 그 순간 프로세서에서 실제로 실행 중이지 않은 설정은 저장을 거부하며, 모든 테스트를 3회씩 실행합니다. 단 하나의 오류라도 발생하면 아무것도 저장되지 않습니다. 저장된 내용도 아직은 후보일 뿐입니다. 폰이 몇 분 더 안정적으로 동작하고 추가 1회의 테스트를 오류 없이 통과해야 부팅 시 해당 설정이 사용됩니다.",
+      "저장된 설정이 불안정한 것으로 드러나면 폰이 자체적으로 바로잡습니다. 주파수를 변경하기 전에 설정이 폰 메모리에 기록되므로, 폰이 멈추더라도 이전 시도가 완료되지 않았다는 기록이 남게 됩니다. 그러면 해당 시도가 거부되고 자동 시작이 꺼지며 폰은 출고 시 주파수로 켜집니다. 최대 1회의 재부팅만 영향을 받으며, 프로그램을 다음에 열 때 어떤 일이 발생했는지 보고합니다.",
+      "두 가지 주의할 점이 있습니다. 재부팅 후 주파수는 즉시 적용되지 않고 약 45초 후에 적용되므로 프로그램을 열어 자동 시작을 끄거나 애플리케이션 관리자에서 프로그램을 삭제할 시간이 주어집니다. 또한 화면은 켜지지 않아도 폰 자체는 작동 중일 수 있습니다. 재부팅 후 화면이 계속 어둡거나 새로 저장된 설정을 확인하는 동안 화면이 켜지지 않으면 몇 분 내에 수동으로 폰을 재부팅하세요. 그러면 설정이 유지되지 않습니다.",
+      "",
+      "미검증 기기",
+      "검증된 프로필이 없는 기기에서는 프로그램이 프로세서 수정을 거부하고 '알 수 없는 기기'를 표시합니다. 측정 테스트는 계속 사용할 수 있습니다. 테스트 프로필을 수동으로 선택할 수 있으며, 프로그램은 무엇이든 쓰기 전에 수정하려는 주소의 코드가 예상한 코드와 일치하는지 확인하고, 그렇지 않으면 진행을 거부합니다."
+    ],
+    "zh": [
+      "本程序的功能",
+      "本程序可在基于 TI OMAP 2420 的 Symbian 9.2 手机运行期间提高其处理器的运行频率。诺基亚 N95 8GB 和诺基亚 E90 已经过验证并获支持；使用相同处理器的其他机型可以作为未验证的测试配置文件手动选择。",
+      "",
+      "安全性",
+      "程序不会向永久存储写入任何内容。所有更改仅存在于处理器的控制寄存器中，而每次手机开机时这些寄存器都会加载其默认值。因此，毫无例外地重启手机都会恢复原厂频率，本程序中的任何设置都无法在重启后保留。",
+      "如果设置的频率高于处理器所能承受的范围，手机将会重启。其他应用程序中未保存的数据将会丢失；除此之外不会有任何影响。",
+      "",
+      "本程序中使用的术语",
+      "时钟频率是处理器每秒执行的周期数，以兆赫兹 (MHz) 为单位。一兆赫兹等于每秒一百万个周期。提高频率意味着在更短的时间内完成相同的工作。",
+      "参考时钟是主板上晶体振荡器产生的固定频率。在此硬件上为 19.2 MHz 且无法更改。",
+      "PLL 即锁相环，是从较低的参考频率产生高频的电路。该处理器中的 DPLL 是核心时钟的来源。",
+      "倍频是 PLL 对参考时钟进行倍增的数值。它是本程序的主要设置，显示为 MULT。",
+      "分频比是已生成的频率在提供给芯片特定单元之前所除以的数值。不同的单元工作在不同的频率下，而分频比正是从同一个公共时钟源获取这些频率的手段。",
+      "",
+      "频率是如何计算的",
+      "PLL 将参考时钟乘以倍频，然后将结果除以固件设定的固定因子 5，该因子不会被本程序更改：",
+      "DPLL = 19.2 MHz x MULT / 5",
+      "在原厂倍频 86 下，核心运行在 330.24 MHz。程序会直接显示计算出的数值，因此无需手动计算：选择一个倍频，顶部标题就会显示它将产生的频率。",
+      "芯片的每个部分都通过各自的分频比接收 PLL 输出。本程序提供了其中的四个。",
+      "MPUDIV 对提供给处理器核心的时钟进行分频。其原厂值为 2。",
+      "BUSDIV 对提供给内存总线的时钟进行分频，处理器通过该总线访问 RAM。其原厂值因机型而异。",
+      "DSSDIV 对提供给显示控制器的时钟进行分频。在提高倍频时它会自动调整，使显示屏继续接收接近其原厂频率的时钟；远高于额定频率驱动显示屏会导致画面失真或黑屏。",
+      "DSPDIV 对提供给信号处理器（负责音频和视频解码的单元）的时钟进行分频。它独立于其他三个分频比，并且是单独应用的。",
+      "所有这些分频比的输入均来自同一个 PLL，这就是为什么提高倍频会同时提高所有相应频率的原因。增大分频比会单独降低该单元的频率；减小分频比会单独提高该单元的频率。",
+      "",
+      "各项设置的作用",
+      "MULT 用于设置 PLL 倍频，进而决定整个芯片的频率。原厂值为 86。在应用任何更改之前，主屏幕顶部标题都会显示所选数值将产生的频率。",
+      "BUSDIV 用于设置内存总线的分频比。较小的分频比会产生较高的总线频率，从而加快数据到达核心的速度。它也是最容易引起不稳定的设置，因为内存控制器的时序参数是针对原厂总线频率配置的。更改该项后请运行 测试 SDRAM完整性。",
+      "DSPDIV 用于设置信号处理器的分频比。它是单独应用的，在该行按OK即可，而不是通过 应用设置。",
+      "分频比可在自动与手动之间切换。在自动模式下，当倍频发生变化时，共享时钟寄存器中的分频比会自动进行补偿。在手动模式下，每行分别手动设置。",
+      "LANGUAGE 用于选择界面语言。所选设置会被保存。",
+      "退出时保留 启用后，在程序关闭后所应用的频率仍然保持有效。默认处于启用状态。频率是硬件的状态，不依赖于本程序的持续运行。重启手机仍然会恢复原厂频率。",
+      "",
+      "操作顺序",
+      "1. 选择 MULT 以及所需的分频比。顶部标题会显示结果。",
+      "2. 应用设置 记录所选设置。此时硬件未作任何更改。",
+      "3. 确认 执行更改。倍频会逐步提升而非一步到位，因为渐进式调整更有利于时钟电路顺利完成切换。",
+      "4. 恢复默认主频 将倍频恢复为其原厂值。",
+      "采用两步确认流程是为了防止误按按键导致误改处理器频率。",
+      "",
+      "推荐操作步骤",
+      "将倍频提升几档，应用并确认，然后运行测试。如果测试未报告错误，则说明手机在该频率下稳定；继续进一步提升并重复上述步骤。当手机发生重启或测试报告错误时，上一档数值即为可用的最高频率。",
+      "在不改变供电电压的情况下，两款经过验证的手机均可达到约 500 MHz。这是芯片本身的体质极限，而非本程序的限制。",
+      "",
+      "各项测试及其测量内容",
+      "CLOCK 是核心的实际频率。它是通过执行一组周期开销完全已知的指令链，并用所用时间除以该数字计算得出的。该频率是通过实测而非从操作系统获取的，因为系统在该硬件上报告的数值是不准确的。",
+      "MUL+ADD 是单次算术操作所消耗的处理器周期数。它不随频率变化，如果它发生改变则表明测量本身存在问题。",
+      "测试 cpu/alu 执行一段长算术序列随后执行其逆运算。如果处理器计算正确，结果将等于初始值；任何其他结果都将被报告为错误。",
+      "测试 内存带宽 测量每秒可从 RAM 读取多少兆字节，采用远大于缓存的工作集以确保每次读取都能访问到实际内存。",
+      "测试 缓存 使用足够小的工作集执行相同的测量，使其完全保留在一级缓存内。对比这两个数字可以看出缓存比外部内存快多少。",
+      "测试 SDRAM完整性 向内存写入已知模式数据，读回并统计不一致的字数。该测试用于检测总线频率不稳定引起的数据损坏，在对总线进行任何更改后都应运行此测试。",
+      "测试 综合(全部) 将上述各项测试运行多次，并指出最先出现故障的子系统。",
+      "单次测量说明不了问题：相同配置下的重复运行结果可能会有几个百分点的差异。请将该量级的差异视为测量噪点并重复测试。",
+      "",
+      "如果手机重启",
+      "不会造成任何硬件损坏。手机将以原厂默认频率开机。将倍频调低一档并重新应用即可。",
+      "",
+      "随手机开机自启",
+      "程序可以在手机重启后自动应用已保存的设置。安装本程序时该功能默认关闭，开启该功能需要执行一系列审慎的步骤，因为自动应用的设置是在无人看管的情况下执行的。",
+      "如需开启该功能，请按常规方式设置频率，应用并确认，让手机在该频率下运行。然后选择 保存用于开机自启。程序拒绝保存此时并非正在处理器中实际运行的任何设置，并将对每项测试运行三轮；只要出现一个错误，就不会保存任何内容。即使保存成功也仍只是候选设置：手机必须在该设置下继续稳定运行数分钟，并且再进行一轮没有任何错误的测试后，该设置才会在开机自启时使用。",
+      "如果保存的设置被证实不稳定，手机会自行恢复。设置在频率更改之前就已写入手机内存，因此发生死机的手机重新开机后会发现上一尝试从未完成的记录；该尝试随后会被拒绝，自动启动随之关闭，手机将以原厂默认频率启动。至多只有一次重启会受到影响，并且程序在下次打开时会报告所发生的情况。",
+      "有两点值得注意。重启后不会立即应用频率，而是在约 45 秒后才应用，以便留出时间打开程序关闭自动启动，或通过程序管理器卸载程序。此外，即使屏幕不亮手机可能仍在运行：如果重启后或在检查新保存的设置期间屏幕一直黑屏，请在接下来的几分钟内手动重启手机，该设置将不会被保留。",
+      "",
+      "未验证的设备",
+      "在没有经过验证配置文件的设备上，程序将拒绝修改处理器并报告 未知设备。各项测量测试仍然可用。可以手动选择测试配置文件；在写入任何内容之前，程序会验证所要修改地址处的代码是否与预期一致，若不一致则拒绝继续。"
     ]
   }
 }
