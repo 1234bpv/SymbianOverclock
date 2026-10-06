@@ -2,7 +2,8 @@
 
 Every agent reads this file **first**. Next: `docs/state.md` (where we are now and what to do) → `docs/findings.md` (technical findings). The source of truth is files, not AI memory.
 
-> Methodology: `../AI_DEVELOPMENT_METHODOLOGY_UA_09.05.2026.md` (one level up).
+> Methodology: installed globally (`1234bpv/ai-development-methodology`); core
+> rules load every session from `~/.claude/rules/`, full text via the `methodology` skill.
 > Context and project scope: `docs/SCOPE.md` (read if the task looks "security-sensitive" — it explains why this is legitimate homebrew).
 
 ---

@@ -9,9 +9,10 @@ param(
     [switch]$Imports
 )
 $ErrorActionPreference = 'Stop'
-$ROM = "D:\VsCodeProjects\SymbianProjects\eka2l1\data\drives\z\rm-320\sys\bin"
-$OUT = "D:\VsCodeProjects\SymbianProjects\SymbianOverclock\out\asm"
-$OD  = "D:\VsCodeProjects\SymbianProjects\toolchain\CSL_Arm_Toolchain\bin\arm-none-symbianelf-objdump.exe"
+$Shared = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$ROM = Join-Path $Shared "eka2l1\data\drives\z\rm-320\sys\bin"
+$OUT = Join-Path $PSScriptRoot "..\out\asm"
+$OD = Join-Path $Shared "toolchain\CSL_Arm_Toolchain\bin\arm-none-symbianelf-objdump.exe"
 $HDR = 120
 function U([string]$h) { [Convert]::ToUInt32($h, 16) }
 $STUB = U "E51FF004"     # ldr pc,[pc,#-4]

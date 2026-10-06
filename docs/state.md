@@ -20,6 +20,28 @@ homebrew (dev-unlocked), connected over local WiFi. Context and scope —
 
 ## Where We Are Now
 
+### Desktop PC after SSD migration (2026-09-27)
+
+The old PC drives C:/D: are now G:/H:. Project build and ROM tools now resolve
+paths relative to the repository; `tools/env.cmd` selects the portable Perl,
+CSL GCCE, SDK and installed Git OpenSSL without changing the global PATH.
+The SIS descriptor uses relative host paths; phone C:/E: paths are unchanged.
+The shared SDK's `Epoc32/tools/makdeps.pm` used a hardcoded D: preprocessor:
+it now resolves `arm-none-symbianelf-cpp` through PATH. Its previous contents
+are preserved as `makdeps.pm.before-desktop` beside it.
+
+Clean GCCE UREL rebuild and SHA-1 SIS signing passed on this PC; log:
+`out/desktop-build.log`. N95 daemon INFO responded at `192.168.3.22:2323`
+on AP Huawei (PC WiFi `192.168.3.11`). Intel Wireless Bluetooth reports OK;
+COM3 is a local incoming port and COM4 belongs to the paired device SKS,
+not a Nokia. Bluetooth phone transport still requires pairing a phone with
+this PC and selecting its outgoing SPP port. No phone clock configuration
+was changed. Both ROM disassembly tools passed a smoke check.
+
+Git reported inherited ownership; this exact repository was added to the
+current user's `safe.directory` list and ordinary `git status` now works.
+The pre-existing user edit to CLAUDE.md was preserved.
+
 ### Version 2.3.0: autostart works on both phones (2026-09-15)
 
 The overclock can now be applied after a restart without touching the phone, and

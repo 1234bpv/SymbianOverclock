@@ -16,23 +16,16 @@ REM      file instead ("file is corrupted"). RSA + SHA-1 is mandatory.
 REM   3. makesis misparses a .pkg that is UTF-8 or has LF endings - the .pkg
 REM      must stay ASCII with CRLF.
 REM
-REM EPOCROOT carries no drive letter (Epoc32\tools\E32env.pm), so build from D:.
+REM EPOCROOT carries no drive letter (Epoc32\tools\E32env.pm), so build on the SDK drive.
 REM Perl must be < 5.22: E32Plat.pm uses defined(%hash).
 REM
 REM Comments here stay ASCII on purpose - cmd mangles UTF-8 in batch files.
 REM ---------------------------------------------------------------------------
 
-set PROJ=%~dp0..
-set SDKROOT=D:\VsCodeProjects\SymbianProjects\S60_3rd_FP1
-set TCROOT=D:\VsCodeProjects\SymbianProjects\toolchain
-set DAEMON=D:\VsCodeProjects\SymbianProjects\SymbianDeployDaemon
-set SIGNDIR=%PROJ%\sign
-set OPENSSL=C:\Program Files\Git\usr\bin\openssl.exe
+call "%~dp0env.cmd" || exit /b 1
 
-set EPOCROOT=\VsCodeProjects\SymbianProjects\S60_3rd_FP1\
-path=%TCROOT%\perl\perl\bin;%SDKROOT%\Epoc32\tools;%TCROOT%\cppshim\gcc\bin;%TCROOT%\CSL_Arm_Toolchain\bin;%SDKROOT%\Epoc32\gcc\bin;%PATH%
-D:
-
+set "SIGNDIR=%PROJ%\sign"
+if not defined OPENSSL (echo [ocgui] OpenSSL not found; set OPENSSL to openssl.exe & exit /b 1)
 pushd "%PROJ%\group"
 call bldmake bldfiles || (popd & echo [ocgui] bldmake FAILED & exit /b 1)
 call .\ABLD.BAT build gcce urel || (popd & echo [ocgui] build FAILED & exit /b 1)

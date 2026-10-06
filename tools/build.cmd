@@ -20,20 +20,13 @@ REM No SIS needed: the daemon drops the EXE straight into E:\sys\bin and
 REM refreshes the SHA-1 in C:\sys\hash - that digest is what makes the loader
 REM accept the binary with its declared capabilities.
 REM
-REM EPOCROOT carries no drive letter (Epoc32\tools\E32env.pm), so build from D:.
+REM EPOCROOT carries no drive letter (Epoc32\tools\E32env.pm), so build on the SDK drive.
 REM Perl must be < 5.22: E32Plat.pm uses defined(%hash).
 REM
 REM Comments here stay ASCII on purpose - cmd mangles UTF-8 in batch files.
 REM ---------------------------------------------------------------------------
 
-set PROJ=%~dp0..
-set SDKROOT=D:\VsCodeProjects\SymbianProjects\S60_3rd_FP1
-set TCROOT=D:\VsCodeProjects\SymbianProjects\toolchain
-set DAEMON=D:\VsCodeProjects\SymbianProjects\SymbianDeployDaemon
-
-set EPOCROOT=\VsCodeProjects\SymbianProjects\S60_3rd_FP1\
-path=%TCROOT%\perl\perl\bin;%SDKROOT%\Epoc32\tools;%TCROOT%\cppshim\gcc\bin;%TCROOT%\CSL_Arm_Toolchain\bin;%SDKROOT%\Epoc32\gcc\bin;%PATH%
-D:
+call "%~dp0env.cmd" || exit /b 1
 
 pushd "%PROJ%\group"
 call bldmake bldfiles || (popd & echo [ocprobe] bldmake FAILED & exit /b 1)
