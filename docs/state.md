@@ -20,6 +20,37 @@ homebrew (dev-unlocked), connected over local WiFi. Context and scope —
 
 ## Where We Are Now
 
+### Version 2.3.2: help formula fixed, README rewritten (2026-10-06)
+
+The built-in help gave `DPLL = 19.2 MHz x MULT / 4` in all 28 languages; the
+hardware divides by the stored field plus one, so it is `/ 5` (86 gives
+330.24 MHz, the old text gave 412.8). Formula and the sentence before it are
+fixed in `src/strings.json`, `src/ocstr.cpp` regenerated, version raised to
+2.3.2 in `group/ocgui.pkg` and `KAppVersion` so the help opens again on
+upgraded phones. Clean build and SHA-1 signing passed; not yet run on a phone.
+
+README rewritten for publication: part 1 for users (features, supported
+phones, prerequisites, installation, first overclock, finding a stable
+setting, autostart on/off and recovery), part 2 engineering. Two independent
+read-only fact-checks against code and docs; every confirmed remark applied.
+Decisions the author made during the rewrite:
+
+- Memory bandwidth figures from before findings 46.1 are dropped as invalid;
+  only frequencies and SPmark fps are quoted.
+- Stable settings are presented as the author's examples (N95 8GB m111, E90
+  m105 with l3 6 -> 4); users must find their own, and in-app tests alone are
+  not sufficient.
+- N82, RM-159, N93, N93i: untested, test profiles exist, "should work in
+  theory". RM-160 and RM-421 (North American) have no profile.
+- Removing the memory card as an autostart escape is NOT mentioned: the author
+  is not sure it works, and `AUTOSTART.md` says it does not.
+- Whether RomPatcher+ patches must stay active after installation is unknown;
+  installation itself needs them (the package asks for system capabilities).
+
+`tools/mkicon.js` now also writes `docs/icon.png` (160 px) for the README; the
+phone bitmaps it writes are byte-identical to before. A video demonstration is
+planned for the top of the README.
+
 ### Desktop PC after SSD migration (2026-09-27)
 
 The old PC drives C:/D: are now G:/H:. Project build and ROM tools now resolve

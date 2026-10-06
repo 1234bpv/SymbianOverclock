@@ -207,6 +207,54 @@ function writeBmp(file, size, rgb) {
     fs.writeFileSync(file, Buffer.concat([head, pixels]));
 }
 
+// RGBA PNG for the README. Same drawing at full detail, so the picture on the
+// project page is the icon the phone shows, only larger; the soft mask becomes
+// the alpha channel.
+function writePng(file, size, rgb, mask) {
+    const zlib = require('zlib');
+    const crcTable = [];
+    for (let n = 0; n < 256; ++n) {
+        let c = n;
+        for (let k = 0; k < 8; ++k)
+            c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        crcTable.push(c >>> 0);
+    }
+    function crc32(buf) {
+        let c = 0xFFFFFFFF;
+        for (const b of buf)
+            c = crcTable[(c ^ b) & 0xFF] ^ (c >>> 8);
+        return (c ^ 0xFFFFFFFF) >>> 0;
+    }
+    function chunk(type, data) {
+        const len = Buffer.alloc(4);
+        len.writeUInt32BE(data.length);
+        const td = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+        const crc = Buffer.alloc(4);
+        crc.writeUInt32BE(crc32(td));
+        return Buffer.concat([len, td, crc]);
+    }
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(size, 0);
+    ihdr.writeUInt32BE(size, 4);
+    ihdr[8] = 8;        // bit depth
+    ihdr[9] = 6;        // colour type RGBA
+    const raw = Buffer.alloc(size * (size * 4 + 1));
+    for (let y = 0; y < size; ++y) {
+        const row = y * (size * 4 + 1);
+        raw[row] = 0;   // filter: none
+        for (let x = 0; x < size; ++x) {
+            const s = (y * size + x) * 3, d = row + 1 + x * 4;
+            raw[d] = rgb[s];
+            raw[d + 1] = rgb[s + 1];
+            raw[d + 2] = rgb[s + 2];
+            raw[d + 3] = mask[y * size + x];
+        }
+    }
+    const sig = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+    fs.writeFileSync(file, Buffer.concat([sig, chunk('IHDR', ihdr),
+        chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]));
+}
+
 const SIZES = [[88, 2], [44, 1], [22, 0]];
 const dir = path.join(__dirname, '..', 'src', 'gfx');
 fs.mkdirSync(dir, { recursive: true });
@@ -216,3 +264,8 @@ for (const [size, detail] of SIZES) {
     writeGrayBmp(path.join(dir, 'ocgui_' + size + '_mask_soft.bmp'), size, mask);
     console.log('ocgui_' + size + '.bmp + soft mask');
 }
+
+const README_ICON = 160;
+const docIcon = render(README_ICON, 2);
+writePng(path.join(__dirname, '..', 'docs', 'icon.png'), README_ICON, docIcon.rgb, docIcon.mask);
+console.log('docs/icon.png');

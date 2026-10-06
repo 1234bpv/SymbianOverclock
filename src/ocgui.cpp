@@ -42,7 +42,7 @@
 #include "ocboot.h"
 
 // Build version. On the device it is otherwise impossible to tell which one is installed.
-_LIT(KAppVersion, "SymbianOverclock 2.3.1");
+_LIT(KAppVersion, "SymbianOverclock 2.3.2");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 

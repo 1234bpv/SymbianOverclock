@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.3.2
+
+- FIXED: the built-in help gave the clock formula as `DPLL = 19.2 MHz x MULT / 4`,
+  in all 28 languages. The firmware stores the divider field as 4 and the
+  hardware divides by that value plus one, so the formula is `/ 5`: with the
+  factory multiplier 86 the old text gave 412.8 MHz instead of the 330.24 MHz
+  the application itself shows. The formula and the sentence before it are
+  corrected in every language. The version change also makes the help open by
+  itself once more, so that phones with 2.3.1 see the corrected text.
+- README rewritten: a first part for people who install and use the
+  application, a second part with the engineering detail. Memory bandwidth
+  figures from before the benchmark fix (findings 46.1) are removed.
+
 ## 2.3.1
 
 - FIXED: after an autostart boot the application showed the bus and L4 dividers
