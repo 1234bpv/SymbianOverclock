@@ -20,13 +20,23 @@ homebrew (dev-unlocked), connected over local WiFi. Context and scope —
 
 ## Where We Are Now
 
+### Version 2.3.3: refused dividers no longer leave the multiplier applied (2026-10-12)
+
+On the E90 a hand-edited layout (`04478844`, VLYNQ 15, SSI 4) was refused by the
+hardware while m105 went in, so the bus stayed stock and the phone rebooted
+(findings 52). The engine now reads the divider register back and walks the
+multiplier back on a refusal. Version 2.3.3 in `group/ocgui.pkg` and
+`KAppVersion`; clean build and signing passed. NOT yet run on a phone. Open:
+E90 reboots / daemon loss right after starting ocprobe or ocgui over the daemon
+(three times on 2026-10-12, cause unknown).
+
 ### Five more languages: 33, the same set as PS1Emulator (2026-10-06)
 
 Chinese, Japanese, Korean, Hindi and Arabic were added (98 strings and 65 help
 lines each, translated by the agy subagent and checked automatically for keys,
 format specifiers, line count and characters outside the BMP). The generator
 gained their LNAME/TLANG entries and the Taiwan/Hong Kong Chinese aliases;
-toolsuild_sis.cmd builds and signs. NOT checked on a phone: the tested
+tools\build_sis.cmd builds and signs. NOT checked on a phone: the tested
 N95 and E90 fonts have no CJK glyphs, so those three languages only render on
 firmware that has them. The language list order is append-only.
 

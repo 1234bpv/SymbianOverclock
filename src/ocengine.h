@@ -197,6 +197,10 @@ const TUint32 KRegClkSelMpu  = 0xc6008140u;
 const TUint32 KRegClkEnPll   = 0xc6008500u;
 const TUint32 KRegIdlestPll  = 0xc6008520u;
 const TUint32 KRegClkSel1Core= 0xc6008240u;
+
+// ApplyRampWithCore: the hardware refused the requested CM_CLKSEL1_CORE and the
+// multiplier was returned to where the ramp started.
+const TInt KErrOcCoreRejected = KErrNotSupported;
 const TUint32 KRegSdrcRfr0   = 0xc61290a4u;
 const TUint32 KRegSdrcActimA = 0xc612909cu;
 
@@ -418,7 +422,10 @@ public:
     // and display controller does not survive L3 drop. One large jump is no
     // better than several small ones, so we do only small ones.
     TInt ApplyMultRamp(TInt aTarget, TUint32& aStatus);
-    // Same, but with explicit dividers at each step.
+    // Same, but with explicit dividers at each step. Returns KErrOcCoreRejected
+    // when the hardware refused the dividers: the multiplier has then been
+    // walked back to where it started, so the phone is not left at a new
+    // multiplier with the old dividers.
     TInt ApplyRampWithCore(TInt aTarget, TUint32 aCoreReg, TUint32 aMpuReg,
                            TUint32& aStatus);
     // Rewrite ONLY dividers (CM_CLKSEL1_CORE and CM_CLKSEL_MPU) with latch
@@ -524,6 +531,9 @@ private:
                          TUint32 aMpuValue);
     TInt WriteDspBlob(TInt aDiv);
     TInt WriteDivBlob(TUint32 aCoreReg, TUint32 aMpuReg);
+    TInt CheckCoreTook(TUint32 aCoreReg, TUint32& aLive);
+    TInt UndoRejectedRamp(TInt aFrom, TInt aBackTo, TUint32 aLiveCore,
+                          TUint32 aWrittenMpu, TUint32& aStatus);
 
 private:
     // Active device profile. All firmware-dependent addresses are taken from here,

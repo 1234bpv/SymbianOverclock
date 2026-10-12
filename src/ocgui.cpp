@@ -42,7 +42,7 @@
 #include "ocboot.h"
 
 // Build version. On the device it is otherwise impossible to tell which one is installed.
-_LIT(KAppVersion, "SymbianOverclock 2.3.2");
+_LIT(KAppVersion, "SymbianOverclock 2.3.3");
 
 const TUid KOcGuiAppUid = { 0xE0001011 };
 
@@ -1525,7 +1525,16 @@ void COcView::Activate(TRowId aRow)
                         &verdict);
                 }
             }
-            if (r != KErrNone)
+            if (r == KErrOcCoreRejected)
+                {
+                // The engine has already walked the multiplier back: the
+                // hardware refused the dividers, and the new multiplier on the
+                // old dividers would overclock the display instead.
+                TInt live = 0;
+                iEngine->LiveMult(live);
+                AddLogF(_L("dividers refused, back to m%d"), live);
+                }
+            else if (r != KErrNone)
                 {
                 AddLogF(_L("apply failed: %d st=%u"), r, st);
                 }

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.3.3
+
+- FIXED: when the hardware refused a divider layout, the multiplier stayed
+  applied. `CM_CLKSEL1_PLL` and `CM_CLKSEL1_CORE` are written by one relock,
+  but the hardware refuses the whole `CM_CLKSEL1_CORE` silently if one field is
+  out of its range, and the multiplier went in regardless. On the E90 this
+  left m105 on the stock dividers: bus 110 MHz instead of the requested 201,
+  which looked like "the bus overclock does not apply", and the display clock
+  22% above its own frequency, after which the phone rebooted. The engine now
+  reads the register back after the first step; if it differs from the
+  request it walks the multiplier back to where it started, keeping the
+  dividers the hardware holds, and the log says `dividers refused, back to mN`.
+  The bus divider is never moved by the walk back (findings 38.2). Findings 52.
+
 ## 2.3.2
 
 - FIXED: the built-in help gave the clock formula as `DPLL = 19.2 MHz x MULT / 4`,

@@ -4294,3 +4294,40 @@ hardware, a write undone by the operating system - and all three were wrong,
 while the one thing nobody suspected was the readout. The dump that settled it
 took one command and no reboot, and it should have been the first step rather
 than the fourth.
+
+## 52. A refused divider layout left the multiplier applied (2026-10-12)
+
+Reported on the E90 with 2.3.3 (before this fix): "the bus overclock does not
+apply at all, the memory test shows it". The screen after CONFIRM, read through
+the daemon (confirmed on the device):
+
+```
+applied m105 (live 105) st=0
+core 04360626 (want 04478844) l3=6 dss1=6 REJECTED
+```
+
+The requested layout differs from the known working `04360844` in two fields
+the owner changed by hand to steady the displays: VLYNQ 12 -> 15 and SSI 3 -> 4.
+The hardware refused the whole register, so the bus stayed at stock 110 MHz,
+which is exactly what the memory test measured. Which of the two fields was
+refused is not established; both pass the firmware validators, so the hardware
+set is again narrower than the firmware one (as with DSS1 = 7 in §26).
+
+The multiplier register is separate and took effect. The phone therefore ran
+m105 on the stock divider layout: the CORE clock is 806 MHz, and DSS1 /6 gives 134 MHz instead of
+the panel's 110, and soon after the phone rebooted. That the reboot was caused
+by the display clock is a guess, not a measurement; the order of events is
+confirmed.
+
+Fix in 2.3.3: `ApplyRampWithCore` reads `CM_CLKSEL1_CORE` back after the
+first multiplier step and after the final explicit write. On a mismatch
+`UndoRejectedRamp` steps the multiplier back to the starting value, rewriting
+the divider value the hardware holds, so the L3 field never changes during the
+walk back. Engine state (`iApplied`, `iLastCoreWritten`) is then set from the
+hardware, so boot does not take a refusal for a held overclock and the GUI
+compares the readback with the request. Built; not yet run on a phone.
+
+Separately, on 2026-10-12 the E90 also rebooted or dropped the daemon three
+times right after something that patches the kernel (ocprobe twice, ocgui
+once) was started while the daemon served a connection. That is not explained
+by this finding and is left open.

@@ -2221,7 +2221,9 @@ TInt COcEngine::ApplyRampWithCore(TInt aTarget, TUint32 aCoreReg,
         return r;
     if (cur < KOcMultMin || cur > KOcMultMax)
         return KErrCorrupt;
+    const TInt from = cur;
 
+    TBool coreChecked = EFalse;
     while (cur != aTarget)
         {
         cur += (aTarget > cur) ? 1 : -1;
@@ -2235,6 +2237,20 @@ TInt COcEngine::ApplyRampWithCore(TInt aTarget, TUint32 aCoreReg,
         // value itself. We go no further: next step would only repeat the failure.
         if (st != 0)
             return KErrAbort;
+        // The dividers are the same on every step, so the first step already
+        // says whether the hardware takes them. Climbing on after a refusal
+        // would only carry the old dividers further from the clock they were
+        // set for.
+        if (aCoreReg && !coreChecked)
+            {
+            coreChecked = ETrue;
+            TUint32 live = 0;
+            r = CheckCoreTook(aCoreReg, live);
+            if (r == KErrOcCoreRejected)
+                return UndoRejectedRamp(cur, from, live, aMpuReg, aStatus);
+            if (r != KErrNone)
+                return r;
+            }
         User::After(20000);            // 20 ms for subsystems to settle
         }
 
@@ -2259,8 +2275,84 @@ TInt COcEngine::ApplyRampWithCore(TInt aTarget, TUint32 aCoreReg,
             return r;
         if (st != 0)
             return KErrAbort;
+        TUint32 live = 0;
+        r = CheckCoreTook(aCoreReg, live);
+        if (r == KErrOcCoreRejected)
+            return UndoRejectedRamp(aTarget, from, live, aMpuReg, aStatus);
+        if (r != KErrNone)
+            return r;
         }
     return KErrNone;
+    }
+
+// KErrNone when CM_CLKSEL1_CORE holds exactly what was requested,
+// KErrOcCoreRejected when it holds something else.
+//
+// The hardware refuses the whole register when one field is out of its own
+// range, which is narrower than what the firmware validates (findings 26), and
+// the refusal is silent. The PLL is a different register and is written by the
+// same blob, so a refused layout leaves a new multiplier running on the old
+// dividers. On the E90 that meant m105 with the stock display divider: the
+// panel clocked 22% above its own frequency, and the phone rebooted shortly
+// after (2026-10-12).
+TInt COcEngine::CheckCoreTook(TUint32 aCoreReg, TUint32& aLive)
+    {
+    aLive = 0;
+    const TInt r = LiveCore(aLive);
+    if (r != KErrNone)                  // a failed read is not a refusal
+        return (r == KErrOcCoreRejected) ? KErrGeneral : r;
+    return (aLive == aCoreReg) ? KErrNone : KErrOcCoreRejected;
+    }
+
+// Walks the multiplier back from aFrom to aBackTo, one step at a time, keeping
+// the dividers the hardware actually holds. Those are rewritten unchanged, so
+// the bus divider never moves here, and the one transition known to kill the
+// phone - a lowered bus returned to stock (findings 38.2) - cannot happen.
+//
+// aLiveCore is the CM_CLKSEL1_CORE the refusal left behind, already read by
+// CheckCoreTook. The MPU divider is read here; if that read fails the walk
+// still goes ahead with the MPU value the last step wrote, because stopping
+// would leave the phone in exactly the state this function exists to undo.
+//
+// The engine state is then set from what the hardware holds, not from the
+// last write. Otherwise a refused divider-only change (no multiplier step to
+// undo) would leave iApplied set, boot would take the refusal for a held
+// overclock, and the GUI would compare the readback with the rollback write
+// instead of with the request.
+TInt COcEngine::UndoRejectedRamp(TInt aFrom, TInt aBackTo, TUint32 aLiveCore,
+                                 TUint32 aWrittenMpu, TUint32& aStatus)
+    {
+    const TUint32 wanted = iLastCoreWritten;
+    TUint32 mpu = 0;
+    if (ReadReg(KRegClkSelMpu, mpu) != KErrNone)
+        mpu = aWrittenMpu ? aWrittenMpu : iStockMpu;
+
+    TInt r = KErrNone;
+    TInt cur = aFrom;
+    while (cur != aBackTo)
+        {
+        cur += (aBackTo > cur) ? 1 : -1;
+        TUint32 st = 0;
+        r = ApplyMultAndCore(cur, aLiveCore, mpu, st);
+        aStatus |= st;
+        if (r != KErrNone)
+            break;
+        if (st != 0)
+            {
+            r = KErrAbort;
+            break;
+            }
+        User::After(20000);
+        }
+
+    iLastCoreWritten = wanted;
+    TInt liveMult = cur;
+    LiveMult(liveMult);
+    iAppliedMult = liveMult;
+    iApplied = (liveMult != iStockClocks.iMult) ||
+               (aLiveCore != iStockCore) ||
+               (mpu != iStockMpu);
+    return (r != KErrNone) ? r : KErrOcCoreRejected;
     }
 
 // Restoring stock state - in two steps, and second is mandatory.
