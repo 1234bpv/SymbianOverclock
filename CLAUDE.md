@@ -24,7 +24,7 @@ Determine whether CPU overclock is possible on **Symbian 9.2 / TI OMAP 2420**, a
 
 The reference device is **Nokia N95 8GB (RM-320)**, owned, unlocked for homebrew (dev-unlocked, Install Server), connected via local WiFi. Hardware twin — Nokia E90.
 
-**Current state in two sentences.** The goal has been achieved: the DPLL multiplier (`CM_CLKSEL1_PLL`, phys. `0x48008540`) was raised at runtime from 86 → 111, which is **330 → 426 MHz (+29%)** with stock memory bus, the device is stable and maintains connectivity; in a 3D benchmark 62 → 75 fps. The limit is the ARM1136 core itself at stock voltage, not the bus or display. Everything is runtime, reboot restores the device as it was; details — `docs/state.md`, full analysis — `docs/findings.md` §22.
+**Current state in two sentences.** The goal has been achieved: the DPLL multiplier (`CM_CLKSEL1_PLL`, phys. `0x48008540`) was raised at runtime from 86 → 111, which is **330 → 426 MHz (+29%)** with stock memory bus, the device is stable and maintains connectivity; in a 3D benchmark 66.2 → 75.2 fps (2026-10-12; an earlier pair gave 62 → 75). The limit is the ARM1136 core itself at stock voltage, not the bus or display. Everything is runtime, reboot restores the device as it was; details — `docs/state.md`, full analysis — `docs/findings.md` §22.
 
 ## 2. File Layout
 

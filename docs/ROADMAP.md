@@ -393,6 +393,6 @@ The overclock and the PS1 emulator have **different blockers** (here — GUI tes
 video, and polishing). Tying releases together surrenders pace to the slower one.
 
 Order: first overclock (it is closer to readiness), with a mention in the README:
-"tested on my PS1 emulator, +21% in 3D"; then the emulator with a link
+"tested on my PS1 emulator, +14% in 3D" (SPmark, 2026-10-12); then the emulator with a link
 back. Cross-linking provides the same synergy without a shared blocker, and the overclock simultaneously
 gathers the audience to which the emulator is addressed.

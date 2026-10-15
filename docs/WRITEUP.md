@@ -67,15 +67,19 @@ this.
 
 ---
 
-## 1. Starting Point: Why All Previous Symbian "Overclocks" Are Fake
+## 1. Starting Point: The "Overclocks" Available for These Phones
 
-The first thing I did was check the "overclocks" available on the net. All turned out to be
-fakes of one of three types (`findings.md §1`):
+The first thing I did was check the "overclocks" for these phones available on the net. Every
+one I could check turned out to be one of three kinds of fake (`findings.md §1`):
 
 1. Editing `20001079.txt` with the value 332 — this is an **N-Gage** config, it has
    nothing to do with frequency.
 2. "OC patches" for RomPatcher changed the text string "MHz" in a DLL — that is, a **label**.
 3. Utilities like Todo Speed gave ~1% in benchmarks — the effect of freed RAM.
+
+This is a statement about what could be checked, not about every Symbian overclock: on the
+older Siemens SX1 a separate application does seem to have changed the clock
+(`WALKTHROUGH.md` §8).
 
 Hence the first working rule that remained until the end: **measure work, not the
 label.** `HAL::Get(ECPUSpeed)` on this device consistently lies (206438 kHz
@@ -337,7 +341,9 @@ The failure profile confirms this: 426 holds indefinitely, 430 crashes within mi
 in this process (distinguishing it from SDRC timing violations).
 
 Practical result — **SPmark 3D: 62 → 75 fps (+21%)**, interface and emulation
-are noticeably faster.
+are noticeably faster. The test was repeated on 2026-10-12, with the display divider compensated:
+66.2 → 75.2 fps (+14%). The two factory figures differ by about 7%, which is the usual
+spread between repeated runs.
 
 The next obvious lever is **voltage** (Menelaus PMIC), which we did not touch.
 However, this poses irreversible risk to the silicon, not reversible by a reboot, so that is a separate

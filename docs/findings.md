@@ -11,7 +11,12 @@ from ROM code — guesses are marked explicitly.
 > unlocked device; technical terms below (kernel write, patcher,
 > dev-build hash registry) pertain to modifying one's own device, not someone else's.
 
-## 1. Context: All Public Symbian "Overclocks" Are Fake
+## 1. Context: The Public "Overclocks" for These Phones Do Not Change the Clock
+
+> Corrected 2026-10-15. This heading used to say that all public Symbian
+> "overclocks" are fake. That claimed more than was checked: the list below
+> covers what was found for these phones, and the Siemens SX1 case
+> (`WALKTHROUGH.md` §8) looks like a real overclock.
 
 - Editing `C:\private\10202be9\20001079.txt` (value 332) is an N-Gage config;
   it has nothing to do with frequency.

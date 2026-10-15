@@ -96,8 +96,10 @@ counts are different).
 
 Why is this needed at all if `HAL::Get(ECPUSpeed)` exists: because on this
 device it **lies**. It consistently returns 206438 kHz regardless of the actual
-state — both before overclocking and after. This is not a curiosity, but the reason why all public
-"Symbian overclocks" turned out to be fake: people measured a label, not actual work (§1, §5).
+state — both before overclocking and after. This is not a curiosity. Every public "overclock"
+for these phones that we could check offered a number the system reports about itself, or a
+changed label, and no measured work (`findings.md` §1, §5). That does not make every earlier
+Symbian overclock a fake: the Siemens SX1 case in §8 looks like a real one.
 
 ---
 
@@ -609,6 +611,9 @@ in data corruption and application hangs, but there are none — the device simp
 reboots via watchdog timer.
 
 Real-world application result, not synthetic: **SPmark 3D 62 → 75 fps (+21%)**.
+The test was repeated on 2026-10-12, with the display divider compensated:
+66.2 → 75.2 fps (+14%). The two factory figures differ by about 7%, which is the usual
+spread between repeated runs.
 
 ---
 

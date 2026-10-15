@@ -613,7 +613,9 @@ RM-320, device is completely stable, receives calls, and holds WiFi.
 > verified on device.
 
 Real-world effect, not synthetics: **SPmark 3D 62 -> 75 fps (+21%)**, UI and
-emulation noticeably faster.
+emulation noticeably faster. The test was repeated on 2026-10-12, with the display divider compensated:
+66.2 -> 75.2 fps (+14%). The two factory figures differ by about 7%, which is the usual
+spread between repeated runs.
 
 **The limit is ARM1136 itself at stock voltage, not the bus or display.** Proof: at
 mult 129 both the bus and display are set EXACTLY to stock frequencies (`129/86 = 1.5`,

@@ -26,10 +26,11 @@ themselves.
 On both supported phones the processor runs at 330 MHz from the factory. With
 this application it can run at up to about 500 MHz, and the memory bus can be
 raised as well. The practical effect is measured, not estimated: on the E90 the
-SPmark 3D test on the large inner screen ran at 16.3 frames per second at
-factory settings and at 28.2 frames per second with a raised bus and processor,
-which is 73% faster. On the N95 8GB the same test went from 62 to 75 frames per
-second. The interface, games and emulators become noticeably quicker.
+SPmark 3D test on the large inner screen ran at 16.4 frames per second at
+factory settings and at 28.0 frames per second with the author's everyday
+setting, which raises both the bus and the processor: 71% faster. On the N95
+8GB the same test went from 66.2 to 75.2 frames per second, 14% faster. The
+interface, games and emulators become noticeably quicker.
 
 The application offers the following:
 
@@ -195,13 +196,15 @@ system speeds up evenly: the processor goes from 330 to 426 MHz and the memory
 bus from 165 to 213 MHz, both by 29%. Only the display divider is adjusted,
 automatically, so that the screen keeps its normal frequency. The phone has run
 in this state every day since August 2026, receives calls, keeps WiFi connected
-and shows no memory errors. In SPmark 3D it gives 75 frames per second instead
-of 62.
+and shows no memory errors. In SPmark 3D it gives 75.2 frames per second
+instead of 66.2.
 
-On the E90 the corresponding everyday setting is multiplier 105 with the bus
-divider lowered from 6 to 4: the processor runs at 403 MHz and the memory bus
-at 201.6 MHz instead of 110 MHz. The E90 gains more from the bus than the N95,
-because its factory bus is slower (see [Measured results](#measured-results)).
+On the E90 the corresponding everyday setting is multiplier 104 with the bus
+divider lowered from 6 to 4: the processor runs at 399 MHz and the memory bus
+at 199.7 MHz instead of 110 MHz. In SPmark 3D on the large inner screen it
+gives 28.0 frames per second instead of 16.4. The E90 gains more from the bus
+than the N95, because its factory bus is slower (see
+[Measured results](#measured-results)).
 
 ### Near 500 MHz
 
@@ -360,6 +363,22 @@ The most informative row is the second one. Raising the bus alone, with the
 core unchanged, increased 3D performance by 50%. On this chip 3D rendering is
 limited by memory bandwidth, not by the processor.
 
+The test was repeated on 2026-10-12 for the video, with the everyday setting
+the author now uses:
+
+```
+                        bus        core       SPmark 3D
+factory               110 MHz     330 MHz     16.37 fps
+multiplier 129        165 MHz     495 MHz     24.47 fps
+multiplier 104        200 MHz     399 MHz     28.00 fps
+```
+
+The factory figure agrees with the first table. The second row runs the bus at
+the same 165 MHz as the bus-only row above, with the core raised by a further
+50%, and comes out the same (24.47 against 24.55 fps): the extra 165 MHz on the
+core buys almost nothing. The everyday setting has a slower core than that row
+but a faster bus, and it is the fastest of the three.
+
 This also explains why the E90 gains more than the N95 8GB. On the small outer
 screen, at equal clocks, the two phones run SPmark at the same speed. The
 difference lies in the factory bus: 110 MHz on the E90 against 165 MHz on the
@@ -377,17 +396,20 @@ raises the whole chip evenly. With the bus divider left at its factory value of
 
 ```
                         bus          core          SPmark 3D
-factory, mult 86      165.12 MHz   330.24 MHz      62 fps
-mult 111, BUSDIV 4    213.12 MHz   426.24 MHz      75 fps  (+21%)
+factory, mult 86      165.12 MHz   330.24 MHz      66.17 fps
+mult 111, BUSDIV 4    213.12 MHz   426.24 MHz      75.24 fps  (+14%)
 ```
 
 The only divider the application changes here is the display divider DSS1
 (6 to 8), which keeps the pixel clock near its factory value; the resulting
-`CM_CLKSEL1_CORE` is `04360844` instead of the factory `04360644`. The SPmark
-figure was taken before this compensation worked: at that time the register
-stayed at its factory value, so the display clock was also 29% higher. The
-phone ran that way for about a week with zero SDRAM integrity errors in every
-log (`docs/findings.md`, section 26.3).
+`CM_CLKSEL1_CORE` is `04360844` instead of the factory `04360644`. Both SPmark
+figures were recorded on 2026-10-12 with this compensation in place. An earlier
+pair, taken before the compensation worked, gave 62 and 75 fps; at that time
+the register stayed at its factory value, so the display clock was also 29%
+higher. The phone ran that way for about a week with zero SDRAM integrity
+errors in every log (`docs/findings.md`, section 26.3). The two factory
+figures, 62 and 66.17 fps, differ by about 7%, which is the usual spread
+between repeated runs (see [How the measurements are made](#how-the-measurements-are-made)).
 
 ### Near 500 MHz
 
@@ -419,12 +441,12 @@ two cores on one kind of work and should not be read as a general ranking.
 Above about 500 MHz the multiplier gives no further gain at factory voltage.
 The remaining reserve is in the bus.
 
-The configurations the author uses every day, read back from the registers:
+The configurations the author uses every day, as `ocgui` shows them:
 
 | Phone | Multiplier | Core | Bus | `CM_CLKSEL1_CORE` |
 |---|---|---|---|---|
 | N95 8GB | 111 | 426.24 MHz | 213.12 MHz | `04360844` |
-| E90 | 105 | 403.20 MHz | 201.60 MHz | `04360844` |
+| E90 | 104 | 399.36 MHz | 199.68 MHz | `04360624` |
 
 ## How the measurements are made
 
