@@ -340,10 +340,14 @@ display divider is compensated automatically, so that the display keeps
 approximately its factory pixel clock; a display driven far above its rated
 frequency shows a distorted or blank picture.
 
-The registers are written through the firmware's own clock-change routine,
+The registers are written by a short relock routine of the application's own,
 which runs from on-chip SRAM, so that the DPLL can relock while the external
-memory is not being accessed. The application reaches that routine through
-the `patcher.ldd` kernel driver from RomPatcher+. The addresses involved belong
+memory is in self-refresh and not being accessed. The firmware has a routine
+of the same kind: its power driver copies it into SRAM at boot and uses it for
+deep idle. That copy cannot be changed at runtime, so the application writes
+its own routine, built along the same lines, into a free part of the same SRAM
+area and runs it there. Both steps go through the `patcher.ldd` kernel driver
+from RomPatcher+ (`docs/WALKTHROUGH.md` §3.13–3.14). The addresses involved belong
 to one firmware build, which is why the application checks both the machine
 identifier and the firmware version before writing anything, and why it
 verifies the code at the target address before patching it.
