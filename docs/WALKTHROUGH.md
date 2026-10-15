@@ -610,6 +610,14 @@ frequency-voltage limit looks like, rather than timing violations: timing violat
 in data corruption and application hangs, but there are none — the device simply
 reboots via watchdog timer.
 
+> **Correction (`findings.md` §38, §38.4).** This conclusion did not hold. It rested
+> on the dividers we intended to write, not on values read back, and those writes were
+> most likely rejected, so the bus followed the core: at multiplier 129 it ran at about
+> 248 MHz instead of the stock 165. With the bus held below stock (`l3div=8`,
+> 123.84 MHz) the N95 later completed the ramp to multiplier 129, measured 491 MHz and
+> kept its SDRAM free of errors. On this phone the first limit was the bus; the core
+> itself goes to about 500 MHz at factory voltage, as on the E90.
+
 Real-world application result, not synthetic: **SPmark 3D 62 → 75 fps (+21%)**.
 The test was repeated on 2026-10-12, with the display divider compensated:
 66.2 → 75.2 fps (+14%). The two factory figures differ by about 7%, which is the usual
