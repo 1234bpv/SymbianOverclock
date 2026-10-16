@@ -37,8 +37,9 @@ The application offers the following:
 - **Processor overclocking** in steps of 3.84 MHz, from the factory 330 MHz
   up to the limit of the particular phone.
 - **Memory bus overclocking**, which on this chip gives the largest gain in
-  games and graphics, because they are limited by memory speed more than by
-  processor speed.
+  games and graphics. The graphics core is clocked from the same bus, so a
+  faster bus speeds up both the memory and the GPU, and 3D follows the bus
+  more than the processor.
 - **Built-in measurements.** The application measures the real processor
   frequency, the memory speed and the cache speed by timing actual work. The
   frequency the phone reports about itself is wrong on this hardware, so the
@@ -364,8 +365,10 @@ plus multiplier 105   201 MHz     403 MHz     28.20 fps
 ```
 
 The most informative row is the second one. Raising the bus alone, with the
-core unchanged, increased 3D performance by 50%. On this chip 3D rendering is
-limited by memory bandwidth, not by the processor.
+core unchanged, increased 3D performance by 50%. On this chip 3D rendering
+follows the bus clock, not the processor. The graphics core (PowerVR MBX) is
+clocked from the same L3 bus as the memory, so this test cannot tell memory
+bandwidth and GPU clock apart (docs/findings.md §53).
 
 The test was repeated on 2026-10-12 for the video, with the everyday setting
 the author now uses:

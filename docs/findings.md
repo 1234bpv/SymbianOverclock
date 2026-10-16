@@ -3445,7 +3445,8 @@ unknown. This is a guess, not a conclusion.
 
 **The main takeaway from the result is not frequency, but where the device hits its limit.** A gain
 of 41% in 3D from memory alone, with an unchanged core, means that ARM1136 in 3D
-is almost entirely memory-bound. This aligns with the measurements of §38.2, where changing
+is almost entirely memory-bound. **Corrected 2026-10-16, see §53:** the GPU is clocked from L3 as
+well, so this gain belongs to the bus clock (memory and GPU together), not to memory alone. This aligns with the measurements of §38.2, where changing
 the bus divider shifted `MEM` by 21–45%, while not shifting `CPU` at all. And this casts
 doubt on project priorities: the multiplier hits a silicon limit around 500 MHz
 (§38.9), while the bus just yielded more than any core overclock before it.
@@ -4336,3 +4337,37 @@ Separately, on 2026-10-12 the E90 also rebooted or dropped the daemon three
 times right after something that patches the kernel (ocprobe twice, ocgui
 once) was started while the daemon served a connection. That is not explained
 by this finding and is left open.
+
+## 53. The graphics core is clocked from the memory bus: "3D is memory-bound" was too strong (2026-10-16)
+
+**Correction of §38 and §22 wording.** Earlier sections (and the README) say
+that 3D on this chip is limited by memory, because raising only the L3 bus
+divider on the E90 (6 → 4, bus 110 → 165 MHz, core unchanged at 330) gave +50%
+in SPmark 3D. The measurement stands; the attribution to memory alone does not.
+
+In the OMAP2420 clock tree the PowerVR MBX is fed from L3, not from the core
+or a separate source. Linux `arch/arm/mach-omap2/cclock2420_data.c` (v3.10):
+`gfx_3d_fck` and `gfx_2d_fck` take `core_l3_ck` as parent through the
+`CM_CLKSEL_GFX` divider (`gfx_fck_clksel` → `core_l3_ck`, rates
+`gfx_l3_rates`), and `gfx_ick` is also `core_l3_ck`. So the same divider
+change that raised the memory bus by 50% raised the GPU clock by the same
+factor, unless the firmware changes `CM_CLKSEL_GFX` along with it.
+
+What is measured and what is inferred:
+
+- measured: bus +50% → memory bandwidth 339 → 509 MB/s (+50%) and SPmark 3D
+  16.33 → 24.55 fps (+50%); core +50% with the same bus → no further gain;
+- inferred from another description of the same chip, not read on our
+  phones: the GPU clock follows L3. `CM_CLKSEL_GFX` has not been read on the
+  N95 or the E90;
+- consequence: the benchmark cannot separate memory bandwidth from GPU
+  clock. The safe statement is "3D follows the bus clock, not the ARM core".
+  "Bound by memory" is a hypothesis that needs a test where the two move
+  apart, for example changing `CM_CLKSEL_GFX` alone.
+
+The practical advice in the shared `CLAUDE.md` still holds for software that
+runs on the ARM core and touches memory heavily (the PS1 emulator), but the 3D
+numbers are no longer evidence for it on their own.
+
+Proposed check (not done): read `CM_CLKSEL_GFX` (GFX_MOD + CM_CLKSEL) under
+load at stock and with `l3=4`; if the field stays the same, GFX ran +50%.
