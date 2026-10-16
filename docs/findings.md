@@ -4371,3 +4371,25 @@ numbers are no longer evidence for it on their own.
 
 Proposed check (not done): read `CM_CLKSEL_GFX` (GFX_MOD + CM_CLKSEL) under
 load at stock and with `l3=4`; if the field stays the same, GFX ran +50%.
+
+## 54. What the system reports: wrong on the N95, right on the E90 (2026-10-17)
+
+The rule "do not trust the reported clock" came from the N95, and it holds
+there: `HAL::ECPUSpeed` returns 206438 kHz at stock and after overclocking
+(§5). It is not true of every phone, and earlier text that says "the phone" or
+"Symbian" in general was too broad.
+
+- E90 — correct, and it follows the overclock. Measured: with the multiplier
+  left at 96 (19.2 × 96 / 5 = 368.64 MHz) `HAL ECPUSpeed` read 368000 kHz
+  (§44.2). Observed by Pavlo on 2026-10-17: SPmark's System Information on the
+  E90 shows the current clock correctly. Not photographed.
+- Nokia C5-00.2 and Nokia 701 — SPmark shows 192 MHz on both. Observed by
+  Pavlo on 2026-10-17, not photographed. The real clocks were not measured
+  here; the C5 is an ARM11 at a nominal 600 MHz (shared `CLAUDE.md`), so 192
+  is clearly not its clock. Whether SPmark reads HAL on these phones is not
+  known.
+
+Consequence for the texts: say "the N95 reports 206 MHz", not "the phone" or
+"Symbian". The practice of measuring work does not change: it is the only
+check that works on every phone, and the E90 being right is known only
+because it was measured.

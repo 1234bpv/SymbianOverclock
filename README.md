@@ -459,7 +459,8 @@ The configurations the author uses every day, as `ocgui` shows them:
 
 The frequency a Symbian phone reports about itself cannot be trusted:
 `HAL::ECPUSpeed` on the N95 8GB returns 206438 kHz while the core actually runs
-at 330 MHz. All results in this project were therefore obtained by timing work
+at 330 MHz. The E90 reports its clock correctly, also when overclocked, but it
+is the exception: SPmark shows 192 MHz on a Nokia C5 and a Nokia 701. All results in this project were therefore obtained by timing work
 of known cost. The core clock is measured by executing a chain of instructions
 whose cycle count is known exactly; memory bandwidth is measured with a working
 set much larger than the cache.
