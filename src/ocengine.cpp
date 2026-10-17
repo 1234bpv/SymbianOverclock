@@ -242,9 +242,109 @@ const TOcProfile KProfileN93i =
     ETrue
     };
 
+// --- North American N95 and N95 8GB (findings 55) --------------------------
+//
+// Derived offline from all seven collected images: four RM-160 builds and three RM-421
+// builds. Each build with a full linear XIP was checked first through its own ROM
+// directory - every module's code address equals its ROM header address plus 120, so
+// file offset is address - and only then compared against the RM-320 reference.
+//
+// RM-421 35.2.002 is the RM-320 code at the RM-320 addresses: dvfs_interface.ldd,
+// eusbc.ldd and ekern.exe are byte-for-byte identical, and power.dll differs only in
+// five words of a build date string. Hence the RM-320 addresses as they are.
+//
+// RM-160 20.2.011 and 35.2.001 are one image apart from 12 bytes, and their power.dll,
+// dvfs_interface.ldd and eusbc.ldd are identical. Against RM-320 the code moved, but did
+// not change: relock routine 80 of 80 words exact, DSP setter 24 of 24, DoControl(1)
+// body with its dispatcher 64 of 64, each at the same offset inside its module as on
+// RM-320, and each signature has exactly one match in the 42-megabyte image.
+//
+// The firmware gate stays empty, as in the other test profiles: a build is recognised
+// by the bytes at the patch address before anything is written. On any other build
+// those bytes are not the expected body, and the engine stops at "verify body".
+const TOcProfile KProfileRM160 =
+    {
+    "RM-160 NAM (TEST)",
+    0,                      // machine uid unknown: no auto-selection
+    EReadDvfs,
+    EHostDvfs,
+    0x8013e7b0u,            // iDvfsBody: only signature match, dvfs_interface.ldd + 0x2e8
+    0x8009ae5cu,            // iRomSramRoutine: power.dll + 0x2d4, code identical
+    0x8009f48cu,            // iDspSetter: power.dll + 0x4904, code identical
+    0,                      // iPwrDownGlobal: search on device
+    0, 0, 0,                // stock layout: retrieve from device
+    "",                     // gate empty: the body bytes decide
+    ETrue,
+    0xc80030ecu,            // global search hint: same pool as RM-320
+    KSramRoutineSignature,
+    EFalse
+    };
+
+const TOcProfile KProfileRM421 =
+    {
+    "RM-421 NAM (TEST)",
+    0,
+    EReadDvfs,
+    EHostDvfs,
+    0x80148410u,            // iDvfsBody: identical to RM-320 in 35.2.002
+    0x800a7f6cu,            // iRomSramRoutine: identical to RM-320
+    0x800ac59cu,            // iDspSetter: identical to RM-320
+    0,
+    0, 0, 0,
+    "",
+    ETrue,
+    0xc80030ecu,
+    KSramRoutineSignature,
+    EFalse
+    };
+
+// The other NAM builds, through the same address search as N93 and N93i.
+//
+// RM-421 1.2.011 and 20.2.005 are linear too, but their code sits elsewhere, and a fixed
+// profile can name only one build. In all five linear NAM images the two search
+// signatures - the DLddUsbcChannel::DoControl prologue and the relock routine - have
+// exactly one match each, at eusbc.ldd + 0x1c6c and power.dll + 0x2d4, the same offsets
+// as on RM-320, and the first 128 words of DoControl are identical to RM-320. That is the
+// answer the live scanner would get on those builds.
+//
+// RM-160 10.2.006 and 11.2.009 are different: their image holds only a 1.4 MB SOS+UPDAPP
+// root, as on E90, without dvfs_interface, and its offsets say nothing about the live
+// XIP. Usbc is therefore the host here, and whether the signatures are found on those
+// phones is not known.
+const TOcProfile KProfileRM160Auto =
+    {
+    "RM-160 NAM (TEST, auto)",
+    0,
+    EReadDvfs,
+    EHostUsbc,
+    0, 0, 0, 0,             // all addresses: discover on device
+    0, 0, 0,
+    "",
+    ETrue,
+    0xc80030ecu,
+    KSramRoutineSignature,
+    ETrue
+    };
+
+const TOcProfile KProfileRM421Auto =
+    {
+    "RM-421 NAM (TEST, auto)",
+    0,
+    EReadDvfs,
+    EHostUsbc,
+    0, 0, 0, 0,
+    0, 0, 0,
+    "",
+    ETrue,
+    0xc80030ecu,
+    KSramRoutineSignature,
+    ETrue
+    };
+
 // Test profiles as a separate list - specifically so they cannot be picked accidentally.
 static const TOcProfile* const KTestProfiles[] =
-    { &KProfileN95Classic, &KProfileN82, &KProfileN93, &KProfileN93i };
+    { &KProfileN95Classic, &KProfileN82, &KProfileN93, &KProfileN93i,
+      &KProfileRM160, &KProfileRM160Auto, &KProfileRM421, &KProfileRM421Auto };
 
 TInt TestProfileCount()
     {

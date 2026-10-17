@@ -90,11 +90,16 @@ not known yet. Owners of any of these phones who try it are asked to report
 the result (see [`docs/PORTING.md`](docs/PORTING.md)).
 
 The North American versions, the Nokia N95-3 (RM-160) and the Nokia N95 8GB
-NAM (RM-421), are not supported yet: the application has no profile for them
-and will report an unknown device. A test profile can still be tried by hand.
-The check of the firmware code described above then decides whether anything is
-written; if the code differs from what the profile expects, the application
-stops without touching the processor.
+NAM (RM-421), have test profiles too, two for each model, and like the others
+they have never been tried on a phone. `RM-160 NAM (TEST)` is for firmware
+20.2.011 and 35.2.001, `RM-421 NAM (TEST)` for firmware 35.2.002; for these
+builds the firmware images contain the N95 8GB code at known addresses, and on
+RM-421 35.2.002 at exactly the same addresses. The two `(TEST, auto)` profiles
+are for every other firmware version and search for the addresses on the phone,
+as the N93 profiles do. On the early RM-160 firmware 10.2.006 and 11.2.009 the
+images do not show the phone's code at all, so there the chances are unknown.
+If a profile does not match the firmware, the code check described above stops
+it before anything is written.
 
 ## Before you install
 
@@ -124,7 +129,7 @@ measurements are available.
 
 ## Installation
 
-1. Download `SymbianOverclock_sha1.sis` from the
+1. Download the latest `SymbianOverclock-<version>.sis` from the
    [Releases](../../releases) page.
 2. Copy it to the phone in any convenient way: USB cable, Bluetooth or memory
    card.

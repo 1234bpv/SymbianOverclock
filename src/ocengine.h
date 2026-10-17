@@ -155,7 +155,7 @@ struct TOcProfile
     };
 
 // Eight words of power.dll relock routine prologue. Identical across all parsed
-// OMAP2420 images (RM-320, RM-159, N82), so this is a signature of the function itself, not
+// OMAP2420 images (RM-320, RM-159, N82, RM-160, RM-421), so this is a signature of the function itself, not
 // of a specific build - and it is used here precisely as a function signature.
 extern const TUint32 KSramRoutineSignature[8];
 

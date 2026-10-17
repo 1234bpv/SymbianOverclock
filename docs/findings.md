@@ -4393,3 +4393,145 @@ Consequence for the texts: say "the N95 reports 206 MHz", not "the phone" or
 "Symbian". The practice of measuring work does not change: it is the only
 check that works on every phone, and the E90 being right is known only
 because it was measured.
+
+## 55. North American N95 (RM-160) and N95 8GB (RM-421): test profiles from seven images (2026-10-17)
+
+Everything in this section is **derived from firmware images offline**. None of
+it was run on an RM-160 or RM-421 phone; no such phone was available.
+
+### 55.1. Method and the check of the instrument
+
+The seven MCU images collected on 2026-08-31 (state.md, "Downloaded
+2026-08-30") were unpacked with `tools/fpsx_extract.js` into
+`out/roms/rm160-<build>.rom` and `out/roms/rm421-<build>.rom`. Each image was
+then read through its own ROM file system rather than through a fixed offset:
+`TRomHeader.iRomRootDirectoryList` (header `+0x94`) leads to the directory
+entries, each entry gives the address of a module's `TRomImageHeader`, and
+that header gives `iCodeAddress`, `iCodeSize` and `iDataBssLinearBase`. For a
+linear image the code of every module starts exactly 120 bytes after its
+header and `iRomBase` is `0x80000000`; only for such images is "offset =
+address - 0x80000000" taken as established.
+
+In each image three signatures were searched over the whole file: the
+`DoControl(1)` body of `dvfs_interface.ldd` (six words, mask as in
+`tools/romscan.js`), the `DLddUsbcChannel::DoControl` prologue (four words,
+as in `DiscoverRomAddresses`) and the relock routine (eight words, two `ldr`
+masked, as in `DiscoverRomAddresses`). The routines found were then compared
+word by word with RM-320 `31.0.015`, counting separately the words that are
+exact, the words that differ only in a PC-relative offset, and the rest. The
+raw output is in `out/analysis/nam.md`.
+
+Before any NAM result was used, the same scripts were run on images whose
+answers are known from hardware. RM-320 `31.0.015` and `35.0.001` gave body
+`0x80148410`, Usbc `0x8010bd04`, relock `0x800a7f6c`, DSP setter
+`0x800ac59c`, each signature with exactly one match - all equal to the proven
+profile. RM-159 gave body `0x8014b5f0`, the value already in its test
+profile. The two RM-320 images also turned out to be identical in power.dll,
+`dvfs_interface.ldd`, `eusbc.ldd` and `ekern.exe`.
+
+### 55.2. What the images contain
+
+| build | XIP | dvfs_interface.ldd | DoControl(1) body | relock routine | DSP setter | Usbc DoControl |
+|---|---|---|---|---|---|---|
+| RM-421 1.2.011 | linear, 0x281a200 | yes | 0x80140610 | 0x8009fe5c | 0x800a448c | 0x80103aa4 |
+| RM-421 20.2.005 | linear, 0x281e200 | yes | 0x80140740 | 0x8009ff0c | 0x800a453c | 0x80103bc4 |
+| RM-421 35.2.002 | linear, 0x2970200 | yes | 0x80148410 | 0x800a7f6c | 0x800ac59c | 0x8010bd04 |
+| RM-160 10.2.006 | SOS+UPDAPP only, 0x15a000 | no | - | (fragment) | (fragment) | (fragment) |
+| RM-160 11.2.009 | SOS+UPDAPP only, 0x15a000 | no | - | (fragment) | (fragment) | (fragment) |
+| RM-160 20.2.011 | linear, 0x286c200 | yes | 0x8013e7b0 | 0x8009ae5c | 0x8009f48c | 0x80101c84 |
+| RM-160 35.2.001 | linear, 0x286c200 | yes | 0x8013e7b0 | 0x8009ae5c | 0x8009f48c | 0x80101c84 |
+
+In every linear NAM image:
+
+- each of the three signatures has **exactly one** match in the whole file;
+- the routines lie at the **same offset inside their module** as on RM-320:
+  body at `dvfs_interface.ldd + 0x2e8`, relock at `power.dll + 0x2d4`, DSP
+  setter at `power.dll + 0x4904`, multiplier reader at `power.dll + 0x98ac`,
+  Usbc `DoControl` at `eusbc.ldd + 0x1c6c`;
+- compared with RM-320: relock routine 80 of 80 words exact, DSP setter 24 of
+  24, multiplier reader 40 of 40 with its pool word `0xc6008540`, body
+  together with the dispatcher after it 64 of 64, Usbc `DoControl` 128 of 128;
+- the six body words are `e92d4010 e3a00001 eb00014c e59f11d0 e8bd4010
+  ea000135`, the same as `KDvfsOriginal` of RM-320;
+- power.dll has `iDataBssLinearBase = 0xc80030c0` and data size `0x1a8`, as
+  on RM-320, and its code refers to the same eleven addresses in that data.
+
+The 11-word DSP setter pattern matches twice in every image, RM-320 included:
+the second match, at `power.dll + 0x497c`, is the twin with the `0x1f00` mask
+already described for E90 (§31), and it differs from the setter in 7 of 24
+words. The profiles use the first one, as RM-320 does.
+
+**RM-421 35.2.002 is the RM-320 code at the RM-320 addresses.**
+`dvfs_interface.ldd` (2596 bytes at `0x80148128`), `eusbc.ldd` (16964 bytes at
+`0x8010a098`) and `ekern.exe` (227532 bytes at `0x8006a000`) are byte-for-byte
+identical. power.dll (46592 bytes at `0x800a7c98`) differs in five words,
+`0x800b26f8`..`0x800b2708`, and those are ASCII: a build date, `=Nov  6 2008
+22:25:...` on RM-320 against `=Apr 13 2009 21:43:0...` on RM-421. No
+instruction differs.
+
+**RM-160 20.2.011 and 35.2.001 are one image.** The two files differ in 12
+bytes, all in `TRomHeader`: `0x80`..`0x89` (build time) and `0xa8`..`0xab`
+(checksum). power.dll, `dvfs_interface.ldd` and `eusbc.ldd` are identical.
+
+**RM-421 1.2.011, 20.2.005 and RM-160 20.2.011 against RM-320.** The code moved
+(power.dll by `-0x8110`, `-0x8060` and `-0xd110`) but did not change where it
+matters. Of 11648 power.dll words, 11051-11052 are exact and 458 are absolute
+addresses shifted by exactly the module's own displacement. Of the remaining
+138-139, 133 are absolute ROM addresses into other modules, which moved by
+other amounts; four or five are the build date string at `+0xaa60`; one is a
+constant at `+0x1ac0` (`0x64c9` against `0x64ed`). None of them is inside the
+windows compared above.
+
+**RM-160 10.2.006 and 11.2.009 give no addresses.** The extractor finds only a
+`SOS+UPDAPP` root there: a separate small ROM of its own (`iRomSize`
+2 MB, 76 files), the same situation as E90, N93 and N93i, where the real XIP
+on the phone was measured to differ from such a fragment (§47.1). The fragment
+has no `dvfs_interface.ldd` in its directory and no `dvfs_interface` string.
+Its own power.dll and `eusbc.ldd` contain the relock routine (80 of 80 exact)
+and the Usbc prologue (`DoControl` 90 exact + 38 PC-relative of 128), but at
+offsets that describe this small ROM, not the phone. Whether the phone's XIP
+has the dvfs driver is not known: absence in the raw image is a hint, not a
+verdict (§28).
+
+### 55.3. Profiles
+
+| profile | host | addresses | for builds |
+|---|---|---|---|
+| `RM-160 NAM (TEST)` | dvfs | body 0x8013e7b0, relock 0x8009ae5c, DSP 0x8009f48c | 20.2.011, 35.2.001 |
+| `RM-160 NAM (TEST, auto)` | Usbc | searched on the phone | any other, including 10.2.006 and 11.2.009 |
+| `RM-421 NAM (TEST)` | dvfs | body 0x80148410, relock 0x800a7f6c, DSP 0x800ac59c | 35.2.002 |
+| `RM-421 NAM (TEST, auto)` | Usbc | searched on the phone | any other, including 1.2.011 and 20.2.005 |
+
+All four have machine uid 0, `iExperimental`, an empty firmware gate, stock
+layout read from the phone, `iPwrDownGlobal = 0` with hint `0xc80030ec`, and
+the eight-word relock signature check - exactly the arrangement of the
+existing test profiles. On a build the fixed profile was not derived for, the
+bytes at the body address are not the expected body, and the engine stops at
+`verify body` before the first write (§42); this is how the dvfs-less RM-160
+builds are refused.
+
+Why RM-421 1.2.011 and 20.2.005 have no fixed profiles of their own: their
+addresses are derived as well as the others, but a profile names one build,
+and the search reaches the same functions on those builds. The offline scan of
+the full linear image is what the live scanner would see on such a phone (on
+RM-320 the two were shown to agree, §47.2), and it found exactly one match of
+each search signature. The price is the DSP setter, which an auto profile does
+not have, so `ApplyDspDiv` refuses there.
+
+### 55.4. What is not proven
+
+- Nothing ran on an RM-160 or RM-421 phone. Machine uids, stock clock
+  layouts and the power-down global are unknown. The global would sit at
+  `0xc80030c8` if power.dll data is laid out as on RM-320, and everything
+  above points that way, but the offline method for the global failed on a
+  known answer (§41.3), so it stays a search inside `0xc80030ec ± 0x200`.
+- That a phone running build X has the image of build X in its XIP is assumed,
+  as it was for every offline profile. The byte checks before writing are
+  what protects a phone for which the assumption is wrong.
+- The Usbc host was proven on RM-320 (§32) and E90, not on these phones. The
+  live scan reads up to the ROM size the HAL reports, about 57 MB on these
+  builds by `iRomSize`, more than the 42 MB image; on RM-320 the same scan
+  worked on hardware, on NAM phones it has not been tried.
+- For RM-160 10.2.006 and 11.2.009 there is no evidence that either
+  signature exists in the phone's XIP. The auto profile there is an
+  experiment of the N93 kind, and a refusal at `discover` is a likely outcome.

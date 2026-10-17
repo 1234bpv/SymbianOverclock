@@ -20,6 +20,23 @@ homebrew (dev-unlocked), connected over local WiFi. Context and scope —
 
 ## Where We Are Now
 
+### Version 2.4.0: test profiles for the North American RM-160 and RM-421 (2026-10-17)
+
+All seven NAM images from `../firmware/` were unpacked into `out/roms/` and
+compared with RM-320 offline (findings 55, raw output `out/analysis/nam.md`).
+Five are full linear XIP; RM-160 10.2.006 and 11.2.009 are only a
+`SOS+UPDAPP` fragment without dvfs. Four test profiles were added to
+`KTestProfiles`: `RM-160 NAM (TEST)` (fixed, 20.2.011/35.2.001: body
+0x8013e7b0, relock 0x8009ae5c, DSP 0x8009f48c), `RM-421 NAM (TEST)` (fixed,
+35.2.002, the RM-320 addresses), and `RM-160 NAM (TEST, auto)` /
+`RM-421 NAM (TEST, auto)` (Usbc host, on-phone search, every other build).
+The in-app help needed no change: it names only the two verified phones and
+describes test profiles in general. Version 2.4.0 in `group/ocgui.pkg` and
+`KAppVersion`; clean build of all three EXEs and SHA-1 signing passed.
+NOT run on any NAM phone - none is available. Open: machine uids, stock
+layouts and the power-down global of both models; whether the auto profiles
+find their signatures on a live phone, especially on early RM-160 firmware.
+
 ### Version 2.3.3: refused dividers no longer leave the multiplier applied (2026-10-12)
 
 On the E90 a hand-edited layout (`04478844`, VLYNQ 15, SSI 4) was refused by the
@@ -62,6 +79,7 @@ Decisions the author made during the rewrite:
   not sufficient.
 - N82, RM-159, N93, N93i: untested, test profiles exist, "should work in
   theory". RM-160 and RM-421 (North American) have no profile.
+  (Superseded on 2026-10-17: version 2.4.0 adds test profiles for both, see above.)
 - Removing the memory card as an autostart escape is NOT mentioned: the author
   is not sure it works, and `AUTOSTART.md` says it does not.
 - Whether RomPatcher+ patches must stay active after installation is unknown;

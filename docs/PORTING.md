@@ -77,7 +77,8 @@ aiming at a foreign frequency — this has already been hit before (see comment 
 ## What Has Been Collected, but NOT Confirmed
 
 In `out/analysis/` are offline analyses of ROM images for Nokia N82 (RM-313),
-N95 classic (RM-159), N93 (RM-55), and N93i (RM-156). For N82 and RM-159, two of
+N95 classic (RM-159), N93 (RM-55), and N93i (RM-156), and since 2026-10-17 for
+the North American RM-160 and RM-421 (`nam.md`, see the last section). For N82 and RM-159, two of
 the four addresses have been found (`iRomSramRoutine`, `iDspSetter`), with RM-159 matching
 RM-320 byte-for-byte, and N82 shifted by exactly `+0x10`.
 
@@ -134,3 +135,33 @@ this build is different, and the signature must be derived from a dump. In that 
 
 The DSP divider setter in these profiles is zero, meaning `ApplyDspDiv` on them
 refuses. This is intentional: zero here is a branch address, not a "skip" flag.
+
+## North American N95 (RM-160) and N95 8GB (RM-421)
+
+Seven images were collected: RM-160 `10.2.006`, `11.2.009`, `20.2.011`,
+`35.2.001` and RM-421 `1.2.011`, `20.2.005`, `35.2.002`. The evidence is in
+`findings.md` §55, the raw output in `out/analysis/nam.md`. Unlike E90 and
+N93, five of these images are full linear XIP, checked per module through the
+ROM directory, so fixed addresses could be derived for them; only the two early
+RM-160 builds are a `SOS+UPDAPP` fragment.
+
+Each model therefore has two test profiles:
+
+- `RM-160 NAM (TEST)` - fixed addresses for `20.2.011` and `35.2.001`, which are
+  one image (12 differing bytes, all in the ROM header). The code is the RM-320
+  code moved by `-0xd110` in power.dll: relock routine, DSP setter and the
+  `DoControl(1)` body match RM-320 word for word.
+- `RM-421 NAM (TEST)` - the RM-320 addresses as they are, for `35.2.002`, whose
+  `dvfs_interface.ldd`, `eusbc.ldd` and `ekern.exe` are byte-for-byte RM-320 and
+  whose power.dll differs only in a build date string.
+- `RM-160 NAM (TEST, auto)` and `RM-421 NAM (TEST, auto)` - the N93 approach,
+  Usbc host and on-phone search, for every other build. For RM-421 `1.2.011` and
+  `20.2.005` the offline scan of the full image found each search signature
+  exactly once, at the RM-320 offsets inside the modules. For RM-160 `10.2.006`
+  and `11.2.009` nothing is known about the phone's XIP, and no `dvfs` driver
+  is visible in their images.
+
+A fixed profile on the wrong build stops at `verify body` before writing,
+because the bytes at its body address are not the expected body. An owner who
+does not know which profile applies should start with `ocprobe romfind`
+(read-only, see above) and send its output together with `*#0000#`.

@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.4.0
+
+- Test profiles for the North American Nokia N95-3 (RM-160) and N95 8GB
+  (RM-421), derived offline from all seven collected firmware images and never
+  run on a phone. Like the other test profiles they have no machine uid, are
+  never selected automatically and can only be chosen in the `TEST PROFILE`
+  row on an unrecognised phone.
+  - `RM-160 NAM (TEST)`: fixed addresses for 20.2.011 and 35.2.001, whose
+    images are identical apart from the ROM header; the routines are the
+    RM-320 code moved within the image, matched word for word.
+  - `RM-421 NAM (TEST)`: the RM-320 addresses, for 35.2.002, whose kernel,
+    dvfs and USB driver code is byte-for-byte RM-320 and whose power.dll
+    differs only in a build date string.
+  - `RM-160 NAM (TEST, auto)` and `RM-421 NAM (TEST, auto)`: on-phone address
+    search with the Usbc host, as on the N93, for every other build. The early
+    RM-160 builds 10.2.006 and 11.2.009 show only a resident fragment and no
+    dvfs driver in their images, so nothing is known about them in advance.
+  Evidence: findings 55, raw output in `out/analysis/nam.md`.
+
 ## 2.3.3
 
 - FIXED: when the hardware refused a divider layout, the multiplier stayed
